@@ -1,0 +1,51 @@
+{
+  "name": "@idexio/idex-contracts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/idexio/idex-contracts.git"
+  },
+  "private": true,
+  "scripts": {
+    "build": "truffle compile && yarn generate-types && tsc -p . --noEmit",
+    "generate-types": "typechain --target=truffle-v5 'build/contracts/*.json'",
+    "test": "truffle test"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^8.2.0",
+    "@commitlint/config-conventional": "^8.2.0",
+    "@typechain/truffle-v5": "^2.0.0",
+    "@types/chai": "^4.2.11",
+    "@types/mocha": "^7.0.2",
+    "@typescript-eslint/eslint-plugin": "^2.3.2",
+    "@typescript-eslint/parser": "^2.3.2",
+    "eslint": "^6.5.1",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.3.0",
+    "eslint-import-resolver-typescript": "^2.0.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-prettier": "^3.1.1",
+    "eslint-plugin-promise": "^4.2.1",
+    "husky": "^4.2.5",
+    "markdownlint-cli": "^0.22.0",
+    "prettier": "^2.0.2",
+    "prettier-eslint": "^9.0.0",
+    "prettier-eslint-cli": "^5.0.0",
+    "truffle": "^5.1.24",
+    "ts-node": "^8.4.1",
+    "ts-node-dev": "^1.0.0-pre.43",
+    "typechain": "^2.0.0",
+    "typescript": "3.8.3",
+    "web3": "^1.2.6"
+  },
+  "husky": {
+    "hooks": {
+      "commit-msg": "[[ -n $HUSKY_BYPASS ]] || commitlint -E HUSKY_GIT_PARAMS",
+      "pre-commit": "yarn lint:markdown && yarn test"
+    }
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  }
+}
