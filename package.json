@@ -6,13 +6,15 @@
   },
   "private": true,
   "scripts": {
-    "build": "truffle compile && yarn generate-types && tsc -p . --noEmit",
+    "build": "truffle compile && yarn generate-types && tsc -p .",
     "generate-types": "typechain --target=truffle-v5 'build/contracts/*.json'",
+    "prettier": "prettier --write **/*.sol",
     "test": "truffle test"
   },
   "devDependencies": {
     "@commitlint/cli": "^8.2.0",
     "@commitlint/config-conventional": "^8.2.0",
+    "@openzeppelin/contracts": "^3.0.1",
     "@typechain/truffle-v5": "^2.0.0",
     "@types/chai": "^4.2.11",
     "@types/mocha": "^7.0.2",
@@ -32,6 +34,7 @@
     "prettier": "^2.0.2",
     "prettier-eslint": "^9.0.0",
     "prettier-eslint-cli": "^5.0.0",
+    "prettier-plugin-solidity": "^1.0.0-alpha.49",
     "solidity-coverage": "^0.7.5",
     "truffle": "^5.1.24",
     "ts-node": "^8.4.1",

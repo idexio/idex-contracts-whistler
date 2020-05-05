@@ -1,11 +1,16 @@
 {
   "compilerOptions": {
+    "esModuleInterop": true,
     "lib": ["ES2018", "DOM"],
     "module": "CommonJS",
     "moduleResolution": "node",
+    "outDir": "build/test",
     "strict": true,
     "target": "ES2018",
     "sourceMap": true,
-    "esModuleInterop": true
-  }
+    "typeRoots": ["./types", "./node_modules/@types"],
+    "types": ["node", "truffle-contracts"]
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "build"]
 }

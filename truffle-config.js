@@ -92,8 +92,10 @@ module.exports = {
           enabled: true,
           runs: 1,
         },
-        evmVersion: 'byzantium',
+        evmVersion: 'constantinople',
       },
     },
   },
+
+  test_directory: 'build/test',
 };
