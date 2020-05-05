@@ -1,8 +1,13 @@
 module.exports = {
   parser: '@typescript-eslint/parser',
   parserOptions: {
-    tsconfigRootDir: './packages',
-    project: 'tsconfig.base.json',
+    tsconfigRootDir: './',
+    project: 'tsconfig.json',
+  },
+  env: {
+    node: true,
+    mocha: true,
+    'truffle/globals': true,
   },
   extends: [
     'airbnb-base',
@@ -11,8 +16,9 @@ module.exports = {
     'prettier',
     'prettier/@typescript-eslint',
     'plugin:prettier/recommended',
+    'plugin:chai-expect/recommended',
   ],
-  globals: { BigInt: true },
+  globals: { BigInt: true, expect: true },
   rules: {
     '@typescript-eslint/no-use-before-define': 'off',
     // cant handle Category$Name at the moment, although
@@ -24,6 +30,7 @@ module.exports = {
     curly: ['error', 'all'],
     'no-restricted-syntax': 'off',
     'no-multi-assign': 'off',
+    'no-unused-expressions': 'off',
     'no-use-before-define': 'off',
     'no-console': 'off',
     'no-underscore-dangle': 'off',
@@ -36,7 +43,7 @@ module.exports = {
         jsx: 'never',
         ts: 'never',
         tsx: 'never',
-      }
+      },
     ],
     'import/no-cycle': 'off',
     'import/prefer-default-export': 'off',
@@ -50,11 +57,18 @@ module.exports = {
     quotes: ['error', 'single', { avoidEscape: true }],
     'object-curly-spacing': ['error', 'always'],
   },
-  plugins: ['import', 'promise', 'prettier', '@typescript-eslint'],
+  plugins: [
+    'import',
+    'promise',
+    'prettier',
+    '@typescript-eslint',
+    'truffle',
+    'chai-expect',
+  ],
   settings: {
     'import/resolver': {
       typescript: {
-        directory: './packages/tsconfig.base.json',
+        directory: './tsconfig.json',
       },
     },
   },
