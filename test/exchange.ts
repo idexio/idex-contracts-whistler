@@ -144,6 +144,33 @@ contract('Exchange', (accounts) => {
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
     });
+
+    it('should work by address for ETH', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      await exchange.setDispatcher(accounts[0]);
+      await exchange.depositEther({
+        value: minimumTokenQuantity,
+        from: accounts[0],
+      });
+
+      const args = await getWithdrawArguments(
+        {
+          nonce: uuidv1(),
+          wallet: accounts[0],
+          quantity: minimumDecimalQuantity,
+          autoDispatchEnabled: true,
+          asset: 'ETH',
+        },
+        '0',
+        (hashToSign: string) => web3.eth.sign(hashToSign, accounts[0]),
+      );
+      // TODO Typescript doesn't like the spread syntax for args
+      await exchange.withdraw(args[0], args[1], args[2]);
+
+      const events = await exchange.getPastEvents('Withdrawn');
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+    });
   });
 
   const deployAndAssociateContracts = async (
