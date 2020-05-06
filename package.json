@@ -10,6 +10,7 @@
     "clean": "rm -rf build; rm -rf types/truffle-contracts; rm -rf coverage",
     "coverage": "truffle run coverage && make-coverage-badge --output-path ./coverage-badge.svg",
     "generate-types": "typechain --target=truffle-v5 'build/contracts/*.json'",
+    "lint:markdown": "markdownlint README.md",
     "prettier": "prettier --write **/*.sol",
     "test": "truffle test",
     "verify": "truffle run verify"
@@ -60,7 +61,7 @@
   "husky": {
     "hooks": {
       "commit-msg": "[[ -n $HUSKY_BYPASS ]] || commitlint -E HUSKY_GIT_PARAMS",
-      "pre-commit": "yarn lint:markdown && yarn test && yarn coverage"
+      "pre-commit": "yarn lint:markdown && yarn coverage"
     }
   },
   "commitlint": {
