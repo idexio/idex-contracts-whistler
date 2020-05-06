@@ -80,7 +80,7 @@ library Tokens {
       return address(0x0);
     } else if (self.tokensBySymbol[symbol].length > 0) {
       for (uint8 i = 0; i < self.tokensBySymbol[symbol].length; i++) {
-        if (self.tokensBySymbol[symbol][i].confirmedAt < timestamp) {
+        if (self.tokensBySymbol[symbol][i].confirmedAt <= timestamp) {
           token = self.tokensBySymbol[symbol][i];
         }
       }

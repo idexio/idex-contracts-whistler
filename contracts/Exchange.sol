@@ -18,7 +18,7 @@ contract Exchange is Owned {
   enum OrderSide {Buy, Sell}
   enum OrderTimeInForce {GTC, GTT, IOC, FOK}
   enum OrderType {Market, Limit, LimitMaker, StopLoss, StopLossLimit, TakeProfit, TakeProfitLimit}
-  enum WithdrawalType {BySymbol, ByToken}
+  enum WithdrawalType {BySymbol, ByAddress}
 
   /* Events */
 
@@ -37,16 +37,16 @@ contract Exchange is Owned {
     uint128 timestamp,
     uint256 effectiveBlockNumber
   );
-  event RegisteredToken(address indexed tokenAddress, string indexed symbol, uint8 decimals);
+  event RegisteredToken(address indexed tokenAddress, string symbol, uint8 decimals);
   event ConfirmedRegisteredToken(
     address indexed tokenAddress,
-    string indexed symbol,
+    string symbol,
     uint8 decimals
   );
   event Traded(
     address indexed buyWallet,
     address indexed sellWallet,
-    string indexed baseSymbol,
+    string baseSymbol,
     string quoteSymbol,
     uint64 baseQuantity,
     uint64 quoteQuantity,

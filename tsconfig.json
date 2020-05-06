@@ -4,7 +4,7 @@
     "lib": ["ES2018", "DOM"],
     "module": "CommonJS",
     "moduleResolution": "node",
-    "outDir": "build/test",
+    "outDir": "build",
     "strict": true,
     "target": "ES2018",
     "sourceMap": true,

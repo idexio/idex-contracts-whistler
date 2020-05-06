@@ -6,18 +6,29 @@
   },
   "private": true,
   "scripts": {
-    "build": "truffle compile && yarn generate-types && tsc -p .",
+    "build": "truffle compile && yarn generate-types && tsc -p . && yarn coverage",
+    "clean": "rm -rf build; rm -rf types/truffle-contracts; rm -rf coverage",
+    "coverage": "truffle run coverage",
     "generate-types": "typechain --target=truffle-v5 'build/contracts/*.json'",
     "prettier": "prettier --write **/*.sol",
-    "test": "truffle test"
+    "test": "truffle test",
+    "verify": "truffle run verify"
+  },
+  "dependencies": {
+    "bignumber.js": "^9.0.0",
+    "chai": "^4.2.0",
+    "ethers": "^4.0.47",
+    "uuid": "^8.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^8.2.0",
     "@commitlint/config-conventional": "^8.2.0",
     "@openzeppelin/contracts": "^3.0.1",
+    "@truffle/debug-utils": "^4.1.1",
     "@typechain/truffle-v5": "^2.0.0",
     "@types/chai": "^4.2.11",
     "@types/mocha": "^7.0.2",
+    "@types/uuid": "^7.0.3",
     "@typescript-eslint/eslint-plugin": "^2.3.2",
     "@typescript-eslint/parser": "^2.3.2",
     "eslint": "^6.8.0",
@@ -37,6 +48,7 @@
     "prettier-plugin-solidity": "^1.0.0-alpha.49",
     "solidity-coverage": "^0.7.5",
     "truffle": "^5.1.24",
+    "truffle-security": "^1.7.1",
     "ts-node": "^8.4.1",
     "ts-node-dev": "^1.0.0-pre.43",
     "typechain": "^2.0.0",
@@ -54,8 +66,5 @@
     "extends": [
       "@commitlint/config-conventional"
     ]
-  },
-  "dependencies": {
-    "chai": "^4.2.0"
   }
 }
