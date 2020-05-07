@@ -1,8 +1,8 @@
 pragma solidity ^0.6.5;
 pragma experimental ABIEncoderV2;
 
-import {IERC20} from './Interfaces.sol';
-import {SafeMath256} from './SafeMath256.sol';
+import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {SafeMath as SafeMath256} from '@openzeppelin/contracts/math/SafeMath.sol';
 
 library Transfers {
   using SafeMath256 for uint256;

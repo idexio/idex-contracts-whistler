@@ -3,8 +3,9 @@
 pragma solidity ^0.6.1;
 pragma experimental ABIEncoderV2;
 
-import {IERC20} from './Interfaces.sol';
-import {SafeMath256} from './SafeMath256.sol';
+import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {SafeMath} from '@openzeppelin/contracts/math/SafeMath.sol';
+
 
 library Tokens {
   struct Token {
@@ -137,7 +138,7 @@ library Tokens {
       'Token transfer failed'
     );
     uint256 balanceAfter = IERC20(tokenAddress).balanceOf(address(this));
-    uint256 result = SafeMath256.sub(balanceAfter, balanceBefore);
+    uint256 result = SafeMath.sub(balanceAfter, balanceBefore);
     require(
       result == tokenQuantityInPipPrecision,
       'Token contract returned transferFrom success without expected balance change'
@@ -168,7 +169,7 @@ library Tokens {
     require(IERC20(tokenAddress).transfer(wallet, tokenQuantity), 'Failed to transfer token');
     uint256 balanceAfter = IERC20(tokenAddress).balanceOf(address(this));
 
-    uint256 result = SafeMath256.sub(balanceBefore, balanceAfter);
+    uint256 result = SafeMath.sub(balanceBefore, balanceAfter);
     require(
       result == tokenQuantity,
       'Token contract returned transfer success without expected balance change'

@@ -7,6 +7,32 @@
 
 This repo collects source code, tests, and documentation for the IDEX Whistler release Ethereum contracts.
 
+## Install
+
+Download and install  [nvm](https://github.com/nvm-sh/nvm#installing-and-updating),
+[yarn](https://classic.yarnpkg.com/en/docs/install), and [python3](https://www.python.org/downloads/). Then:
+
+```console
+pip3 install slither-analyzer
+```
+
+## Usage
+
+This repo is setup as a [Truffle](https://www.trufflesuite.com/docs/truffle/overview) project, with library and test
+code written in Typescript. To build:
+
+```console
+nvm use
+yarn && yarn build
+```
+
+To run test suite, generate coverage report, and perform static analysis:
+
+```console
+yarn coverage
+yarn analyze
+```
+
 ## Background
 
 IDEX is in development on a series of major product releases that together comprise IDEX 2.0.
@@ -35,12 +61,12 @@ The Whistler on-chain infrastructure includes three main contracts and a host of
 
 - Custodian: custodies user funds with minimal additional logic.
   
-- Governance: implements [upgrade logic](#TODO) while enforcing [governance constraints](#TODO).
+- Governance: implements [upgrade logic](#upgradability) while enforcing [governance constraints](#controls-and-governance).
   
 - Exchange: implements the majority of exchange functionality, including wallet asset balance tracking.
   
 - Tokens (library, but deployed as part of the Exchange contract for gas savings): implements
-[token registration](#TODO), symbol and [precision tracking](#TODO).
+[token registration](#token-symbol-registry), symbol and [precision tracking](#precision-and-pips).
 
 Whistler’s contracts are all the contracts under exchange-sdk/contracts that are not in the blackcomb directory.
 
@@ -58,13 +84,14 @@ before calling depositToken on the Exchange contract.
 - The depositEther and depositToken are functions on the Exchange contract, but the funds are ultimately held in the
 Custody contract. As part of the deposit process, tokens are transferred first to the Exchange contract, which tracks
 wallet asset balances, and then transferred again to the Custody contract. Separate exchange logic and fund custody
-supports IDEX 2.0’s [upgrade design](#TODO).
+supports IDEX 2.0’s [upgrade design](#upgradability).
   
-- Deposits are only allowed for [registered tokens](#TODO).
+- Deposits are only allowed for [registered tokens](#token-symbol-registry).
   
-- Deposit amounts are adjusted to IDEX 2.0’s [normalized precision design](#TODO) to prevent depositing any dust.
+- Deposit amounts are adjusted to IDEX 2.0’s [normalized precision design](#precision-and-pips) to prevent depositing
+any dust.
   
-- Deposits from [exited wallets](#TODO) are rejected.
+- Deposits from [exited wallets](#wallet-exits) are rejected.
   
 ### Trade
 
@@ -82,12 +109,13 @@ infrastructure is compromised, the validations ensure that funds can only move i
 depositing wallet.
   
 - Due to business requirements, orders are specified by symbol, eg “UBT-ETH” rather than by token contract addresses.
-A number of validations result from the [token symbol registration system](#TODO). Note the parameters to the trade
-function include the symbol strings separately. This is a gas optimization to order signature verification as concat
-is cheaper than split.
+A number of validations result from the [token symbol registration system](#token-symbol-registry). Note the parameters
+to the trade function include the symbol strings separately. This is a gas optimization to order signature verification
+as string concat is cheaper than split.
   
-- Due to business requirements, order quantity and price are specified as strings in [PIP precision](#TODO), hence the
-need for order signature validation to convert the provided values to strings.
+- Due to business requirements, order quantity and price are specified as strings in
+[PIP precision](#precision-and-pips), hence the need for order signature validation to convert the provided values
+to strings.
   
 - IDEX 2.0 supports partial fills on orders, which requires additional bookkeeping to prevent overfills and replays.
   
@@ -100,13 +128,13 @@ are charged different fees. Fees are deducted from the quantity of asset each pa
 Similar to trade settlement, withdrawals are initiated by users via IDEX’s off-chain components, but calls to the
 Exchange contract’s withdraw function are restricted to whitelisted Dispatch wallets. withdraw calls are limited to the
 Dispatch wallet in order to guarantee the balance update sequence and thus support trading ahead of settlement. There
-is also a [wallet exit](https://docs.google.com/document/d/1an9Ud3AWHy4sO4kyIC9xyXtJSsYmwNWtPx2WKS31--k/edit#heading=h.1gxwkere3lpt)
+is also a [wallet exit](#wallet-exits)
 mechanism to prevent withdrawal censorship by IDEX.
 
 - Withdrawals may be requested by asset symbol or by token contract address. Withdrawal by asset symbol is the standard
 approach as dictated by business rules and requires a lookup of the token contract address in the
-[token symbol registry](#TODO). Withdrawal by token contract asset exists to cover the case where an asset has been
-relisted under the same symbol, for example in the case of a token swap.
+[token symbol registry](#token-symbol-registry). Withdrawal by token contract asset exists to cover the case where an
+asset has been relisted under the same symbol, for example in the case of a token swap.
   
 - IDEX collects fees on withdrawals in order to cover the gas costs of the withdraw function call. Because only an
 IDEX-controlled Dispatch wallet can make the withdraw call, IDEX is the immediate gas payer for user withdrawals.
@@ -135,7 +163,7 @@ be moved off chain going forward.
   
 ## Controls and Governance
 
-The Whistler controls and governance design is captured in its own [spec](#TODO).
+The Whistler controls and governance design is captured in its own [spec](./GOVERNANCE.md).
 
 ## Additional Mechanics
 
@@ -182,20 +210,4 @@ covers the exact mechanics and parameters of the mechanism.
 Whistler includes a wallet exit mechanism, which allows users to withdraw funds in the case IDEX is offline or
 maliciously censoring withdrawals. Calling exitWallet initiates the exit process, which also permanently blacklists
 the wallet from subsequent deposits, trades, or normal withdrawals. Wallet exits are a two-step process as defined in
-[controls](#TODO).
-
-### Install
-
-[nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-[yarn](https://classic.yarnpkg.com/en/docs/install)
-
-### Usage
-
-This repo is setup as a [Truffle](https://www.trufflesuite.com/docs/truffle/overview) project, with library and test
-code written in Typescript. To build, run test suite, and generate coverage report:
-
-```console
-nvm use
-yarn && yarn build
-```
+[controls](#controls-and-governance).

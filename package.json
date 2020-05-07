@@ -6,7 +6,9 @@
   },
   "private": true,
   "scripts": {
-    "build": "truffle compile && yarn generate-types && tsc -p . && yarn coverage",
+    "analyze": "slither .",
+    "build": "truffle compile && yarn generate-types && yarn build:tsc",
+    "build:tsc": "tsc -p .",
     "clean": "rm -rf build; rm -rf types/truffle-contracts; rm -rf coverage",
     "coverage": "truffle run coverage && make-coverage-badge --output-path ./coverage-badge.svg",
     "generate-types": "typechain --target=truffle-v5 'build/contracts/*.json'",
@@ -61,7 +63,7 @@
   "husky": {
     "hooks": {
       "commit-msg": "[[ -n $HUSKY_BYPASS ]] || commitlint -E HUSKY_GIT_PARAMS",
-      "pre-commit": "yarn lint:markdown && yarn coverage"
+      "pre-commit": "yarn lint:markdown && yarn clean && yarn build && yarn coverage"
     }
   },
   "commitlint": {

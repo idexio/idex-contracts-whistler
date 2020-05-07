@@ -1,9 +1,13 @@
 pragma solidity ^0.6.5;
 pragma experimental ABIEncoderV2;
 
-import { ICustodian, IERC20 } from './libraries/Interfaces.sol';
+import {
+  SafeMath as SafeMath256
+} from '@openzeppelin/contracts/math/SafeMath.sol';
+
+import { ICustodian } from './libraries/Interfaces.sol';
+import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import { Owned } from './Owned.sol';
-import { SafeMath256 } from './libraries/SafeMath256.sol';
 import { Transfers } from './libraries/Transfers.sol';
 
 
