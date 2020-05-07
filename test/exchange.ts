@@ -67,7 +67,9 @@ contract('Exchange', (accounts) => {
         from: accounts[0],
       });
 
-      const events = await exchange.getPastEvents('Deposited');
+      const events = await exchange.getPastEvents('Deposited', {
+        fromBlock: 0,
+      });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
     });
@@ -97,7 +99,9 @@ contract('Exchange', (accounts) => {
       await token.approve(exchange.address, minimumTokenQuantity);
       await exchange.depositTokenBySymbol('TKN', minimumTokenQuantity);
 
-      const events = await exchange.getPastEvents('Deposited');
+      const events = await exchange.getPastEvents('Deposited', {
+        fromBlock: 0,
+      });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
     });
@@ -111,9 +115,222 @@ contract('Exchange', (accounts) => {
       await token.approve(exchange.address, minimumTokenQuantity);
       await exchange.depositToken(token.address, minimumTokenQuantity);
 
-      const events = await exchange.getPastEvents('Deposited');
+      const events = await exchange.getPastEvents('Deposited', {
+        fromBlock: 0,
+      });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+    });
+  });
+
+  describe('setChainPropagationDelay', () => {
+    it('should work for value in bounds', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      await exchange.setChainPropagationDelay('10');
+
+      const events = await exchange.getPastEvents(
+        'ChainPropagationDelayChanged',
+        {
+          fromBlock: 0,
+        },
+      );
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+    });
+
+    it('should revert for value out of bounds', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.setChainPropagationDelay('1000000000000000000000000');
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/must be less than/i);
+    });
+  });
+
+  describe('setDispatcher', () => {
+    it('should work for valid address', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      await exchange.setDispatcher(accounts[1]);
+
+      const events = await exchange.getPastEvents('DispatcherChanged', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+    });
+
+    it('should revert for empty address', async () => {
+      const exchange = await Exchange.new();
+
+      let error;
+      try {
+        await exchange.setDispatcher(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet address/i);
+    });
+
+    it('should revert for setting same address as current', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      await exchange.setDispatcher(accounts[1]);
+
+      let error;
+      try {
+        await exchange.setDispatcher(accounts[1]);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/must be different/i);
+    });
+  });
+
+  describe('removeDispatcher', () => {
+    it('should set wallet to zero', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      await exchange.setDispatcher(accounts[1]);
+      await exchange.removeDispatcher();
+
+      const events = await exchange.getPastEvents('DispatcherChanged', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(2);
+      expect(events[1].returnValues.newValue).to.equal(ethAddress);
+    });
+  });
+
+  describe('setFeeWallet', () => {
+    it('should work for valid address', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      await exchange.setFeeWallet(accounts[1]);
+
+      const events = await exchange.getPastEvents('FeeWalletChanged', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+    });
+
+    it('should revert for empty address', async () => {
+      const exchange = await Exchange.new();
+
+      let error;
+      try {
+        await exchange.setFeeWallet(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet address/i);
+    });
+
+    it('should revert for setting same address as current', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      await exchange.setFeeWallet(accounts[1]);
+
+      let error;
+      try {
+        await exchange.setFeeWallet(accounts[1]);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/must be different/i);
+    });
+  });
+
+  describe('setWithdrawalFeeBasisPoints', () => {
+    it('should work for value in bounds', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      await exchange.setWithdrawalFeeBasisPoints('10');
+
+      const events = await exchange.getPastEvents('WithdrawalFeeChanged', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+    });
+
+    it('should revert for value out of bounds', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.setWithdrawalFeeBasisPoints('1000000000000000000000000');
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/excessive withdrawal fee/i);
+    });
+  });
+
+  describe('setTradeMakerFeeBasisPoints', () => {
+    it('should work for value in bounds', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      await exchange.setTradeMakerFeeBasisPoints('10');
+
+      const events = await exchange.getPastEvents('TradeMakerFeeChanged', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+    });
+
+    it('should revert for value out of bounds', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.setTradeMakerFeeBasisPoints('1000000000000000000000000');
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/excessive maker fee/i);
+    });
+  });
+
+  describe('setTradeTakerFeeBasisPoints', () => {
+    it('should work for value in bounds', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      await exchange.setTradeTakerFeeBasisPoints('10');
+
+      const events = await exchange.getPastEvents('TradeTakerFeeChanged', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+    });
+
+    it('should revert for value out of bounds', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.setTradeTakerFeeBasisPoints('1000000000000000000000000');
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/excessive taker fee/i);
     });
   });
 
@@ -142,7 +359,9 @@ contract('Exchange', (accounts) => {
       // TODO Typescript doesn't like the spread syntax for args
       await exchange.withdraw(args[0], args[1], args[2]);
 
-      const events = await exchange.getPastEvents('Withdrawn');
+      const events = await exchange.getPastEvents('Withdrawn', {
+        fromBlock: 0,
+      });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
     });
@@ -169,7 +388,9 @@ contract('Exchange', (accounts) => {
       // TODO Typescript doesn't like the spread syntax for args
       await exchange.withdraw(args[0], args[1], args[2]);
 
-      const events = await exchange.getPastEvents('Withdrawn');
+      const events = await exchange.getPastEvents('Withdrawn', {
+        fromBlock: 0,
+      });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
     });
