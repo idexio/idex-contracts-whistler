@@ -117,6 +117,8 @@ contract('Exchange', (accounts) => {
     });
   });
 
+  // TODO Verify balances
+  // TODO Test gas fees
   describe('withdraw', () => {
     it('should work by symbol for ETH', async () => {
       const { exchange } = await deployAndAssociateContracts();
@@ -159,7 +161,7 @@ contract('Exchange', (accounts) => {
           wallet: accounts[0],
           quantity: minimumDecimalQuantity,
           autoDispatchEnabled: true,
-          asset: 'ETH',
+          assetContractAddress: ethAddress,
         },
         '0',
         (hashToSign: string) => web3.eth.sign(hashToSign, accounts[0]),
