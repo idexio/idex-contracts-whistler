@@ -65,7 +65,7 @@ contract Exchange is Owned {
     string symbol,
     uint8 decimals
   );
-  event Traded(
+  event ExecutedTrade(
     address indexed buyWallet,
     address indexed sellWallet,
     string baseSymbol,
@@ -118,7 +118,6 @@ contract Exchange is Owned {
     OrderSelfTradePrevention selfTradePrevention;
     uint64 cancelAfter;
     // Augmented fields
-    uint128 orderId;
     address baseAssetAddress;
     address quoteAssetAddress;
     uint64 totalQuantity; // pips
@@ -139,16 +138,16 @@ contract Exchange is Owned {
 
   /* Storage */
 
-  // Mapping of orderId => isComplete
-  mapping(uint128 => bool) completedOrderIds;
+  // Mapping of order hash => isComplete
+  mapping(bytes32 => bool) completedOrderIds;
   address payable custodian;
   uint64 depositIndex;
   // Mapping of wallet => asset => balance
   mapping(address => mapping(address => uint256)) balances;
   // Mapping of wallet => last invalidated timestamp
   mapping(address => NonceInvalidation) nonceInvalidations;
-  // Mapping of orderId => filled quantity in pips
-  mapping(uint128 => uint64) partiallyFilledOrderQuantities;
+  // Mapping of order hash => filled quantity in pips
+  mapping(bytes32 => uint64) partiallyFilledOrderQuantities;
   Tokens.Storage internal tokens;
   mapping(address => WalletExit) walletExits;
   // Tunable parameters
@@ -262,12 +261,12 @@ contract Exchange is Owned {
    * Invalidating an order nonce will not clear partial fill quantities for earlier orders
    * because the gas cost for this is potentially unbound
    */
-  function partiallyFilledOrderQuantity(uint128 orderId)
+  function partiallyFilledOrderQuantity(bytes32 orderHash)
     external
     view
     returns (uint64 quantity)
   {
-    return partiallyFilledOrderQuantities[orderId];
+    return partiallyFilledOrderQuantities[orderHash];
   }
 
   /*** Depositing ***/
@@ -443,7 +442,7 @@ contract Exchange is Owned {
 
   /*** Trades ***/
 
-  function trade(
+  function executeTrade(
     Order memory buy,
     string memory buyBaseSymbol,
     string memory buyQuoteSymbol,
@@ -454,7 +453,7 @@ contract Exchange is Owned {
     string memory sellQuoteSymbol,
     string memory sellClientOrderId,
     bytes memory sellWalletSignature,
-    Trade memory _trade
+    Trade memory trade
   ) public onlyDispatcher {
     require(!walletExits[buy.walletAddress].exists, 'Buy wallet exited');
     require(!walletExits[sell.walletAddress].exists, 'Sell wallet exited');
@@ -467,11 +466,11 @@ contract Exchange is Owned {
       sell,
       sellBaseSymbol,
       sellQuoteSymbol,
-      _trade
+      trade
     );
-    validateLimitPrices(buy, sell, _trade);
+    validateLimitPrices(buy, sell, trade);
     validateOrderNonces(buy, sell);
-    validateOrderSignatures(
+    (bytes32 buyHash, bytes32 sellHash) = validateOrderSignatures(
       buy,
       buyBaseSymbol,
       buyQuoteSymbol,
@@ -483,19 +482,19 @@ contract Exchange is Owned {
       sellClientOrderId,
       sellWalletSignature
     );
-    validateTradeFees(buy, _trade);
+    validateTradeFees(buy, trade);
 
-    updateOrderFilledQuantities(buy, sell, _trade);
-    updateBalancesForTrade(buy, sell, _trade);
+    updateOrderFilledQuantities(buy, buyHash, sell, sellHash, trade);
+    updateBalancesForTrade(buy, sell, trade);
 
-    emit Traded(
+    emit ExecutedTrade(
       buy.walletAddress,
       sell.walletAddress,
       buyBaseSymbol,
       buyQuoteSymbol,
-      _trade.grossBaseQuantity,
-      _trade.grossQuoteQuantity,
-      _trade.price
+      trade.grossBaseQuantity,
+      trade.grossQuoteQuantity,
+      trade.price
     );
   }
 
@@ -505,20 +504,20 @@ contract Exchange is Owned {
   function updateBalancesForTrade(
     Order memory buy,
     Order memory sell,
-    Trade memory _trade
+    Trade memory trade
   ) private {
     // Buyer receives base asset minus fees
     balances[buy.walletAddress][buy.baseAssetAddress] = balances[buy
       .walletAddress][buy.baseAssetAddress]
       .add(
-      tokens.pipsToTokenQuantity(_trade.netBaseQuantity, buy.baseAssetAddress)
+      tokens.pipsToTokenQuantity(trade.netBaseQuantity, buy.baseAssetAddress)
     );
     // Buyer gives quote asset including fees
     balances[buy.walletAddress][buy.quoteAssetAddress] = balances[buy
       .walletAddress][buy.quoteAssetAddress]
       .sub(
       tokens.pipsToTokenQuantity(
-        _trade.grossQuoteQuantity,
+        trade.grossQuoteQuantity,
         buy.quoteAssetAddress
       )
     );
@@ -528,7 +527,7 @@ contract Exchange is Owned {
       .walletAddress][sell.baseAssetAddress]
       .sub(
       tokens.pipsToTokenQuantity(
-        _trade.grossBaseQuantity,
+        trade.grossBaseQuantity,
         sell.baseAssetAddress
       )
     );
@@ -537,57 +536,59 @@ contract Exchange is Owned {
       .walletAddress][sell.quoteAssetAddress]
       .add(
       tokens.pipsToTokenQuantity(
-        _trade.netQuoteQuantity,
+        trade.netQuoteQuantity,
         sell.quoteAssetAddress
       )
     );
 
     // Maker and taker fees to fee wallet
-    balances[feeWallet][_trade
-      .makerFeeAssetAddress] = balances[feeWallet][_trade.makerFeeAssetAddress]
+    balances[feeWallet][trade
+      .makerFeeAssetAddress] = balances[feeWallet][trade.makerFeeAssetAddress]
       .add(
       tokens.pipsToTokenQuantity(
-        _trade.makerFeeQuantity,
-        _trade.makerFeeAssetAddress
+        trade.makerFeeQuantity,
+        trade.makerFeeAssetAddress
       )
     );
-    balances[feeWallet][_trade
-      .takerFeeAssetAddress] = balances[feeWallet][_trade.takerFeeAssetAddress]
+    balances[feeWallet][trade
+      .takerFeeAssetAddress] = balances[feeWallet][trade.takerFeeAssetAddress]
       .add(
       tokens.pipsToTokenQuantity(
-        _trade.takerFeeQuantity,
-        _trade.takerFeeAssetAddress
+        trade.takerFeeQuantity,
+        trade.takerFeeAssetAddress
       )
     );
   }
 
   function updateOrderFilledQuantities(
-    Order memory buy,
-    Order memory sell,
-    Trade memory _trade
+    Order memory buyOrder,
+    bytes32 buyOrderHash,
+    Order memory sellOrder,
+    bytes32 sellOrderHash,
+    Trade memory trade
   ) private {
-    updateOrderFilledQuantity(buy, _trade);
-    updateOrderFilledQuantity(sell, _trade);
+    updateOrderFilledQuantity(buyOrder, buyOrderHash, trade);
+    updateOrderFilledQuantity(sellOrder, sellOrderHash, trade);
   }
 
   /*
    * Update filled quantities tracking for order to prevent over- or double-filling orders
    */
-  function updateOrderFilledQuantity(Order memory order, Trade memory _trade)
+  function updateOrderFilledQuantity(Order memory order, bytes32 orderHash, Trade memory trade)
     private
   {
-    require(!completedOrderIds[order.orderId], 'Order double filled');
+    require(!completedOrderIds[orderHash], 'Order double filled');
 
-    uint64 newFilledQuantity = _trade.grossBaseQuantity.add(
-      partiallyFilledOrderQuantities[order.orderId]
+    uint64 newFilledQuantity = trade.grossBaseQuantity.add(
+      partiallyFilledOrderQuantities[orderHash]
     );
     require(newFilledQuantity <= order.totalQuantity, 'Order overfilled');
 
     if (newFilledQuantity < order.totalQuantity) {
-      partiallyFilledOrderQuantities[order.orderId] = newFilledQuantity;
+      partiallyFilledOrderQuantities[orderHash] = newFilledQuantity;
     } else {
-      delete partiallyFilledOrderQuantities[order.orderId];
-      completedOrderIds[order.orderId] = true;
+      delete partiallyFilledOrderQuantities[orderHash];
+      completedOrderIds[orderHash] = true;
     }
   }
 
@@ -600,14 +601,13 @@ contract Exchange is Owned {
     Order memory sell,
     string memory sellBaseSymbol,
     string memory sellQuoteSymbol,
-    Trade memory _trade
+    Trade memory trade
   ) private view {
-    validateTokenAddresses(buy, buyBaseSymbol, buyQuoteSymbol, OrderSide.Buy);
+    validateTokenAddresses(buy, buyBaseSymbol, buyQuoteSymbol);
     validateTokenAddresses(
       sell,
       sellBaseSymbol,
-      sellQuoteSymbol,
-      OrderSide.Sell
+      sellQuoteSymbol
     );
 
     // Both orders must be for same asset pair
@@ -628,17 +628,17 @@ contract Exchange is Owned {
 
     // Fee asset validation
     require(
-      _trade.makerFeeAssetAddress == buy.baseAssetAddress ||
-        _trade.makerFeeAssetAddress == buy.quoteAssetAddress,
+      trade.makerFeeAssetAddress == buy.baseAssetAddress ||
+        trade.makerFeeAssetAddress == buy.quoteAssetAddress,
       'Maker fee asset is not in trade pair'
     );
     require(
-      _trade.takerFeeAssetAddress == buy.baseAssetAddress ||
-        _trade.takerFeeAssetAddress == buy.quoteAssetAddress,
+      trade.takerFeeAssetAddress == buy.baseAssetAddress ||
+        trade.takerFeeAssetAddress == buy.quoteAssetAddress,
       'Taker fee asset is not in trade pair'
     );
     require(
-      _trade.makerFeeAssetAddress != _trade.takerFeeAssetAddress,
+      trade.makerFeeAssetAddress != trade.takerFeeAssetAddress,
       'Maker and taker fee assets must be different'
     );
   }
@@ -646,18 +646,18 @@ contract Exchange is Owned {
   function validateLimitPrices(
     Order memory buy,
     Order memory sell,
-    Trade memory _trade
+    Trade memory trade
   ) private pure {
     require(
-      _trade.grossBaseQuantity > 0,
+      trade.grossBaseQuantity > 0,
       'Base amount must be greater than zero'
     );
     require(
-      _trade.grossQuoteQuantity > 0,
+      trade.grossQuoteQuantity > 0,
       'Quote amount must be greater than zero'
     );
-    uint64 price = _trade.grossQuoteQuantity.mul(10**8).div(
-      _trade.grossBaseQuantity
+    uint64 price = trade.grossQuoteQuantity.mul(10**8).div(
+      trade.grossBaseQuantity
     );
 
     bool exceedsBuyLimit = buy.orderType == OrderType.Limit &&
@@ -672,8 +672,7 @@ contract Exchange is Owned {
   function validateTokenAddresses(
     Order memory order,
     string memory baseSymbol,
-    string memory quoteSymbol,
-    OrderSide side
+    string memory quoteSymbol
   ) private view {
     uint64 timestamp = getTimestampFromUuid(order.nonce);
     address baseAssetAddress = tokens.tokenSymbolToAddress(
@@ -688,46 +687,46 @@ contract Exchange is Owned {
     require(
       baseAssetAddress == order.baseAssetAddress &&
         quoteAssetAddress == order.quoteAssetAddress,
-      side == OrderSide.Buy
+      order.side == OrderSide.Buy
         ? 'Buy order market symbol address resolution mismatch'
         : 'Sell order market symbol address resolution mismatch'
     );
     require(
       baseAssetAddress == address(0x0) ||
         tokens.tokensByAddress[baseAssetAddress].isConfirmed,
-      side == OrderSide.Buy
+      order.side == OrderSide.Buy
         ? 'Buy order base asset registration not confirmed'
         : 'Sell order base asset registration not confirmed'
     );
     require(
       quoteAssetAddress == address(0x0) ||
         tokens.tokensByAddress[quoteAssetAddress].isConfirmed,
-      side == OrderSide.Buy
+      order.side == OrderSide.Buy
         ? 'Buy order quote asset registration not confirmed'
         : 'Sell order quote asset registration not confirmed'
     );
   }
 
-  function validateTradeFees(Order memory order, Trade memory _trade)
+  function validateTradeFees(Order memory order, Trade memory trade)
     private
     view
   {
-    uint64 makerTotalQuantity = _trade.makerFeeAssetAddress ==
+    uint64 makerTotalQuantity = trade.makerFeeAssetAddress ==
       order.baseAssetAddress
-      ? _trade.grossBaseQuantity
-      : _trade.grossQuoteQuantity;
-    uint64 takerTotalQuantity = _trade.takerFeeAssetAddress ==
+      ? trade.grossBaseQuantity
+      : trade.grossQuoteQuantity;
+    uint64 takerTotalQuantity = trade.takerFeeAssetAddress ==
       order.baseAssetAddress
-      ? _trade.grossBaseQuantity
-      : _trade.grossQuoteQuantity;
+      ? trade.grossBaseQuantity
+      : trade.grossQuoteQuantity;
 
     require(
-      getFeeBasisPoints(_trade.makerFeeQuantity, makerTotalQuantity) <=
+      getFeeBasisPoints(trade.makerFeeQuantity, makerTotalQuantity) <=
         tradeMakerFeeBasisPoints,
       'Excessive maker fee'
     );
     require(
-      getFeeBasisPoints(_trade.takerFeeQuantity, takerTotalQuantity) <=
+      getFeeBasisPoints(trade.takerFeeQuantity, takerTotalQuantity) <=
         tradeTakerFeeBasisPoints,
       'Excessive taker fee'
     );
@@ -744,33 +743,52 @@ contract Exchange is Owned {
     string memory sellQuoteSymbol,
     string memory sellClientOrderId,
     bytes memory sellWalletSignature
-  ) private pure {
-    require(
-      ECRecovery.isSignatureValid(
-        getOrderWalletHash(
-          buy,
-          buyBaseSymbol,
-          buyQuoteSymbol,
-          buyClientOrderId
-        ),
-        buyWalletSignature,
-        buy.walletAddress
-      ),
-      'Invalid wallet signature for buy order'
+  ) private pure returns (bytes32, bytes32) {
+    bytes32 buyOrderHash = validateOrderSignature(
+      buy,
+      buyBaseSymbol,
+      buyQuoteSymbol,
+      buyClientOrderId,
+      buyWalletSignature
     );
+    bytes32 sellOrderHash = validateOrderSignature(
+      sell,
+      sellBaseSymbol,
+      sellQuoteSymbol,
+      sellClientOrderId,
+      sellWalletSignature
+    );
+
+    return (buyOrderHash, sellOrderHash);
+  }
+
+  function validateOrderSignature(
+    Order memory order,
+    string memory baseSymbol,
+    string memory quoteSymbol,
+    string memory clientOrderId,
+    bytes memory walletSignature
+  ) private pure returns (bytes32) {
+    bytes32 orderHash = getOrderWalletHash(
+      order,
+      baseSymbol,
+      quoteSymbol,
+      clientOrderId
+    );
+
     require(
       ECRecovery.isSignatureValid(
-        getOrderWalletHash(
-          sell,
-          sellBaseSymbol,
-          sellQuoteSymbol,
-          sellClientOrderId
-        ),
-        sellWalletSignature,
-        sell.walletAddress
+        orderHash,
+        walletSignature,
+        order.walletAddress
       ),
+      order.side == OrderSide.Buy
+        ? 
+      'Invalid wallet signature for buy order':
       'Invalid wallet signature for sell order'
     );
+
+    return orderHash;
   }
 
   function validateOrderNonces(Order memory buy, Order memory sell)
@@ -823,10 +841,10 @@ contract Exchange is Owned {
             uint8(order.side),
             uint8(order.timeInForce),
             // Ledger qtys and prices are in pip, but order was signed by wallet owner with decimal values
-            pipToDecimal(order.quantity)
+            order.quantity > 0 ? pipToDecimal(order.quantity) : ''
           ),
           abi.encodePacked(
-            pipToDecimal(order.quoteOrderQuantity),
+            order.quoteOrderQuantity > 0 ? pipToDecimal(order.quoteOrderQuantity) : '',
             order.limitPrice > 0 ? pipToDecimal(order.limitPrice) : '',
             clientOrderId,
             order.stopPrice > 0 ? pipToDecimal(order.stopPrice) : '',

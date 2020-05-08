@@ -7,8 +7,9 @@
   "private": true,
   "scripts": {
     "analyze": "slither .",
-    "build": "truffle compile && yarn generate-types && yarn build:tsc",
-    "build:tsc": "tsc -p .",
+    "build": "yarn build:sol && yarn build:ts",
+    "build:sol": "truffle compile && yarn generate-types",
+    "build:ts": "tsc -p .",
     "clean": "rm -rf build; rm -rf types/truffle-contracts; rm -rf coverage",
     "coverage": "truffle run coverage && make-coverage-badge --output-path ./assets/coverage-badge.svg",
     "generate-types": "typechain --target=truffle-v5 'build/contracts/*.json'",

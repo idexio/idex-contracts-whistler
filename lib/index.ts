@@ -6,12 +6,70 @@ import { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 /** The fixed number of digits following the decimal in quantities expressed as pips */
 export const pipsDecimals = 8;
 
+export enum OrderSelfTradePrevention {
+  DecreaseAndCancel,
+  CancelOldest,
+  CancelNewest,
+  CancelBoth,
+}
+export enum OrderSide {
+  Buy,
+  Sell,
+}
+export enum OrderTimeInForce {
+  GTC,
+  GTT,
+  IOC,
+  FOK,
+}
+export enum OrderType {
+  Market,
+  Limit,
+  LimitMaker,
+  StopLoss,
+  StopLossLimit,
+  TakeProfit,
+  TakeProfitLimit,
+}
+export interface Order {
+  nonce: string;
+  wallet: string;
+  market: string;
+  type: OrderType;
+  side: OrderSide;
+  timeInForce?: OrderTimeInForce;
+  quantity?: string;
+  quoteOrderQuantity?: string;
+  price: string;
+  customClientOrderId?: string;
+  stopPrice?: string;
+  selfTradePrevention?: OrderSelfTradePrevention;
+  cancelAfter?: number;
+  // Augmented fields not signed by trader wallet
+  /* An order can be created with less quantity than originally specified above, for example
+   * decreaseAndCancel self-trade prevention */
+  totalQuantity: string;
+  baseAssetAddress: string;
+  quoteAssetAddress: string;
+}
+export interface Trade {
+  grossBaseQuantity: string; // pips
+  grossQuoteQuantity: string; // pips
+  netBaseQuantity: string; // pips
+  netQuoteQuantity: string; // pips
+  makerFeeAssetAddress: string;
+  takerFeeAssetAddress: string;
+  makerFeeQuantity: string; // pips
+  takerFeeQuantity: string; // pips
+  price: string; // decimal pips * 10^8
+  makerSide: OrderSide;
+}
+
 enum WithdrawalType {
   BySymbol,
   ByAddress,
 }
-
-interface Withdrawal {
+export interface Withdrawal {
   nonce: string;
   wallet: string;
   quantity: string; // Decimal string
@@ -22,12 +80,22 @@ interface Withdrawal {
 
 export const ethAddress = '0x0000000000000000000000000000000000000000';
 
-export const getPrivateKeySigner = (walletPrivateKey: string) => (
-  hashToSign: string,
-): Promise<string> =>
-  new ethers.Wallet(walletPrivateKey).signMessage(
-    ethers.utils.arrayify(hashToSign),
-  );
+export const getOrderHash = (order: Order): string =>
+  solidityHashOfParams([
+    ['uint128', uuidToUint8Array(order.nonce)],
+    ['address', order.wallet],
+    ['string', order.market],
+    ['uint8', order.type],
+    ['uint8', order.side],
+    ['uint8', order.timeInForce || 0],
+    ['string', order.quantity || ''],
+    ['string', order.quoteOrderQuantity || ''],
+    ['string', order.price || ''],
+    ['string', order.customClientOrderId || ''],
+    ['string', order.stopPrice || ''],
+    ['uint8', order.selfTradePrevention || 0],
+    ['uint64', order.cancelAfter || 0],
+  ]);
 
 export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
   if (
@@ -50,11 +118,65 @@ export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
   ]);
 };
 
-export const getWithdrawArguments = async (
+export const getTradeArguments = (
+  buyOrder: Order,
+  buyWalletSignature: string,
+  sellOrder: Order,
+  sellWalletSignature: string,
+  trade: Trade,
+): ExchangeInstance['executeTrade']['arguments'] => {
+  const orderToArgumentStruct = (o: Order) => {
+    return {
+      nonce: uuidToHexString(o.nonce),
+      walletAddress: o.wallet,
+      orderType: o.type,
+      side: o.side,
+      timeInForce: o.timeInForce || 0,
+      quantity: decimalToPips(o.quantity || '0'),
+      quoteOrderQuantity: decimalToPips(o.quoteOrderQuantity || '0'),
+      limitPrice: decimalToPips(o.price || '0'),
+      stopPrice: decimalToPips(o.stopPrice || '0'),
+      selfTradePrevention: o.selfTradePrevention || 0,
+      cancelAfter: o.cancelAfter || 0,
+      baseAssetAddress: o.baseAssetAddress,
+      quoteAssetAddress: o.quoteAssetAddress,
+      totalQuantity: decimalToPips(o.totalQuantity),
+    };
+  };
+  const tradeToArgumentStruct = (t: Trade) => {
+    return {
+      grossBaseQuantity: decimalToPips(t.grossBaseQuantity),
+      grossQuoteQuantity: decimalToPips(t.grossQuoteQuantity),
+      netBaseQuantity: decimalToPips(t.netBaseQuantity),
+      netQuoteQuantity: decimalToPips(t.netQuoteQuantity),
+      makerFeeAssetAddress: t.makerFeeAssetAddress,
+      takerFeeAssetAddress: t.takerFeeAssetAddress,
+      makerFeeQuantity: decimalToPips(t.makerFeeQuantity),
+      takerFeeQuantity: decimalToPips(t.takerFeeQuantity),
+      price: decimalToPips(t.price),
+      makerSide: t.makerSide,
+    };
+  };
+  return [
+    orderToArgumentStruct(buyOrder),
+    buyOrder.market.split('-')[0],
+    buyOrder.market.split('-')[1],
+    buyOrder.customClientOrderId || '',
+    buyWalletSignature,
+    orderToArgumentStruct(sellOrder),
+    sellOrder.market.split('-')[0],
+    sellOrder.market.split('-')[1],
+    sellOrder.customClientOrderId || '',
+    sellWalletSignature,
+    tradeToArgumentStruct(trade),
+  ] as const;
+};
+
+export const getWithdrawArguments = (
   withdrawal: Withdrawal,
   gasFee: string,
-  signer: (hashToSign: string) => Promise<string>,
-): Promise<ExchangeInstance['withdraw']['arguments']> => {
+  walletSignature: string,
+): ExchangeInstance['withdraw']['arguments'] => {
   return [
     {
       withdrawalType: withdrawal.assetContractAddress
@@ -68,7 +190,7 @@ export const getWithdrawArguments = async (
       autoDispatchEnabled: true,
     },
     withdrawal.asset || '',
-    await signer(getWithdrawalHash(withdrawal)),
+    walletSignature,
   ];
 };
 

@@ -1,11 +1,23 @@
+import BigNumber from 'bignumber.js';
 import { v1 as uuidv1 } from 'uuid';
 
-import { CustodianInstance } from '../types/truffle-contracts/Custodian';
-import { ExchangeInstance } from '../types/truffle-contracts/Exchange';
-import { GovernanceInstance } from '../types/truffle-contracts/Governance';
-import { TokenInstance } from '../types/truffle-contracts';
+import type { CustodianInstance } from '../types/truffle-contracts/Custodian';
+import type { ExchangeInstance } from '../types/truffle-contracts/Exchange';
+import type { GovernanceInstance } from '../types/truffle-contracts/Governance';
+import type { TokenInstance } from '../types/truffle-contracts';
 
-import { getWithdrawArguments, decimalToTokenQuantity } from '../lib';
+import {
+  getWithdrawArguments,
+  decimalToTokenQuantity,
+  Order,
+  OrderSide,
+  OrderType,
+  getTradeArguments,
+  getWithdrawalHash,
+  Trade,
+  Withdrawal,
+  getOrderHash,
+} from '../lib';
 
 contract('Exchange', (accounts) => {
   const Custodian = artifacts.require('Custodian');
@@ -14,6 +26,9 @@ contract('Exchange', (accounts) => {
   const Token = artifacts.require('Token');
 
   const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
+  const ethSymbol = 'ETH';
+  const tokenSymbol = 'TKN';
+  const marketSymbol = `${tokenSymbol}-${ethSymbol}`;
   const minimumDecimalQuantity = '0.00000001';
   // TODO Test tokens with decimals other than 18
   const minimumTokenQuantity = decimalToTokenQuantity(
@@ -97,7 +112,7 @@ contract('Exchange', (accounts) => {
       const token = await deployAndRegisterToken(exchange);
 
       await token.approve(exchange.address, minimumTokenQuantity);
-      await exchange.depositTokenBySymbol('TKN', minimumTokenQuantity);
+      await exchange.depositTokenBySymbol(tokenSymbol, minimumTokenQuantity);
 
       const events = await exchange.getPastEvents('Deposited', {
         fromBlock: 0,
@@ -192,6 +207,124 @@ contract('Exchange', (accounts) => {
       }
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/must be different/i);
+    });
+  });
+
+  describe('executeTrade', () => {
+    it('should work for matching limit orders', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      const quantity = '10.00000000';
+      const price = '0.10000000'; // 1 ETH buys 10 TKN
+      const quoteQuantity = new BigNumber(quantity)
+        .multipliedBy(new BigNumber(price))
+        .toFixed(8, BigNumber.ROUND_DOWN);
+
+      await token.approve(
+        exchange.address,
+        decimalToTokenQuantity(quantity, 18),
+        {
+          from: sellWallet,
+        },
+      );
+      await exchange.depositToken(
+        token.address,
+        decimalToTokenQuantity(quantity, 18),
+        {
+          from: sellWallet,
+        },
+      );
+      await exchange.depositEther({
+        value: decimalToTokenQuantity(quoteQuantity, 18),
+        from: buyWallet,
+      });
+
+      const sellOrder: Order = {
+        nonce: uuidv1(),
+        wallet: sellWallet,
+        market: marketSymbol,
+        type: OrderType.Limit,
+        side: OrderSide.Sell,
+        quantity,
+        price,
+        baseAssetAddress: token.address,
+        quoteAssetAddress: ethAddress,
+        totalQuantity: quantity,
+      };
+      const sellSignature = await web3.eth.sign(
+        getOrderHash(sellOrder),
+        sellWallet,
+      );
+      const buyOrder: Order = {
+        nonce: uuidv1(),
+        wallet: buyWallet,
+        market: marketSymbol,
+        type: OrderType.Limit,
+        side: OrderSide.Buy,
+        quantity,
+        price,
+        baseAssetAddress: token.address,
+        quoteAssetAddress: ethAddress,
+        totalQuantity: quantity,
+      };
+      const buySignature = await web3.eth.sign(
+        getOrderHash(buyOrder),
+        buyWallet,
+      );
+
+      const fill: Trade = {
+        grossBaseQuantity: quantity,
+        grossQuoteQuantity: quoteQuantity,
+        netBaseQuantity: quantity, // No fee
+        netQuoteQuantity: quoteQuantity, // No fee
+        makerFeeAssetAddress: ethAddress,
+        takerFeeAssetAddress: token.address,
+        makerFeeQuantity: '0',
+        takerFeeQuantity: '0',
+        price,
+        makerSide: OrderSide.Sell,
+      };
+
+      const [
+        buy,
+        buyBaseSymbol,
+        buyQuoteSymbol,
+        buyClientOrderId,
+        buyWalletSignature,
+        sell,
+        sellBaseSymbol,
+        sellQuoteSymbol,
+        sellClientOrderId,
+        sellWalletSignature,
+        trade,
+      ] = getTradeArguments(
+        buyOrder,
+        buySignature,
+        sellOrder,
+        sellSignature,
+        fill,
+      );
+      await exchange.executeTrade(
+        buy,
+        buyBaseSymbol,
+        buyQuoteSymbol,
+        buyClientOrderId,
+        buyWalletSignature,
+        sell,
+        sellBaseSymbol,
+        sellQuoteSymbol,
+        sellClientOrderId,
+        sellWalletSignature,
+        trade,
+      );
+
+      const events = await exchange.getPastEvents('ExecutedTrade', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
     });
   });
 
@@ -345,19 +478,17 @@ contract('Exchange', (accounts) => {
         from: accounts[0],
       });
 
-      const args = await getWithdrawArguments(
+      await withdraw(
+        exchange,
         {
           nonce: uuidv1(),
           wallet: accounts[0],
           quantity: minimumDecimalQuantity,
           autoDispatchEnabled: true,
-          asset: 'ETH',
+          asset: ethSymbol,
         },
-        '0',
-        (hashToSign: string) => web3.eth.sign(hashToSign, accounts[0]),
+        accounts[0],
       );
-      // TODO Typescript doesn't like the spread syntax for args
-      await exchange.withdraw(args[0], args[1], args[2]);
 
       const events = await exchange.getPastEvents('Withdrawn', {
         fromBlock: 0,
@@ -374,7 +505,8 @@ contract('Exchange', (accounts) => {
         from: accounts[0],
       });
 
-      const args = await getWithdrawArguments(
+      await withdraw(
+        exchange,
         {
           nonce: uuidv1(),
           wallet: accounts[0],
@@ -382,11 +514,8 @@ contract('Exchange', (accounts) => {
           autoDispatchEnabled: true,
           assetContractAddress: ethAddress,
         },
-        '0',
-        (hashToSign: string) => web3.eth.sign(hashToSign, accounts[0]),
+        accounts[0],
       );
-      // TODO Typescript doesn't like the spread syntax for args
-      await exchange.withdraw(args[0], args[1], args[2]);
 
       const events = await exchange.getPastEvents('Withdrawn', {
         fromBlock: 0,
@@ -417,9 +546,31 @@ contract('Exchange', (accounts) => {
     exchange: ExchangeInstance,
   ): Promise<TokenInstance> => {
     const token = await Token.new();
-    await exchange.registerToken(token.address, 'TKN', 18);
-    await exchange.confirmTokenRegistration(token.address, 'TKN', 18);
+    await exchange.registerToken(token.address, tokenSymbol, 18);
+    await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
 
     return token;
+  };
+
+  const withdraw = async (
+    exchange: ExchangeInstance,
+    withdrawal: Withdrawal,
+    wallet: string,
+  ): Promise<void> => {
+    const [
+      withdrawalStruct,
+      withdrawalTokenSymbol,
+      withdrawalWalletSignature,
+    ] = await getWithdrawArguments(
+      withdrawal,
+      '0',
+      await web3.eth.sign(getWithdrawalHash(withdrawal), wallet),
+    );
+
+    await exchange.withdraw(
+      withdrawalStruct,
+      withdrawalTokenSymbol,
+      withdrawalWalletSignature,
+    );
   };
 });
