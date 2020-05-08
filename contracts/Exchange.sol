@@ -139,7 +139,9 @@ contract Exchange is Owned {
   /* Storage */
 
   // Mapping of order hash => isComplete
-  mapping(bytes32 => bool) completedOrderIds;
+  mapping(bytes32 => bool) completedOrderHashes;
+  // Mapping of order hash => isComplete
+  mapping(bytes32 => bool) completedWithdrawalHashes;
   address payable custodian;
   uint64 depositIndex;
   // Mapping of wallet => asset => balance
@@ -372,11 +374,12 @@ contract Exchange is Owned {
         withdrawalFeeBasisPoints,
       'Excessive withdrawal fee'
     );
-    validateWithdrawalSignature(
+    bytes32 withdrawalHash = validateWithdrawalSignature(
       withdrawal,
       withdrawalTokenSymbol,
       withdrawalWalletSignature
     );
+    require(!completedWithdrawalHashes[withdrawalHash], 'Hash already withdrawn');
 
     // If withdrawal is by asset symbol (most common) then resolve to asset address
     address assetAddress = withdrawal.withdrawalType == WithdrawalType.BySymbol
@@ -407,6 +410,8 @@ contract Exchange is Owned {
         assetAddress
       )
     );
+
+    completedWithdrawalHashes[withdrawalHash] = true;
 
     emit Withdrawn(withdrawal.walletAddress, assetAddress, quantityInWei);
   }
@@ -577,7 +582,7 @@ contract Exchange is Owned {
   function updateOrderFilledQuantity(Order memory order, bytes32 orderHash, Trade memory trade)
     private
   {
-    require(!completedOrderIds[orderHash], 'Order double filled');
+    require(!completedOrderHashes[orderHash], 'Order double filled');
 
     uint64 newFilledQuantity = trade.grossBaseQuantity.add(
       partiallyFilledOrderQuantities[orderHash]
@@ -588,7 +593,7 @@ contract Exchange is Owned {
       partiallyFilledOrderQuantities[orderHash] = newFilledQuantity;
     } else {
       delete partiallyFilledOrderQuantities[orderHash];
-      completedOrderIds[orderHash] = true;
+      completedOrderHashes[orderHash] = true;
     }
   }
 
@@ -811,15 +816,19 @@ contract Exchange is Owned {
     Withdrawal memory withdrawal,
     string memory withdrawalTokenSymbol,
     bytes memory withdrawalWalletSignature
-  ) private pure {
+  ) private pure returns (bytes32) {
+    bytes32 withdrawalHash = getWithdrawalWalletHash(withdrawal, withdrawalTokenSymbol);
+
     require(
       ECRecovery.isSignatureValid(
-        getWithdrawalWalletHash(withdrawal, withdrawalTokenSymbol),
+        withdrawalHash,
         withdrawalWalletSignature,
         withdrawal.walletAddress
       ),
       'Invalid wallet signature'
     );
+
+    return withdrawalHash;
   }
 
   /*** Wallet signature hashes ***/
