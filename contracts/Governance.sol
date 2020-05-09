@@ -1,10 +1,17 @@
 pragma solidity ^0.6.5;
 pragma experimental ABIEncoderV2;
 
-import {ICustodian} from './libraries/Interfaces.sol';
-import {Owned} from './Owned.sol';
+import { ICustodian } from './libraries/Interfaces.sol';
+import { Owned } from './Owned.sol';
+
 
 contract Governance is Owned {
+  event ExchangeUpgradeInitiated(
+    address oldExchange,
+    address newExchange,
+    uint256 blockThreshold
+  );
+
   struct ContractUpgrade {
     bool exists;
     address newContract;
@@ -16,7 +23,7 @@ contract Governance is Owned {
   ContractUpgrade internal currentExchangeUpgrade;
   ContractUpgrade internal currentGovernanceUpgrade;
 
-  constructor(uint256 _blockDelay) Owned() public {
+  constructor(uint256 _blockDelay) public Owned() {
     blockDelay = _blockDelay;
   }
 
@@ -29,11 +36,19 @@ contract Governance is Owned {
 
   function initiateExchangeUpgrade(address newExchange) external onlyAdmin {
     require(newExchange != address(0x0), 'Invalid address');
-    require(!currentExchangeUpgrade.exists, 'Exchange upgrade already in progress');
+    require(
+      !currentExchangeUpgrade.exists,
+      'Exchange upgrade already in progress'
+    );
     currentExchangeUpgrade = ContractUpgrade(
       true,
       newExchange,
       block.number + blockDelay
+    );
+    emit ExchangeUpgradeInitiated(
+      custodian.getExchange(),
+      newExchange,
+      currentExchangeUpgrade.blockThreshold
     );
   }
 
@@ -44,8 +59,14 @@ contract Governance is Owned {
 
   function finalizeExchangeUpgrade(address newExchange) external onlyAdmin {
     require(currentExchangeUpgrade.exists, 'No Exchange upgrade in progress');
-    require(currentExchangeUpgrade.newContract == newExchange, 'Address mismatch');
-    require(block.number >= currentExchangeUpgrade.blockThreshold, 'Block threshold not yet reached');
+    require(
+      currentExchangeUpgrade.newContract == newExchange,
+      'Address mismatch'
+    );
+    require(
+      block.number >= currentExchangeUpgrade.blockThreshold,
+      'Block threshold not yet reached'
+    );
 
     delete currentExchangeUpgrade;
     custodian.setExchange(newExchange);
@@ -55,7 +76,10 @@ contract Governance is Owned {
 
   function initiateGovernanceUpgrade(address newGovernance) external onlyAdmin {
     require(newGovernance != address(0x0), 'Invalid address');
-    require(!currentGovernanceUpgrade.exists, 'Governance upgrade already in progress');
+    require(
+      !currentGovernanceUpgrade.exists,
+      'Governance upgrade already in progress'
+    );
     currentGovernanceUpgrade = ContractUpgrade(
       true,
       newGovernance,
@@ -64,14 +88,26 @@ contract Governance is Owned {
   }
 
   function cancelGovernanceUpgrade() external onlyAdmin {
-    require(currentGovernanceUpgrade.exists, 'No Governance upgrade in progress');
+    require(
+      currentGovernanceUpgrade.exists,
+      'No Governance upgrade in progress'
+    );
     delete currentGovernanceUpgrade;
   }
 
   function finalizeGovernanceUpgrade(address newGovernance) external onlyAdmin {
-    require(currentGovernanceUpgrade.exists, 'No Governance upgrade in progress');
-    require(currentGovernanceUpgrade.newContract == newGovernance, 'Address mismatch');
-    require(block.number >= currentGovernanceUpgrade.blockThreshold, 'Block threshold not yet reached');
+    require(
+      currentGovernanceUpgrade.exists,
+      'No Governance upgrade in progress'
+    );
+    require(
+      currentGovernanceUpgrade.newContract == newGovernance,
+      'Address mismatch'
+    );
+    require(
+      block.number >= currentGovernanceUpgrade.blockThreshold,
+      'Block threshold not yet reached'
+    );
 
     delete currentGovernanceUpgrade;
     custodian.setGovernance(newGovernance);

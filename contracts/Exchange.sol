@@ -379,7 +379,10 @@ contract Exchange is Owned {
       withdrawalTokenSymbol,
       withdrawalWalletSignature
     );
-    require(!completedWithdrawalHashes[withdrawalHash], 'Hash already withdrawn');
+    require(
+      !completedWithdrawalHashes[withdrawalHash],
+      'Hash already withdrawn'
+    );
 
     // If withdrawal is by asset symbol (most common) then resolve to asset address
     address assetAddress = withdrawal.withdrawalType == WithdrawalType.BySymbol
@@ -531,32 +534,26 @@ contract Exchange is Owned {
     balances[sell.walletAddress][sell.baseAssetAddress] = balances[sell
       .walletAddress][sell.baseAssetAddress]
       .sub(
-      tokens.pipsToTokenQuantity(
-        trade.grossBaseQuantity,
-        sell.baseAssetAddress
-      )
+      tokens.pipsToTokenQuantity(trade.grossBaseQuantity, sell.baseAssetAddress)
     );
     // Seller receives quote asset minus fees
     balances[sell.walletAddress][sell.quoteAssetAddress] = balances[sell
       .walletAddress][sell.quoteAssetAddress]
       .add(
-      tokens.pipsToTokenQuantity(
-        trade.netQuoteQuantity,
-        sell.quoteAssetAddress
-      )
+      tokens.pipsToTokenQuantity(trade.netQuoteQuantity, sell.quoteAssetAddress)
     );
 
     // Maker and taker fees to fee wallet
-    balances[feeWallet][trade
-      .makerFeeAssetAddress] = balances[feeWallet][trade.makerFeeAssetAddress]
+    balances[feeWallet][trade.makerFeeAssetAddress] = balances[feeWallet][trade
+      .makerFeeAssetAddress]
       .add(
       tokens.pipsToTokenQuantity(
         trade.makerFeeQuantity,
         trade.makerFeeAssetAddress
       )
     );
-    balances[feeWallet][trade
-      .takerFeeAssetAddress] = balances[feeWallet][trade.takerFeeAssetAddress]
+    balances[feeWallet][trade.takerFeeAssetAddress] = balances[feeWallet][trade
+      .takerFeeAssetAddress]
       .add(
       tokens.pipsToTokenQuantity(
         trade.takerFeeQuantity,
@@ -579,9 +576,11 @@ contract Exchange is Owned {
   /*
    * Update filled quantities tracking for order to prevent over- or double-filling orders
    */
-  function updateOrderFilledQuantity(Order memory order, bytes32 orderHash, Trade memory trade)
-    private
-  {
+  function updateOrderFilledQuantity(
+    Order memory order,
+    bytes32 orderHash,
+    Trade memory trade
+  ) private {
     require(!completedOrderHashes[orderHash], 'Order double filled');
 
     uint64 newFilledQuantity = trade.grossBaseQuantity.add(
@@ -609,11 +608,7 @@ contract Exchange is Owned {
     Trade memory trade
   ) private view {
     validateTokenAddresses(buy, buyBaseSymbol, buyQuoteSymbol);
-    validateTokenAddresses(
-      sell,
-      sellBaseSymbol,
-      sellQuoteSymbol
-    );
+    validateTokenAddresses(sell, sellBaseSymbol, sellQuoteSymbol);
 
     // Both orders must be for same asset pair
     require(
@@ -788,9 +783,8 @@ contract Exchange is Owned {
         order.walletAddress
       ),
       order.side == OrderSide.Buy
-        ? 
-      'Invalid wallet signature for buy order':
-      'Invalid wallet signature for sell order'
+        ? 'Invalid wallet signature for buy order'
+        : 'Invalid wallet signature for sell order'
     );
 
     return orderHash;
@@ -817,7 +811,10 @@ contract Exchange is Owned {
     string memory withdrawalTokenSymbol,
     bytes memory withdrawalWalletSignature
   ) private pure returns (bytes32) {
-    bytes32 withdrawalHash = getWithdrawalWalletHash(withdrawal, withdrawalTokenSymbol);
+    bytes32 withdrawalHash = getWithdrawalWalletHash(
+      withdrawal,
+      withdrawalTokenSymbol
+    );
 
     require(
       ECRecovery.isSignatureValid(
@@ -853,7 +850,9 @@ contract Exchange is Owned {
             order.quantity > 0 ? pipToDecimal(order.quantity) : ''
           ),
           abi.encodePacked(
-            order.quoteOrderQuantity > 0 ? pipToDecimal(order.quoteOrderQuantity) : '',
+            order.quoteOrderQuantity > 0
+              ? pipToDecimal(order.quoteOrderQuantity)
+              : '',
             order.limitPrice > 0 ? pipToDecimal(order.limitPrice) : '',
             clientOrderId,
             order.stopPrice > 0 ? pipToDecimal(order.stopPrice) : '',

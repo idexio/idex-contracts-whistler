@@ -28,6 +28,7 @@ export const deployAndAssociateContracts = async (
   ]);
   const custodian = await Custodian.new(exchange.address, governance.address);
   await exchange.setCustodian(custodian.address);
+  await governance.setCustodian(custodian.address);
 
   return { custodian, exchange, governance };
 };

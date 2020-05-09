@@ -7,6 +7,7 @@ interface ICustodian {
   receive() external payable;
   function withdraw(address payable wallet, address asset, uint256 quantity) external;
 
+  function getExchange() external returns (address);
   function setExchange(address exchange) external;
   function setGovernance(address governance) external;
 }

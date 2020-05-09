@@ -35,6 +35,10 @@ contract Custodian is ICustodian, Owned {
     Transfers.transferTo(wallet, asset, quantity);
   }
 
+  function getExchange() external override returns (address) {
+    return exchange;
+  }
+
   function setExchange(address _exchange) external override onlyGovernance {
     exchange = _exchange;
   }
