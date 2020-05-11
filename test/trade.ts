@@ -14,7 +14,7 @@ import {
 } from '../lib';
 
 // TODO Test tokens with decimals other than 18
-contract('Exchange', (accounts) => {
+contract('Exchange (trades)', (accounts) => {
   const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
   const ethSymbol = 'ETH';
   const tokenSymbol = 'TKN';

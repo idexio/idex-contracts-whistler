@@ -1,7 +1,7 @@
 import { deployAndAssociateContracts, minimumTokenQuantity } from './helpers';
 import { ethAddress } from '../lib';
 
-contract('Exchange', (accounts) => {
+contract('Exchange (exits)', (accounts) => {
   describe('exitWallet', () => {
     it('should work for non-exited wallet', async () => {
       const { exchange } = await deployAndAssociateContracts();

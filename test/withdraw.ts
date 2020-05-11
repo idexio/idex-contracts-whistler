@@ -11,7 +11,7 @@ import {
   Withdrawal,
 } from '../lib';
 
-contract('Exchange', (accounts) => {
+contract('Exchange (withdrawals)', (accounts) => {
   const Custodian = artifacts.require('Custodian');
   const Exchange = artifacts.require('Exchange');
   const Governance = artifacts.require('Governance');

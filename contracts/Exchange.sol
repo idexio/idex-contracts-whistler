@@ -940,38 +940,6 @@ contract Exchange is Owned {
     emit ConfirmedRegisteredToken(tokenAddress, symbol, decimals);
   }
 
-  function tokenQuantityToPips(uint256 tokenQuantity, uint256 tokenDecimals)
-    public
-    pure
-    returns (uint64)
-  {
-    return Tokens.tokenQuantityToPips(tokenQuantity, tokenDecimals);
-  }
-
-  function tokenSymbolToAddress(string memory tokenSymbol, uint64 timestamp)
-    public
-    view
-    returns (address)
-  {
-    return tokens.tokenSymbolToAddress(tokenSymbol, timestamp);
-  }
-
-  function getTokenByAddress(address tokenAddress)
-    external
-    view
-    returns (Tokens.Token memory)
-  {
-    return tokens.tokensByAddress[tokenAddress];
-  }
-
-  function getTokensBySymbol(string calldata tokenSymbol)
-    external
-    view
-    returns (Tokens.Token[] memory)
-  {
-    return tokens.tokensBySymbol[tokenSymbol];
-  }
-
   /*** RBAC ***/
 
   function setDispatcher(address _dispatcher) external onlyAdmin {
@@ -995,22 +963,6 @@ contract Exchange is Owned {
   }
 
   /*** Utils ***/
-
-  function isStringEqual(string memory a, string memory b)
-    public
-    pure
-    returns (bool)
-  {
-    return Tokens.isStringEqual(a, b);
-  }
-
-  function pipsToTokenQuantity(uint64 quantityInPips, uint64 tokenDecimals)
-    public
-    pure
-    returns (uint256)
-  {
-    return Tokens.pipsToTokenQuantity(quantityInPips, tokenDecimals);
-  }
 
   // Inspired by https://github.com/provable-things/ethereum-api/blob/831f4123816f7a3e57ebea171a3cdcf3b528e475/oraclizeAPI_0.5.sol#L1045-L1062
   function pipToDecimal(uint256 pips) private pure returns (string memory) {

@@ -16,7 +16,7 @@ contract Owned {
   constructor() public {
     owner = msg.sender;
     admin = msg.sender;
-  }
+  } 
 
   function setAdmin(address _admin) external onlyOwner {
     require(_admin != address(0x0), 'Invalid wallet address');

@@ -4,7 +4,7 @@ import {
   minimumTokenQuantity,
 } from './helpers';
 
-contract('Exchange', (accounts) => {
+contract('Exchange (deposits)', (accounts) => {
   const tokenSymbol = 'TKN';
 
   // TODO Verify balances

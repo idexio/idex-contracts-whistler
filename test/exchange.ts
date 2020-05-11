@@ -1,13 +1,48 @@
 import { deployAndAssociateContracts } from './helpers';
 
-// TODO Test tokens with decimals other than 18
-contract('Exchange', (accounts) => {
+contract('Exchange (tunable parameters)', (accounts) => {
   const Exchange = artifacts.require('Exchange');
 
   const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
 
   it('should deploy', async () => {
     await Exchange.new();
+  });
+
+  describe('setAdmin', async () => {
+    it('should work for valid address', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      await exchange.setAdmin(accounts[1]);
+    });
+
+    it('should revert for empty address', async () => {
+      const exchange = await Exchange.new();
+
+      let error;
+      try {
+        await exchange.setAdmin(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet address/i);
+    });
+
+    it('should revert for setting same address as current', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      await exchange.setAdmin(accounts[1]);
+
+      let error;
+      try {
+        await exchange.setAdmin(accounts[1]);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/must be different/i);
+    });
   });
 
   describe('setCustodian', () => {

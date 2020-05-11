@@ -206,10 +206,11 @@ const solidityHashOfParams = (params: TypeValuePair[]): string => {
   return ethers.utils.solidityKeccak256(fields, values);
 };
 
-const uuidToUint8Array = (uuid: string): Uint8Array =>
+export const uuidToUint8Array = (uuid: string): Uint8Array =>
   ethers.utils.arrayify(uuidToHexString(uuid));
 
-const uuidToHexString = (uuid: string): string => `0x${uuid.replace(/-/g, '')}`;
+export const uuidToHexString = (uuid: string): string =>
+  `0x${uuid.replace(/-/g, '')}`;
 
 /**
  * Convert decimal quantity string to integer pips as expected by contract structs. Truncates
