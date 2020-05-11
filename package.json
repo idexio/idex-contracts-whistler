@@ -50,7 +50,7 @@
     "prettier": "^2.0.2",
     "prettier-eslint": "^9.0.0",
     "prettier-eslint-cli": "^5.0.0",
-    "prettier-plugin-solidity": "^1.0.0-alpha.49",
+    "prettier-plugin-solidity": "^1.0.0-alpha.50",
     "solidity-coverage": "^0.7.5",
     "truffle": "^5.1.24",
     "truffle-security": "^1.7.1",

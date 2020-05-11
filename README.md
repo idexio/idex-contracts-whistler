@@ -181,8 +181,9 @@ Two steps reduce the likelihood of data entry errors when registering a new toke
 - Occasionally projects upgrade their token address via a token swap but need to retain the same trading symbol. To
 support this use case, the token registration mechanism can track multiple token contract addresses for a symbol. The
 registry includes registration time stamps to ensure orders and withdrawals are only executed against the intended
-token contract address, as validated against the order or withdrawal [nonce](#TODO). Off-chain business process rules
-ensure orders are not accepted during new token registration of the same symbol to prevent race conditions.
+token contract address, as validated against the order or withdrawal [nonce](#nonces-and-invalidation). Off-chain
+business process rules ensure orders are not accepted during new token registration of the same symbol to prevent race
+conditions.
   
 ### Precision and PIPs
 

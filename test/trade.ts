@@ -97,7 +97,8 @@ contract('Exchange (trades)', (accounts) => {
         makerSide: OrderSide.Sell,
       };
 
-      // TODO Passing args by spread syntax would be great but TS is a hard no on it
+      // TODO Passing args by spread syntax would be great here, but TS is a hard nope
+      // https://github.com/microsoft/TypeScript/issues/28486
       const [
         buy,
         buyBaseSymbol,

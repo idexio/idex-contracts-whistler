@@ -1,5 +1,6 @@
 pragma solidity ^0.6.5;
 
+
 contract Owned {
   address immutable owner;
   address admin;
@@ -16,7 +17,7 @@ contract Owned {
   constructor() public {
     owner = msg.sender;
     admin = msg.sender;
-  } 
+  }
 
   function setAdmin(address _admin) external onlyOwner {
     require(_admin != address(0x0), 'Invalid wallet address');
@@ -31,4 +32,3 @@ contract Owned {
     admin = address(0x0);
   }
 }
-
