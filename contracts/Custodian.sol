@@ -43,6 +43,10 @@ contract Custodian is ICustodian, Owned {
     exchange = _exchange;
   }
 
+  function getGovernance() external override returns (address) {
+    return governance;
+  }
+
   function setGovernance(address _governance) external override onlyGovernance {
     governance = _governance;
   }

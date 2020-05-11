@@ -146,36 +146,6 @@ library Tokens {
     return quantityInPips;
   }
 
-  function transferToWallet(
-    Storage storage self,
-    address payable wallet,
-    address tokenAddress,
-    uint64 quantityInPips
-  ) internal {
-    if (tokenAddress == address(0x0)) {
-      require(wallet.send(pipsToTokenQuantity(quantityInPips, 18)), 'Failed to transfer ether');
-      return;
-    }
-    require(
-      self.tokensByAddress[tokenAddress].isConfirmed,
-      'Unknown token or registration not finalized'
-    );
-    uint256 tokenQuantity = pipsToTokenQuantity(
-      quantityInPips,
-      self.tokensByAddress[tokenAddress].decimals
-    );
-
-    uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
-    require(IERC20(tokenAddress).transfer(wallet, tokenQuantity), 'Failed to transfer token');
-    uint256 balanceAfter = IERC20(tokenAddress).balanceOf(address(this));
-
-    uint256 result = SafeMath.sub(balanceBefore, balanceAfter);
-    require(
-      result == tokenQuantity,
-      'Token contract returned transfer success without expected balance change'
-    );
-  }
-
   function tokenQuantityToPips(uint256 tokenQuantity, uint256 tokenDecimals)
     internal
     pure

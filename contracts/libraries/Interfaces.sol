@@ -9,5 +9,6 @@ interface ICustodian {
 
   function getExchange() external returns (address);
   function setExchange(address exchange) external;
+  function getGovernance() external returns (address);
   function setGovernance(address governance) external;
 }

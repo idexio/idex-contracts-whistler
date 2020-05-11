@@ -11,6 +11,27 @@ contract Governance is Owned {
     address newExchange,
     uint256 blockThreshold
   );
+  event ExchangeUpgradeCanceled(
+    address oldExchange,
+    address newExchange
+  );
+  event ExchangeUpgradeFinalized(
+    address oldExchange,
+    address newExchange
+  );
+  event GovernanceUpgradeInitiated(
+    address oldGovernance,
+    address newGovernance,
+    uint256 blockThreshold
+  );
+  event GovernanceUpgradeCanceled(
+    address oldGovernance,
+    address newGovernance
+  );
+  event GovernanceUpgradeFinalized(
+    address oldGovernance,
+    address newGovernance
+  );
 
   struct ContractUpgrade {
     bool exists;
@@ -29,6 +50,7 @@ contract Governance is Owned {
 
   function setCustodian(ICustodian _custodian) external onlyAdmin {
     require(custodian == ICustodian(0x0), 'Custodian can only be set once');
+    require(_custodian != ICustodian(0x0), 'Invalid address');
     custodian = _custodian;
   }
 
@@ -54,6 +76,7 @@ contract Governance is Owned {
 
   function cancelExchangeUpgrade() external onlyAdmin {
     require(currentExchangeUpgrade.exists, 'No Exchange upgrade in progress');
+    emit ExchangeUpgradeCanceled(custodian.getExchange(), currentExchangeUpgrade.newContract);
     delete currentExchangeUpgrade;
   }
 
@@ -68,6 +91,7 @@ contract Governance is Owned {
       'Block threshold not yet reached'
     );
 
+    emit ExchangeUpgradeFinalized(custodian.getExchange(), currentExchangeUpgrade.newContract);
     delete currentExchangeUpgrade;
     custodian.setExchange(newExchange);
   }
@@ -85,6 +109,11 @@ contract Governance is Owned {
       newGovernance,
       block.number + blockDelay
     );
+    emit GovernanceUpgradeInitiated(
+      custodian.getGovernance(),
+      newGovernance,
+      currentGovernanceUpgrade.blockThreshold
+    );
   }
 
   function cancelGovernanceUpgrade() external onlyAdmin {
@@ -92,6 +121,7 @@ contract Governance is Owned {
       currentGovernanceUpgrade.exists,
       'No Governance upgrade in progress'
     );
+    emit GovernanceUpgradeCanceled(custodian.getGovernance(), currentGovernanceUpgrade.newContract);
     delete currentGovernanceUpgrade;
   }
 
@@ -109,6 +139,7 @@ contract Governance is Owned {
       'Block threshold not yet reached'
     );
 
+    emit GovernanceUpgradeFinalized(custodian.getGovernance(), currentGovernanceUpgrade.newContract);
     delete currentGovernanceUpgrade;
     custodian.setGovernance(newGovernance);
   }
