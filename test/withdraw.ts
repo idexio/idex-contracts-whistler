@@ -10,6 +10,7 @@ import {
   getWithdrawalHash,
   Withdrawal,
 } from '../lib';
+import { getSignature } from './helpers';
 
 contract('Exchange (withdrawals)', (accounts) => {
   const Custodian = artifacts.require('Custodian');
@@ -161,7 +162,7 @@ contract('Exchange (withdrawals)', (accounts) => {
       ] = await getWithdrawArguments(
         withdrawal,
         '0',
-        await web3.eth.sign(getWithdrawalHash(withdrawal), accounts[0]),
+        await getSignature(web3, getWithdrawalHash(withdrawal), accounts[0]),
       );
 
       await exchange.withdraw(
@@ -215,7 +216,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     ] = await getWithdrawArguments(
       withdrawal,
       gasFee,
-      await web3.eth.sign(getWithdrawalHash(withdrawal), wallet),
+      await getSignature(web3, getWithdrawalHash(withdrawal), wallet),
     );
 
     await exchange.withdraw(

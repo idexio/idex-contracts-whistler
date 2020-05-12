@@ -1,7 +1,5 @@
 const { get } = require('https');
 const { readFile, writeFile } = require('fs');
-const { basename } = require('path');
-const mri = require('mri');
 
 const getColour = (coverage) => {
   if (coverage < 80) {
@@ -22,7 +20,7 @@ const getBadge = (report, type) => {
   const coverage = report.total[type].pct;
   const colour = getColour(coverage);
 
-  return `https://img.shields.io/badge/${title}-${coverage}${encodeURI(
+  return `https://img.shields.io/badge/Coverage:${title}-${coverage}${encodeURI(
     '%',
   )}-${colour}.svg`;
 };

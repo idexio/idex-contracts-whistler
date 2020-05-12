@@ -1,12 +1,12 @@
 pragma solidity ^0.6.5;
 pragma experimental ABIEncoderV2;
 
+import { ECDSA } from '@openzeppelin/contracts/cryptography/ECDSA.sol';
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {
   SafeMath as SafeMath256
 } from '@openzeppelin/contracts/math/SafeMath.sol';
 
-import { ECRecovery } from './libraries/ECRecovery.sol';
 import { ICustodian } from './libraries/Interfaces.sol';
 import { Owned } from './Owned.sol';
 import { SafeMath64 } from './libraries/SafeMath64.sol';
@@ -777,7 +777,7 @@ contract Exchange is Owned {
     );
 
     require(
-      ECRecovery.isSignatureValid(
+      isSignatureValid(
         orderHash,
         walletSignature,
         order.walletAddress
@@ -817,7 +817,7 @@ contract Exchange is Owned {
     );
 
     require(
-      ECRecovery.isSignatureValid(
+      isSignatureValid(
         withdrawalHash,
         withdrawalWalletSignature,
         withdrawal.walletAddress
@@ -1026,5 +1026,13 @@ contract Exchange is Owned {
       12219292800000;
 
     return msSinceUnixEpoch;
+  }
+
+  function isSignatureValid(bytes32 hash, bytes memory signature, address signer)
+    internal
+    pure
+    returns (bool)
+  {
+    return ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
   }
 }
