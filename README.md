@@ -1,7 +1,12 @@
 <!-- markdownlint-disable MD033 -->
 # <img src="assets/logo.png" alt="IDEX" height="36px" valign="top"> Smart Contracts
 
-![Coverage](./assets/coverage-badge.svg)
+## Coverage
+
+![Lines](./assets/coverage-lines.svg)
+![Branches](./assets/coverage-branches.svg)
+![Functions](./assets/coverage-functions.svg)
+![Statements](./assets/coverage-statements.svg)
 
 ## Overview
 

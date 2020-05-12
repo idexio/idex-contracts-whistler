@@ -186,7 +186,7 @@ export const getWithdrawArguments = (
       walletAddress: withdrawal.wallet,
       assetAddress: withdrawal.assetContractAddress || ethAddress,
       quantity: decimalToPips(withdrawal.quantity),
-      gasFee,
+      gasFee: decimalToPips(gasFee),
       autoDispatchEnabled: true,
     },
     withdrawal.asset || '',
