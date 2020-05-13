@@ -7,36 +7,27 @@ import {
   SafeMath as SafeMath256
 } from '@openzeppelin/contracts/math/SafeMath.sol';
 
-import { ICustodian } from './libraries/Interfaces.sol';
 import { Owned } from './Owned.sol';
 import { SafeMath64 } from './libraries/SafeMath64.sol';
+import { Signatures } from './libraries/Signatures.sol';
 import { Tokens } from './libraries/Tokens.sol';
 import { Transfers } from './libraries/Transfers.sol';
+import {
+  ICustodian,
+  IExchange,
+  Order,
+  OrderType,
+  OrderSide,
+  Trade,
+  Withdrawal,
+  WithdrawalType
+} from './libraries/Interfaces.sol';
 
 
-contract Exchange is Owned {
+contract Exchange is IExchange, Owned {
   using SafeMath64 for uint64;
   using SafeMath256 for uint256;
   using Tokens for Tokens.Storage;
-
-  enum OrderSelfTradePrevention {
-    DecreaseAndCancel,
-    CancelOldest,
-    CancelNewest,
-    CancelBoth
-  }
-  enum OrderSide { Buy, Sell }
-  enum OrderTimeInForce { GTC, GTT, IOC, FOK }
-  enum OrderType {
-    Market,
-    Limit,
-    LimitMaker,
-    StopLoss,
-    StopLossLimit,
-    TakeProfit,
-    TakeProfitLimit
-  }
-  enum WithdrawalType { BySymbol, ByAddress }
 
   /* Events */
 
@@ -66,10 +57,10 @@ contract Exchange is Owned {
     uint8 decimals
   );
   event ExecutedTrade(
-    address indexed buyWallet,
-    address indexed sellWallet,
-    string baseSymbol,
-    string quoteSymbol,
+    address buyWallet,
+    address sellWallet,
+    string indexed baseSymbol,
+    string indexed quoteSymbol,
     uint64 baseQuantity,
     uint64 quoteQuantity,
     uint64 tradePrice
@@ -92,48 +83,9 @@ contract Exchange is Owned {
     uint64 timestamp;
     uint256 effectiveBlockNumber;
   }
-  struct Trade {
-    uint64 grossBaseQuantity; // pips
-    uint64 grossQuoteQuantity; // pips
-    uint64 netBaseQuantity; // pips
-    uint64 netQuoteQuantity; // pips
-    address makerFeeAssetAddress;
-    address takerFeeAssetAddress;
-    uint64 makerFeeQuantity; // pips
-    uint64 takerFeeQuantity; // pips
-    uint64 price; // decimal pips * 10^8
-    OrderSide makerSide;
-  }
-  struct Order {
-    // Signature fields
-    uint128 nonce;
-    address walletAddress;
-    OrderType orderType;
-    OrderSide side;
-    OrderTimeInForce timeInForce;
-    uint64 quantity;
-    uint64 quoteOrderQuantity;
-    uint64 limitPrice; // decimal pips * 10^8
-    uint64 stopPrice; // decimal pips * 10^8
-    OrderSelfTradePrevention selfTradePrevention;
-    uint64 cancelAfter;
-    // Augmented fields
-    address baseAssetAddress;
-    address quoteAssetAddress;
-    uint64 totalQuantity; // pips
-  }
   struct WalletExit {
     bool exists;
     uint256 effectiveBlockNumber;
-  }
-  struct Withdrawal {
-    WithdrawalType withdrawalType;
-    uint128 nonce;
-    address payable walletAddress;
-    address assetAddress; // used in case symbol not specified
-    uint64 quantity; // pips
-    uint64 gasFee; // pips
-    bool autoDispatchEnabled; // ignored, auto dispatch is always enabled
   }
 
   /* Storage */
@@ -363,12 +315,12 @@ contract Exchange is Owned {
   /*** Withdrawing ***/
 
   function withdraw(
-    Withdrawal memory withdrawal,
-    string memory withdrawalTokenSymbol,
-    bytes memory withdrawalWalletSignature
-  ) public onlyDispatcher {
+    Withdrawal calldata withdrawal,
+    string calldata withdrawalTokenSymbol,
+    bytes calldata withdrawalWalletSignature
+  ) external override onlyDispatcher {
     // Validations
-    require(!walletExits[withdrawal.walletAddress].exists, 'Wallet exited');
+    require(!isWalletExitFinalized(withdrawal.walletAddress), 'Wallet exited');
     require(
       getFeeBasisPoints(withdrawal.gasFee, withdrawal.quantity) <=
         withdrawalFeeBasisPoints,
@@ -435,7 +387,7 @@ contract Exchange is Owned {
   function withdrawExit(address assetAddress) external {
     require(walletExits[msg.sender].exists, 'Wallet not yet exited');
     require(
-      walletExits[msg.sender].effectiveBlockNumber <= block.number,
+      isWalletExitFinalized(msg.sender),
       'Wallet exit block delay not yet elapsed'
     );
 
@@ -448,8 +400,16 @@ contract Exchange is Owned {
     emit WalletExitWithdrawn(msg.sender, assetAddress, balance);
   }
 
+  function isWalletExitFinalized(address wallet) internal view returns (bool) {
+    WalletExit storage exit = walletExits[wallet];
+    return exit.exists && exit.effectiveBlockNumber <= block.number;
+  }
+
   /*** Trades ***/
 
+  /**
+   * @dev Stack level too deep if declared external
+   */
   function executeTrade(
     Order memory buy,
     string memory buyBaseSymbol,
@@ -462,9 +422,9 @@ contract Exchange is Owned {
     string memory sellClientOrderId,
     bytes memory sellWalletSignature,
     Trade memory trade
-  ) public onlyDispatcher {
-    require(!walletExits[buy.walletAddress].exists, 'Buy wallet exited');
-    require(!walletExits[sell.walletAddress].exists, 'Sell wallet exited');
+  ) public override onlyDispatcher {
+    require(!isWalletExitFinalized(buy.walletAddress), 'Buy wallet exited');
+    require(!isWalletExitFinalized(sell.walletAddress), 'Sell wallet exited');
 
     // TODO Validate max fee amounts
     validateAssetPair(
@@ -769,7 +729,7 @@ contract Exchange is Owned {
     string memory clientOrderId,
     bytes memory walletSignature
   ) private pure returns (bytes32) {
-    bytes32 orderHash = getOrderWalletHash(
+    bytes32 orderHash = Signatures.getOrderWalletHash(
       order,
       baseSymbol,
       quoteSymbol,
@@ -777,7 +737,11 @@ contract Exchange is Owned {
     );
 
     require(
-      isSignatureValid(orderHash, walletSignature, order.walletAddress),
+      Signatures.isSignatureValid(
+        orderHash,
+        walletSignature,
+        order.walletAddress
+      ),
       order.side == OrderSide.Buy
         ? 'Invalid wallet signature for buy order'
         : 'Invalid wallet signature for sell order'
@@ -807,13 +771,13 @@ contract Exchange is Owned {
     string memory withdrawalTokenSymbol,
     bytes memory withdrawalWalletSignature
   ) private pure returns (bytes32) {
-    bytes32 withdrawalHash = getWithdrawalWalletHash(
+    bytes32 withdrawalHash = Signatures.getWithdrawalWalletHash(
       withdrawal,
       withdrawalTokenSymbol
     );
 
     require(
-      isSignatureValid(
+      Signatures.isSignatureValid(
         withdrawalHash,
         withdrawalWalletSignature,
         withdrawal.walletAddress
@@ -822,98 +786,6 @@ contract Exchange is Owned {
     );
 
     return withdrawalHash;
-  }
-
-  /*** Wallet signature hashes ***/
-
-  function getOrderWalletHash(
-    Order memory order,
-    string memory baseSymbol,
-    string memory quoteSymbol,
-    string memory clientOrderId
-  ) private pure returns (bytes32) {
-    return
-      keccak256(
-        abi.encodePacked(
-          abi.encodePacked(
-            order.nonce,
-            order.walletAddress,
-            getMarketSymbol(baseSymbol, quoteSymbol),
-            uint8(order.orderType),
-            uint8(order.side),
-            uint8(order.timeInForce),
-            // Ledger qtys and prices are in pip, but order was signed by wallet owner with decimal values
-            order.quantity > 0 ? pipToDecimal(order.quantity) : ''
-          ),
-          abi.encodePacked(
-            order.quoteOrderQuantity > 0
-              ? pipToDecimal(order.quoteOrderQuantity)
-              : '',
-            order.limitPrice > 0 ? pipToDecimal(order.limitPrice) : '',
-            clientOrderId,
-            order.stopPrice > 0 ? pipToDecimal(order.stopPrice) : '',
-            uint8(order.selfTradePrevention),
-            order.cancelAfter
-          )
-        )
-      );
-  }
-
-  function getMarketSymbol(string memory baseSymbol, string memory quoteSymbol)
-    private
-    pure
-    returns (string memory)
-  {
-    bytes memory baseSymbolBytes = bytes(baseSymbol);
-    bytes memory hyphenBytes = bytes('-');
-    bytes memory quoteSymbolBytes = bytes(quoteSymbol);
-
-    bytes memory marketSymbolBytes = bytes(
-      new string(
-        baseSymbolBytes.length + quoteSymbolBytes.length + hyphenBytes.length
-      )
-    );
-
-    uint256 i;
-    uint256 j;
-
-    for (i = 0; i < baseSymbolBytes.length; i++) {
-      marketSymbolBytes[j++] = baseSymbolBytes[i];
-    }
-
-    for (i = 0; i < hyphenBytes.length; i++) {
-      marketSymbolBytes[j++] = hyphenBytes[i];
-    }
-
-    for (i = 0; i < quoteSymbolBytes.length; i++) {
-      marketSymbolBytes[j++] = quoteSymbolBytes[i];
-    }
-
-    return string(marketSymbolBytes);
-  }
-
-  function getWithdrawalWalletHash(
-    Withdrawal memory withdrawal,
-    string memory withdrawalTokenSymbol
-  ) private pure returns (bytes32) {
-    return
-      keccak256(
-        withdrawal.withdrawalType == WithdrawalType.BySymbol
-          ? abi.encodePacked(
-            withdrawal.nonce,
-            withdrawal.walletAddress,
-            withdrawalTokenSymbol,
-            pipToDecimal(withdrawal.quantity),
-            withdrawal.autoDispatchEnabled
-          )
-          : abi.encodePacked(
-            withdrawal.nonce,
-            withdrawal.walletAddress,
-            withdrawal.assetAddress,
-            pipToDecimal(withdrawal.quantity),
-            withdrawal.autoDispatchEnabled
-          )
-      );
   }
 
   /*** Token registry ***/
@@ -968,30 +840,6 @@ contract Exchange is Owned {
 
   /*** Utils ***/
 
-  // Inspired by https://github.com/provable-things/ethereum-api/blob/831f4123816f7a3e57ebea171a3cdcf3b528e475/oraclizeAPI_0.5.sol#L1045-L1062
-  function pipToDecimal(uint256 pips) private pure returns (string memory) {
-    uint256 copy = pips;
-    uint256 length;
-    while (copy != 0) {
-      length++;
-      copy /= 10;
-    }
-    if (length < 9) {
-      length = 9; // a zero before the decimal point plus 8 decimals
-    }
-    length++; // for the decimal point
-    bytes memory decimal = new bytes(length);
-    for (uint256 i = length; i > 0; i--) {
-      if (length - i == 8) {
-        decimal[i - 1] = bytes1(uint8(46)); // period
-      } else {
-        decimal[i - 1] = bytes1(uint8(48 + (pips % 10)));
-        pips /= 10;
-      }
-    }
-    return string(decimal);
-  }
-
   function getFeeBasisPoints(uint64 fee, uint64 total)
     private
     pure
@@ -1030,14 +878,5 @@ contract Exchange is Owned {
       12219292800000;
 
     return msSinceUnixEpoch;
-  }
-
-  function isSignatureValid(
-    bytes32 hash,
-    bytes memory signature,
-    address signer
-  ) internal pure returns (bool) {
-    return
-      ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
   }
 }
