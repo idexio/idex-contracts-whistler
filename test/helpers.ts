@@ -2,11 +2,19 @@ import type { CustodianInstance } from '../types/truffle-contracts/Custodian';
 import type { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 import type { GovernanceInstance } from '../types/truffle-contracts/Governance';
 import type { TokenInstance } from '../types/truffle-contracts';
+import type { Withdrawal } from '../lib';
 
-import { decimalToTokenQuantity } from '../lib';
+import {
+  decimalToTokenQuantity,
+  getWithdrawArguments,
+  getWithdrawalHash,
+} from '../lib';
 
-export const minimumDecimalQuantity = '0.00000001';
+export const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
+export const ethSymbol = 'ETH';
+
 // TODO Test tokens with decimals other than 18
+export const minimumDecimalQuantity = '0.00000001';
 export const minimumTokenQuantity = decimalToTokenQuantity(
   minimumDecimalQuantity,
   18,
@@ -60,4 +68,28 @@ export const getSignature = async (
   }
   const vHex = v.toString(16);
   return signature.slice(0, 130) + vHex;
+};
+
+export const withdraw = async (
+  web3: Web3,
+  exchange: ExchangeInstance,
+  withdrawal: Withdrawal,
+  wallet: string,
+  gasFee = '0.00000000',
+): Promise<void> => {
+  const [
+    withdrawalStruct,
+    withdrawalTokenSymbol,
+    withdrawalWalletSignature,
+  ] = await getWithdrawArguments(
+    withdrawal,
+    gasFee,
+    await getSignature(web3, getWithdrawalHash(withdrawal), wallet),
+  );
+
+  await exchange.withdraw(
+    withdrawalStruct,
+    withdrawalTokenSymbol,
+    withdrawalWalletSignature,
+  );
 };

@@ -14,25 +14,36 @@ import { Transfers } from './libraries/Transfers.sol';
 contract Custodian is ICustodian, Owned {
   using SafeMath256 for uint256;
 
+  event ExchangeChanged(address oldExchange, address newExchange);
+  event GovernanceChanged(address oldGovernance, address newGovernance);
+  event Withdrawn(
+    address indexed wallet,
+    address indexed asset,
+    uint256 quantity,
+    address exchange
+  );
+
   address exchange;
   address governance;
 
   constructor(address _exchange, address _governance) public Owned() {
+    require(_exchange != address(0x0), 'Invalid exchange contract address');
+    require(_governance != address(0x0), 'Invalid governance contract address');
+    emit ExchangeChanged(exchange, _exchange);
+    emit GovernanceChanged(governance, _governance);
     exchange = _exchange;
     governance = _governance;
   }
 
-  // FIXME Prettier changes receive to function
-  // prettier-ignore
-  receive() external payable onlyExchange override {}
+  receive() external override payable onlyExchange {}
 
   function withdraw(
     address payable wallet,
     address asset,
     uint256 quantity
   ) external override onlyExchange {
-    require(exchange != address(0x0), 'Exchange not set');
     Transfers.transferTo(wallet, asset, quantity);
+    emit Withdrawn(wallet, asset, quantity, exchange);
   }
 
   function getExchange() external override returns (address) {
@@ -40,6 +51,8 @@ contract Custodian is ICustodian, Owned {
   }
 
   function setExchange(address _exchange) external override onlyGovernance {
+    require(_exchange != address(0x0), 'Invalid contract address');
+    emit ExchangeChanged(exchange, _exchange);
     exchange = _exchange;
   }
 
@@ -48,6 +61,8 @@ contract Custodian is ICustodian, Owned {
   }
 
   function setGovernance(address _governance) external override onlyGovernance {
+    require(_governance != address(0x0), 'Invalid contract address');
+    emit GovernanceChanged(governance, _governance);
     governance = _governance;
   }
 

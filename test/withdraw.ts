@@ -5,20 +5,17 @@ import type { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 import type { GovernanceInstance } from '../types/truffle-contracts/Governance';
 
 import {
-  getWithdrawArguments,
   decimalToTokenQuantity,
+  getWithdrawArguments,
   getWithdrawalHash,
-  Withdrawal,
 } from '../lib';
-import { getSignature } from './helpers';
+import { ethAddress, ethSymbol, getSignature, withdraw } from './helpers';
 
 contract('Exchange (withdrawals)', (accounts) => {
   const Custodian = artifacts.require('Custodian');
   const Exchange = artifacts.require('Exchange');
   const Governance = artifacts.require('Governance');
 
-  const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
-  const ethSymbol = 'ETH';
   const minimumDecimalQuantity = '0.00000001';
   // TODO Test tokens with decimals other than 18
   const minimumTokenQuantity = decimalToTokenQuantity(
@@ -38,6 +35,7 @@ contract('Exchange (withdrawals)', (accounts) => {
       });
 
       await withdraw(
+        web3,
         exchange,
         {
           nonce: uuidv1(),
@@ -65,6 +63,7 @@ contract('Exchange (withdrawals)', (accounts) => {
       });
 
       await withdraw(
+        web3,
         exchange,
         {
           nonce: uuidv1(),
@@ -95,6 +94,7 @@ contract('Exchange (withdrawals)', (accounts) => {
       let error;
       try {
         await withdraw(
+          web3,
           exchange,
           {
             nonce: uuidv1(),
@@ -123,6 +123,7 @@ contract('Exchange (withdrawals)', (accounts) => {
       let error;
       try {
         await withdraw(
+          web3,
           exchange,
           {
             nonce: uuidv1(),
@@ -201,28 +202,5 @@ contract('Exchange (withdrawals)', (accounts) => {
     await exchange.setCustodian(custodian.address);
 
     return { custodian, exchange, governance };
-  };
-
-  const withdraw = async (
-    exchange: ExchangeInstance,
-    withdrawal: Withdrawal,
-    wallet: string,
-    gasFee = '0.00000000',
-  ): Promise<void> => {
-    const [
-      withdrawalStruct,
-      withdrawalTokenSymbol,
-      withdrawalWalletSignature,
-    ] = await getWithdrawArguments(
-      withdrawal,
-      gasFee,
-      await getSignature(web3, getWithdrawalHash(withdrawal), wallet),
-    );
-
-    await exchange.withdraw(
-      withdrawalStruct,
-      withdrawalTokenSymbol,
-      withdrawalWalletSignature,
-    );
   };
 });

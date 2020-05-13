@@ -777,11 +777,7 @@ contract Exchange is Owned {
     );
 
     require(
-      isSignatureValid(
-        orderHash,
-        walletSignature,
-        order.walletAddress
-      ),
+      isSignatureValid(orderHash, walletSignature, order.walletAddress),
       order.side == OrderSide.Buy
         ? 'Invalid wallet signature for buy order'
         : 'Invalid wallet signature for sell order'
@@ -940,6 +936,14 @@ contract Exchange is Owned {
     emit ConfirmedRegisteredToken(tokenAddress, symbol, decimals);
   }
 
+  function tokenSymbolToAddress(string memory tokenSymbol, uint64 timestamp)
+    public
+    view
+    returns (address)
+  {
+    return tokens.tokenSymbolToAddress(tokenSymbol, timestamp);
+  }
+
   /*** RBAC ***/
 
   function setDispatcher(address _dispatcher) external onlyAdmin {
@@ -1028,11 +1032,12 @@ contract Exchange is Owned {
     return msSinceUnixEpoch;
   }
 
-  function isSignatureValid(bytes32 hash, bytes memory signature, address signer)
-    internal
-    pure
-    returns (bool)
-  {
-    return ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
+  function isSignatureValid(
+    bytes32 hash,
+    bytes memory signature,
+    address signer
+  ) internal pure returns (bool) {
+    return
+      ECDSA.recover(ECDSA.toEthSignedMessageHash(hash), signature) == signer;
   }
 }

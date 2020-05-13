@@ -10,6 +10,26 @@ contract('Governance', (accounts) => {
     await Governance.new(0);
   });
 
+  describe('setAdmin', () => {
+    it('should work for valid address', async () => {
+      const governance = await Governance.new(0);
+      await governance.setAdmin(accounts[1]);
+    });
+
+    it('should revert for empty address', async () => {
+      const governance = await Governance.new(0);
+
+      let error;
+      try {
+        await governance.setAdmin(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet address/i);
+    });
+  });
+
   describe('setCustodian', () => {
     it('should work for valid address', async () => {
       await deployAndAssociateContracts();
@@ -39,6 +59,19 @@ contract('Governance', (accounts) => {
       }
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/custodian can only be set once/i);
+    });
+
+    it('should revert when not called by admin', async () => {
+      const { custodian, governance } = await deployAndAssociateContracts();
+      await governance.setAdmin(accounts[1]);
+      let error;
+      try {
+        await governance.setCustodian(custodian.address, { from: accounts[0] });
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/caller must be admin/i);
     });
   });
 
@@ -79,6 +112,21 @@ contract('Governance', (accounts) => {
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/invalid address/i);
     });
+
+    it('should revert when upgrade already in progress', async () => {
+      const { governance } = await deployAndAssociateContracts();
+      const newExchange = await Exchange.new();
+      await governance.initiateExchangeUpgrade(newExchange.address);
+
+      let error;
+      try {
+        await governance.initiateExchangeUpgrade(newExchange.address);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/exchange upgrade already in progress/i);
+    });
   });
 
   describe('cancelExchangeUpgrade', () => {
@@ -94,6 +142,19 @@ contract('Governance', (accounts) => {
       });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+    });
+
+    it('should revert when no upgrade in progress', async () => {
+      const { governance } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await governance.cancelExchangeUpgrade();
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/no exchange upgrade in progress/i);
     });
   });
 
@@ -115,14 +176,55 @@ contract('Governance', (accounts) => {
       expect(events.length).to.equal(1);
       expect(await custodian.getExchange.call()).to.equal(newExchange.address);
     });
+
+    it('should revert when no upgrade in progress', async () => {
+      const { governance } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await governance.finalizeExchangeUpgrade(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/no exchange upgrade in progress/i);
+    });
+
+    it('should revert on address mismatch', async () => {
+      const { governance } = await deployAndAssociateContracts();
+      const newExchange = await Exchange.new();
+      await governance.initiateExchangeUpgrade(newExchange.address);
+
+      let error;
+      try {
+        await governance.finalizeExchangeUpgrade(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/address mismatch/i);
+    });
+
+    it('should revert when block threshold not reached', async () => {
+      const blockDelay = 10;
+      const { governance } = await deployAndAssociateContracts(blockDelay);
+      const newExchange = await Exchange.new();
+      await governance.initiateExchangeUpgrade(newExchange.address);
+
+      let error;
+      try {
+        await governance.finalizeExchangeUpgrade(newExchange.address);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/block threshold not yet reached/i);
+    });
   });
 
   describe('initiateGovernanceUpgrade', () => {
     it('should work for valid contract address', async () => {
-      const {
-        custodian,
-        governance: oldGovernance,
-      } = await deployAndAssociateContracts();
+      const { governance: oldGovernance } = await deployAndAssociateContracts();
       const newGovernance = await Governance.new(0);
 
       await oldGovernance.initiateGovernanceUpgrade(newGovernance.address);
@@ -158,6 +260,21 @@ contract('Governance', (accounts) => {
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/invalid address/i);
     });
+
+    it('should revert when upgrade already in progress', async () => {
+      const { governance } = await deployAndAssociateContracts();
+      const newGovernance = await Governance.new(0);
+      await governance.initiateGovernanceUpgrade(newGovernance.address);
+
+      let error;
+      try {
+        await governance.initiateGovernanceUpgrade(newGovernance.address);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/governance upgrade already in progress/i);
+    });
   });
 
   describe('cancelGovernanceUpgrade', () => {
@@ -176,6 +293,19 @@ contract('Governance', (accounts) => {
       );
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+    });
+
+    it('should revert when no upgrade in progress', async () => {
+      const { governance } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await governance.cancelGovernanceUpgrade();
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/no governance upgrade in progress/i);
     });
   });
 
@@ -199,6 +329,34 @@ contract('Governance', (accounts) => {
       expect(await custodian.getGovernance.call()).to.equal(
         newGovernance.address,
       );
+    });
+
+    it('should revert when no upgrade in progress', async () => {
+      const { governance } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await governance.finalizeGovernanceUpgrade(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/no governance upgrade in progress/i);
+    });
+
+    it('should revert on address mismatch', async () => {
+      const { governance } = await deployAndAssociateContracts();
+      const newGovernance = await Governance.new(0);
+      await governance.initiateGovernanceUpgrade(newGovernance.address);
+
+      let error;
+      try {
+        await governance.finalizeGovernanceUpgrade(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/address mismatch/i);
     });
   });
 });
