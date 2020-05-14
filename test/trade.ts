@@ -13,12 +13,13 @@ import {
 } from './helpers';
 import {
   decimalToTokenQuantity,
+  getOrderHash,
+  getTradeArguments,
   Order,
   OrderSide,
   OrderType,
-  getTradeArguments,
   Trade,
-  getOrderHash,
+  uuidToHexString,
 } from '../lib';
 
 const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
@@ -28,6 +29,8 @@ const marketSymbol = `${tokenSymbol}-${ethSymbol}`;
 
 // TODO Test tokens with decimals other than 18
 contract('Exchange (trades)', (accounts) => {
+  const Token = artifacts.require('Token');
+
   describe('executeTrade', () => {
     it('should work for matching limit orders', async () => {
       const { exchange } = await deployAndAssociateContracts();
@@ -44,6 +47,61 @@ contract('Exchange (trades)', (accounts) => {
       expect(events.length).to.equal(1);
     });
 
+    it('should work for partial fill of matching limit orders', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.grossBaseQuantity = new BigNumber(fill.grossBaseQuantity)
+        .dividedBy(2)
+        .toString();
+      fill.netBaseQuantity = fill.grossBaseQuantity;
+      fill.grossQuoteQuantity = new BigNumber(fill.grossQuoteQuantity)
+        .dividedBy(2)
+        .toString();
+      fill.netQuoteQuantity = fill.grossQuoteQuantity;
+
+      await executeTrade(
+        exchange,
+        buyWallet,
+        sellWallet,
+        buyOrder,
+        sellOrder,
+        fill,
+      );
+
+      const events = await exchange.getPastEvents('ExecutedTrade', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+    });
+
+    it('should revert when not called by dispatcher', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      const [sellWallet, buyWallet] = accounts;
+
+      await deposit(exchange, token, buyWallet, sellWallet);
+      await exchange.exitWallet({ from: buyWallet });
+
+      let error;
+      try {
+        await generateAndExecuteTrade(exchange, token, buyWallet, sellWallet);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/caller is not dispatcher/i);
+    });
+
     it('should revert for exited buy wallet', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
@@ -55,7 +113,7 @@ contract('Exchange (trades)', (accounts) => {
 
       let error;
       try {
-        await executeTrade(exchange, token, buyWallet, sellWallet);
+        await generateAndExecuteTrade(exchange, token, buyWallet, sellWallet);
       } catch (e) {
         error = e;
       }
@@ -74,12 +132,614 @@ contract('Exchange (trades)', (accounts) => {
 
       let error;
       try {
-        await executeTrade(exchange, token, buyWallet, sellWallet);
+        await generateAndExecuteTrade(exchange, token, buyWallet, sellWallet);
       } catch (e) {
         error = e;
       }
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/sell wallet exited/i);
+    });
+
+    it('should revert for invalidated buy nonce', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await exchange.invalidateOrderNonce(
+        uuidToHexString(uuidv1({ msecs: new Date().getTime() + 100000 })),
+        { from: buyWallet },
+      );
+
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      let error;
+      try {
+        await generateAndExecuteTrade(exchange, token, buyWallet, sellWallet);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/buy order nonce timestamp too low/i);
+    });
+
+    it('should revert for invalidated sell nonce', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await exchange.invalidateOrderNonce(
+        uuidToHexString(uuidv1({ msecs: new Date().getTime() + 100000 })),
+        { from: sellWallet },
+      );
+
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      let error;
+      try {
+        await generateAndExecuteTrade(exchange, token, buyWallet, sellWallet);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/sell order nonce timestamp too low/i);
+    });
+
+    it('should revert for buy order asset resolution mismatch', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      buyOrder.baseAssetAddress = ethAddress;
+
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /buy order market symbol address resolution mismatch/i,
+      );
+    });
+
+    it('should revert for buy order asset resolution mismatch', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      sellOrder.baseAssetAddress = ethAddress;
+
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /sell order market symbol address resolution mismatch/i,
+      );
+    });
+
+    it('should revert for unconfirmed base asset', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await Token.new();
+      await exchange.registerToken(token.address, tokenSymbol, 18);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/no confirmed token found for symbol/i);
+    });
+
+    it('should revert for invalid signature', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      const [buySignature, sellSignature] = await Promise.all([
+        getSignature(web3, getOrderHash(buyOrder), buyWallet),
+        // Sign with wrong wallet
+        getSignature(web3, getOrderHash(sellOrder), buyWallet),
+      ]);
+
+      let error;
+      try {
+        // https://github.com/microsoft/TypeScript/issues/28486
+        await (exchange.executeTrade as any)(
+          ...getTradeArguments(
+            buyOrder,
+            buySignature,
+            sellOrder,
+            sellSignature,
+            fill,
+          ),
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet signature/i);
+    });
+
+    it('should revert for excessive taker fee', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.takerFeeQuantity = fill.grossBaseQuantity;
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/excessive taker fee/i);
+    });
+
+    it('should revert for excessive maker fee', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.makerFeeQuantity = fill.grossQuoteQuantity;
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/excessive maker fee/i);
+    });
+
+    it('should revert for zero base quantity', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.grossBaseQuantity = '0';
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /base quantity must be greater than zero/i,
+      );
+    });
+
+    it('should revert for zero quote quantity', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.grossQuoteQuantity = '0';
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /quote quantity must be greater than zero/i,
+      );
+    });
+
+    it('should revert when buy limit price exceeded', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.grossBaseQuantity = new BigNumber(fill.grossBaseQuantity)
+        .minus(1)
+        .toString();
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/buy order limit price exceeded/i);
+    });
+
+    it('should revert when sell limit price exceeded', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.grossBaseQuantity = new BigNumber(fill.grossBaseQuantity)
+        .plus(1)
+        .toString();
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/sell order limit price exceeded/i);
+    });
+
+    it('should revert when base assets are mismatched', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token2Symbol = `${tokenSymbol}2`;
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      const token2 = await deployAndRegisterToken(exchange, token2Symbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      buyOrder.market = `${token2Symbol}-${ethSymbol}`;
+      buyOrder.baseAssetAddress = token2.address;
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/base asset mismatch/i);
+    });
+
+    it('should revert when quote assets are mismatched', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token2Symbol = `${tokenSymbol}2`;
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      const token2 = await deployAndRegisterToken(exchange, token2Symbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      buyOrder.market = `${tokenSymbol}-${token2Symbol}`;
+      buyOrder.quoteAssetAddress = token2.address;
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/quote asset mismatch/i);
+    });
+
+    it('should revert when base and quote assets are the same', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      buyOrder.market = `${ethSymbol}-${ethSymbol}`;
+      buyOrder.baseAssetAddress = ethAddress;
+      sellOrder.market = `${ethSymbol}-${ethSymbol}`;
+      sellOrder.baseAssetAddress = ethAddress;
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /base and quote assets must be different/i,
+      );
+    });
+
+    it('should revert when maker fee asset not in trade pair', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      const token2Symbol = `${tokenSymbol}2`;
+      const token2 = await deployAndRegisterToken(exchange, token2Symbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.makerFeeAssetAddress = token2.address;
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/maker fee asset is not in trade pair/i);
+    });
+
+    it('should revert wten taker fee asset not in trade pair', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      const token2Symbol = `${tokenSymbol}2`;
+      const token2 = await deployAndRegisterToken(exchange, token2Symbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.takerFeeAssetAddress = token2.address;
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/taker fee asset is not in trade pair/i);
+    });
+
+    it('should revert when maker and taker fee assets are the same', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.makerFeeAssetAddress = fill.takerFeeAssetAddress;
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /maker and taker fee assets must be different/i,
+      );
+    });
+
+    it('should revert on double fill', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+
+      await executeTrade(
+        exchange,
+        buyWallet,
+        sellWallet,
+        buyOrder,
+        sellOrder,
+        fill,
+      );
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/order double filled/i);
     });
   });
 });
@@ -91,7 +751,7 @@ const depositAndTrade = async (
   sellWallet: string,
 ): Promise<void> => {
   await deposit(exchange, token, buyWallet, sellWallet);
-  await executeTrade(exchange, token, buyWallet, sellWallet);
+  await generateAndExecuteTrade(exchange, token, buyWallet, sellWallet);
 };
 
 const deposit = async (
@@ -122,12 +782,57 @@ const deposit = async (
   });
 };
 
-const executeTrade = async (
+const generateAndExecuteTrade = async (
   exchange: ExchangeInstance,
   token: TokenInstance,
   buyWallet: string,
   sellWallet: string,
 ): Promise<void> => {
+  const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+    token,
+    buyWallet,
+    sellWallet,
+  );
+  await executeTrade(
+    exchange,
+    buyWallet,
+    sellWallet,
+    buyOrder,
+    sellOrder,
+    fill,
+  );
+};
+
+const executeTrade = async (
+  exchange: ExchangeInstance,
+  buyWallet: string,
+  sellWallet: string,
+  buyOrder: Order,
+  sellOrder: Order,
+  fill: Trade,
+): Promise<void> => {
+  const [buySignature, sellSignature] = await Promise.all([
+    getSignature(web3, getOrderHash(buyOrder), buyWallet),
+    getSignature(web3, getOrderHash(sellOrder), sellWallet),
+  ]);
+
+  // https://github.com/microsoft/TypeScript/issues/28486
+  await (exchange.executeTrade as any)(
+    ...getTradeArguments(
+      buyOrder,
+      buySignature,
+      sellOrder,
+      sellSignature,
+      fill,
+    ),
+  );
+};
+
+const generateOrdersAndFill = async (
+  token: TokenInstance,
+  buyWallet: string,
+  sellWallet: string,
+): Promise<{ buyOrder: Order; sellOrder: Order; fill: Trade }> => {
   const quantity = '10.00000000';
   const price = '0.10000000'; // 1 ETH buys 10 TKN
   const quoteQuantity = new BigNumber(quantity)
@@ -146,11 +851,7 @@ const executeTrade = async (
     quoteAssetAddress: ethAddress,
     totalQuantity: quantity,
   };
-  const sellSignature = await getSignature(
-    web3,
-    getOrderHash(sellOrder),
-    sellWallet,
-  );
+
   const buyOrder: Order = {
     nonce: uuidv1(),
     wallet: buyWallet,
@@ -163,11 +864,6 @@ const executeTrade = async (
     quoteAssetAddress: ethAddress,
     totalQuantity: quantity,
   };
-  const buySignature = await getSignature(
-    web3,
-    getOrderHash(buyOrder),
-    buyWallet,
-  );
 
   const fill: Trade = {
     grossBaseQuantity: quantity,
@@ -182,32 +878,5 @@ const executeTrade = async (
     makerSide: OrderSide.Sell,
   };
 
-  // TODO Passing args by spread syntax would be great here, but TS is a hard nope
-  // https://github.com/microsoft/TypeScript/issues/28486
-  const [
-    buy,
-    buyBaseSymbol,
-    buyQuoteSymbol,
-    buyClientOrderId,
-    buyWalletSignature,
-    sell,
-    sellBaseSymbol,
-    sellQuoteSymbol,
-    sellClientOrderId,
-    sellWalletSignature,
-    trade,
-  ] = getTradeArguments(buyOrder, buySignature, sellOrder, sellSignature, fill);
-  await exchange.executeTrade(
-    buy,
-    buyBaseSymbol,
-    buyQuoteSymbol,
-    buyClientOrderId,
-    buyWalletSignature,
-    sell,
-    sellBaseSymbol,
-    sellQuoteSymbol,
-    sellClientOrderId,
-    sellWalletSignature,
-    trade,
-  );
+  return { buyOrder, sellOrder, fill };
 };

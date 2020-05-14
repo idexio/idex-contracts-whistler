@@ -11,16 +11,26 @@ const getColour = (coverage) => {
   return 'brightgreen';
 };
 
-const getBadge = (report, type) => {
+const getTestsBadge = (report) => {
+  if (!(report && report.stats && report.stats.passes)) {
+    throw new Error('malformed coverage report');
+  }
+
+  // TODO Show pending, failed
+  return `https://img.shields.io/badge/tests-${report.stats.passes}${encodeURI(
+    ' ',
+  )}passing-brightgreen.svg`;
+};
+
+const getCoverageBadge = (report, type) => {
   if (!(report && report.total && report.total[type])) {
     throw new Error('malformed coverage report');
   }
 
-  const title = type[0].toUpperCase() + type.slice(1);
   const coverage = report.total[type].pct;
   const colour = getColour(coverage);
 
-  return `https://img.shields.io/badge/Coverage:${title}-${coverage}${encodeURI(
+  return `https://img.shields.io/badge/coverage:${type}-${coverage}${encodeURI(
     '%',
   )}-${colour}.svg`;
 };
@@ -33,14 +43,15 @@ const download = (url, cb) => {
   }).on('error', (err) => cb(err));
 };
 
-const reportPath = './coverage/coverage-summary.json';
+const mochaReportPath = './coverage/mocha-summary.json';
+const coverageReportPath = './coverage/coverage-summary.json';
 const outputBasePath = './assets';
 
-readFile(reportPath, 'utf8', (err, res) => {
+readFile(coverageReportPath, 'utf8', (err, res) => {
   if (err) throw err;
   const report = JSON.parse(res);
   ['statements', 'functions', 'branches', 'lines'].forEach((type) => {
-    const url = getBadge(report, type);
+    const url = getCoverageBadge(report, type);
     download(url, (err, res) => {
       if (err) throw err;
       const outputPath = `${outputBasePath}/coverage-${type}.svg`;
@@ -48,6 +59,20 @@ readFile(reportPath, 'utf8', (err, res) => {
         console.log(`Saved ${outputPath}`);
         if (err) throw err;
       });
+    });
+  });
+});
+
+readFile(mochaReportPath, 'utf8', (err, res) => {
+  if (err) throw err;
+  const report = JSON.parse(res);
+  const url = getTestsBadge(report);
+  download(url, (err, res) => {
+    if (err) throw err;
+    const outputPath = `${outputBasePath}/tests.svg`;
+    writeFile(outputPath, res, 'utf8', (err) => {
+      console.log(`Saved ${outputPath}`);
+      if (err) throw err;
     });
   });
 });

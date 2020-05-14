@@ -169,7 +169,7 @@ contract('Exchange (tokens)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/no token found for symbol/i);
+      expect(error.message).to.match(/no confirmed token found for symbol/i);
     });
 
     it('should revert when no token registered for symbol prior to timestamp', async () => {
@@ -187,7 +187,7 @@ contract('Exchange (tokens)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/no token found for symbol/i);
+      expect(error.message).to.match(/no confirmed token found for symbol/i);
     });
   });
 });

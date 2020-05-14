@@ -1,4 +1,4 @@
-import { v1 as uuidv1 } from 'uuid';
+import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
 
 import { deployAndAssociateContracts } from './helpers';
 import { uuidToHexString } from '../lib';
@@ -63,6 +63,20 @@ contract('Exchange (invalidations)', (accounts) => {
       expect(error.message).to.match(
         /previous invalidation awaiting chain propagation/i,
       );
+    });
+
+    it('should revert for non-V1 UUID', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.invalidateOrderNonce(uuidToHexString(uuidv4()));
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/must be v1 UUID/i);
     });
   });
 });

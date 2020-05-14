@@ -4,10 +4,12 @@ pragma solidity ^0.6.1;
 pragma experimental ABIEncoderV2;
 
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {SafeMath} from '@openzeppelin/contracts/math/SafeMath.sol';
+import { SafeMath } from '@openzeppelin/contracts/math/SafeMath.sol';
 
 
 library Tokens {
+  using SafeMath for uint256;
+
   struct Token {
     bool exists;
     address tokenAddress;
@@ -52,7 +54,10 @@ library Tokens {
   ) internal {
     Token memory token = self.tokensByAddress[tokenAddress];
     require(token.exists, 'Unknown token');
-    require(!token.isConfirmed, 'Registration of this token is already finalized');
+    require(
+      !token.isConfirmed,
+      'Registration of this token is already finalized'
+    );
     require(isStringEqual(token.symbol, symbol), 'Symbols do not match');
     require(token.decimals == decimals, 'Decimals do not match');
 
@@ -71,11 +76,11 @@ library Tokens {
                        timestamp. Reverts if no such token exists
     * @return assetAddress
     */
-  function tokenSymbolToAddress(Storage storage self, string memory symbol, uint64 timestamp)
-    internal
-    view
-    returns (address)
-  {
+  function tokenSymbolToAddress(
+    Storage storage self,
+    string memory symbol,
+    uint64 timestamp
+  ) internal view returns (address) {
     Token memory token;
     if (isStringEqual('ETH', symbol)) {
       return address(0x0);
@@ -86,16 +91,16 @@ library Tokens {
         }
       }
     }
-    require(token.exists, 'No token found for symbol');
+    require(token.exists, 'No confirmed token found for symbol');
 
     return token.tokenAddress;
   }
 
-  function pipsToTokenQuantity(Storage storage self, uint64 quantityInPips, address tokenAddress)
-    internal
-    view
-    returns (uint256 tokenQuantity)
-  {
+  function pipsToTokenQuantity(
+    Storage storage self,
+    uint64 quantityInPips,
+    address tokenAddress
+  ) internal view returns (uint256 tokenQuantity) {
     if (tokenAddress == address(0x0)) {
       return pipsToTokenQuantity(quantityInPips, 18);
     }
@@ -133,14 +138,24 @@ library Tokens {
     );
 
     uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
-    require(
-      IERC20(tokenAddress).transferFrom(wallet, address(this), tokenQuantityInPipPrecision),
-      'Token transfer failed'
-    );
+
+    try
+      IERC20(tokenAddress).transferFrom(
+        wallet,
+        address(this),
+        tokenQuantityInPipPrecision
+      )
+    returns (bool success) {
+      require(success, 'Token transfer failed');
+    } catch Error(
+      string memory /*reason*/
+    ) {
+      revert('Token transfer failed');
+    }
+
     uint256 balanceAfter = IERC20(tokenAddress).balanceOf(address(this));
-    uint256 result = SafeMath.sub(balanceAfter, balanceBefore);
     require(
-      result == tokenQuantityInPipPrecision,
+      balanceAfter.sub(balanceBefore) == tokenQuantityInPipPrecision,
       'Token contract returned transferFrom success without expected balance change'
     );
     return quantityInPips;
@@ -174,7 +189,11 @@ library Tokens {
   }
 
   // See https://solidity.readthedocs.io/en/latest/types.html#bytes-and-strings-as-arrays
-  function isStringEqual(string memory a, string memory b) internal pure returns (bool) {
+  function isStringEqual(string memory a, string memory b)
+    internal
+    pure
+    returns (bool)
+  {
     return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
   }
 }

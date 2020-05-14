@@ -6,6 +6,8 @@ import {
 import { ethAddress } from '../lib';
 
 contract('Exchange (deposits)', (accounts) => {
+  const Token = artifacts.require('Token');
+
   const tokenSymbol = 'TKN';
 
   // TODO Verify balances
@@ -87,6 +89,39 @@ contract('Exchange (deposits)', (accounts) => {
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/wallet exited/i);
     });
+
+    it('should revert when token quantity above wallet balance', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      await deployAndRegisterToken(exchange, tokenSymbol);
+      const [, wallet] = accounts;
+
+      let error;
+      try {
+        await exchange.depositTokenBySymbol(tokenSymbol, minimumTokenQuantity, {
+          from: wallet,
+        });
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/token transfer failed/i);
+    });
+
+    it('should revert for unknown token', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const [, wallet] = accounts;
+
+      let error;
+      try {
+        await exchange.depositTokenBySymbol(tokenSymbol, minimumTokenQuantity, {
+          from: wallet,
+        });
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/no confirmed token found for symbol/i);
+    });
   });
 
   describe('depositToken', () => {
@@ -117,6 +152,23 @@ contract('Exchange (deposits)', (accounts) => {
       }
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/use depositEther to deposit ether/i);
+    });
+
+    it('should revert for unknown token', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await Token.new();
+      const [, wallet] = accounts;
+
+      let error;
+      try {
+        await exchange.depositToken(token.address, minimumTokenQuantity, {
+          from: wallet,
+        });
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/no confirmed token found for address/i);
     });
   });
 });

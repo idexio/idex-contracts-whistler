@@ -202,6 +202,7 @@ contract Exchange is IExchange, Owned {
 
   /*** Accessors ***/
 
+  /*
   function balanceOf(address wallet, address asset)
     external
     view
@@ -209,12 +210,14 @@ contract Exchange is IExchange, Owned {
   {
     return balances[wallet][asset];
   }
+  */
 
   /**
    * Only partially filled orders will return a non-zero value, filled orders will return 0.
    * Invalidating an order nonce will not clear partial fill quantities for earlier orders
    * because the gas cost for this is potentially unbound
    */
+  /*
   function partiallyFilledOrderQuantity(bytes32 orderHash)
     external
     view
@@ -222,6 +225,7 @@ contract Exchange is IExchange, Owned {
   {
     return partiallyFilledOrderQuantities[orderHash];
   }
+  */
 
   /*** Depositing ***/
 
@@ -254,6 +258,8 @@ contract Exchange is IExchange, Owned {
     address asset,
     uint256 quantity
   ) private {
+    // Calling exitWallet immediately disables deposits, in contrast to withdrawals and trades which
+    // respect the effectiveBlockNumber via isWalletExitFinalized
     require(!walletExits[wallet].exists, 'Wallet exited');
 
     // If asset is a token, it must be registered
@@ -261,7 +267,7 @@ contract Exchange is IExchange, Owned {
       Tokens.Token storage token = tokens.tokensByAddress[asset];
       require(
         token.exists && token.isConfirmed,
-        'Token registration not confirmed'
+        'No confirmed token found for address'
       );
     }
     uint64 quantityInPips = tokens.transferFromWallet(wallet, asset, quantity);
@@ -610,11 +616,11 @@ contract Exchange is IExchange, Owned {
   ) private pure {
     require(
       trade.grossBaseQuantity > 0,
-      'Base amount must be greater than zero'
+      'Base quantity must be greater than zero'
     );
     require(
       trade.grossQuoteQuantity > 0,
-      'Quote amount must be greater than zero'
+      'Quote quantity must be greater than zero'
     );
     uint64 price = trade.grossQuoteQuantity.mul(10**8).div(
       trade.grossBaseQuantity
@@ -650,20 +656,6 @@ contract Exchange is IExchange, Owned {
       order.side == OrderSide.Buy
         ? 'Buy order market symbol address resolution mismatch'
         : 'Sell order market symbol address resolution mismatch'
-    );
-    require(
-      baseAssetAddress == address(0x0) ||
-        tokens.tokensByAddress[baseAssetAddress].isConfirmed,
-      order.side == OrderSide.Buy
-        ? 'Buy order base asset registration not confirmed'
-        : 'Sell order base asset registration not confirmed'
-    );
-    require(
-      quoteAssetAddress == address(0x0) ||
-        tokens.tokensByAddress[quoteAssetAddress].isConfirmed,
-      order.side == OrderSide.Buy
-        ? 'Buy order quote asset registration not confirmed'
-        : 'Sell order quote asset registration not confirmed'
     );
   }
 

@@ -2,6 +2,7 @@ import { ethAddress } from './helpers';
 
 contract('Custodian', (accounts) => {
   const Custodian = artifacts.require('Custodian');
+  const Token = artifacts.require('Token');
 
   describe('deploy', () => {
     it('should work', async () => {
@@ -178,6 +179,45 @@ contract('Custodian', (accounts) => {
       });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+    });
+
+    it('should revert withdrawing ETH not deposited', async () => {
+      const [owner] = accounts;
+      const custodian = await Custodian.new(owner, owner);
+
+      let error;
+      try {
+        await custodian.withdraw(
+          accounts[1],
+          ethAddress,
+          web3.utils.toWei('1', 'ether'),
+          { from: owner },
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/ETH transfer failed/i);
+    });
+
+    it('should revert withdrawing tokens not deposited', async () => {
+      const [owner] = accounts;
+      const custodian = await Custodian.new(owner, owner);
+      const token = await Token.new();
+
+      let error;
+      try {
+        await custodian.withdraw(
+          accounts[1],
+          token.address,
+          web3.utils.toWei('1', 'ether'),
+          { from: owner },
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/token transfer failed/i);
     });
 
     it('should revert when not sent from exchange', async () => {

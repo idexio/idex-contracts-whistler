@@ -82,6 +82,46 @@ contract('Exchange (withdrawals)', (accounts) => {
       expect(events.length).to.equal(1);
     });
 
+    it('should revert for invalid signature', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      await exchange.setDispatcher(accounts[0]);
+      await exchange.depositEther({
+        value: minimumTokenQuantity,
+        from: accounts[0],
+      });
+
+      const withdrawal = {
+        nonce: uuidv1(),
+        wallet: accounts[0],
+        quantity: minimumDecimalQuantity,
+        autoDispatchEnabled: true,
+        asset: ethSymbol,
+      };
+      const [
+        withdrawalStruct,
+        withdrawalTokenSymbol,
+        withdrawalWalletSignature,
+      ] = await getWithdrawArguments(
+        withdrawal,
+        '0.00000000',
+        // Sign with a different wallet
+        await getSignature(web3, getWithdrawalHash(withdrawal), accounts[1]),
+      );
+
+      let error;
+      try {
+        await exchange.withdraw(
+          withdrawalStruct,
+          withdrawalTokenSymbol,
+          withdrawalWalletSignature,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet signature/i);
+    });
+
     it('should revert for exited wallet', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
