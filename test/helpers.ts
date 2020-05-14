@@ -1,7 +1,7 @@
 import type { CustodianInstance } from '../types/truffle-contracts/Custodian';
 import type { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 import type { GovernanceInstance } from '../types/truffle-contracts/Governance';
-import type { TokenInstance } from '../types/truffle-contracts';
+import type { TestTokenInstance } from '../types/truffle-contracts/TestToken';
 import type { Withdrawal } from '../lib';
 
 import {
@@ -44,8 +44,8 @@ export const deployAndAssociateContracts = async (
 export const deployAndRegisterToken = async (
   exchange: ExchangeInstance,
   tokenSymbol: string,
-): Promise<TokenInstance> => {
-  const Token = artifacts.require('Token');
+): Promise<TestTokenInstance> => {
+  const Token = artifacts.require('TestToken');
   const token = await Token.new();
   await exchange.registerToken(token.address, tokenSymbol, 18);
   await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);

@@ -71,7 +71,7 @@ contract('Exchange (exits)', (accounts) => {
 
     it('should revert for wallet exit not finalized', async () => {
       const { exchange } = await deployAndAssociateContracts();
-      await exchange.setChainPropagationDelay(10);
+      await exchange.setChainPropagationPeriod(10);
       await exchange.exitWallet({ from: accounts[0] });
 
       let error;

@@ -1,4 +1,6 @@
-pragma solidity ^0.6.5;
+// SPDX-License-Identifier: UNLICENSED
+
+pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
@@ -23,16 +25,16 @@ contract Custodian is ICustodian, Owned {
     address exchange
   );
 
-  address exchange;
-  address governance;
+  address _exchange;
+  address _governance;
 
-  constructor(address _exchange, address _governance) public Owned() {
-    require(_exchange != address(0x0), 'Invalid exchange contract address');
-    require(_governance != address(0x0), 'Invalid governance contract address');
-    emit ExchangeChanged(exchange, _exchange);
-    emit GovernanceChanged(governance, _governance);
-    exchange = _exchange;
-    governance = _governance;
+  constructor(address exchange, address governance) public Owned() {
+    require(exchange != address(0x0), 'Invalid exchange contract address');
+    require(governance != address(0x0), 'Invalid governance contract address');
+    emit ExchangeChanged(_exchange, exchange);
+    emit GovernanceChanged(_governance, governance);
+    _exchange = exchange;
+    _governance = governance;
   }
 
   receive() external override payable onlyExchange {}
@@ -43,38 +45,48 @@ contract Custodian is ICustodian, Owned {
     uint256 quantity
   ) external override onlyExchange {
     Transfers.transferTo(wallet, asset, quantity);
-    emit Withdrawn(wallet, asset, quantity, exchange);
+    emit Withdrawn(wallet, asset, quantity, _exchange);
   }
 
   function getExchange() external override returns (address) {
-    return exchange;
+    return _exchange;
   }
 
-  function setExchange(address _exchange) external override onlyGovernance {
-    require(_exchange != address(0x0), 'Invalid contract address');
-    emit ExchangeChanged(exchange, _exchange);
-    exchange = _exchange;
+  function setExchange(address newExchange) external override onlyGovernance {
+    require(newExchange != address(0x0), 'Invalid contract address');
+
+    address oldExchange = _exchange;
+    _exchange = newExchange;
+
+    emit ExchangeChanged(oldExchange, newExchange);
   }
 
   function getGovernance() external override returns (address) {
-    return governance;
+    return _governance;
   }
 
-  function setGovernance(address _governance) external override onlyGovernance {
-    require(_governance != address(0x0), 'Invalid contract address');
-    emit GovernanceChanged(governance, _governance);
-    governance = _governance;
+  function setGovernance(address newGovernance)
+    external
+    override
+    onlyGovernance
+  {
+    require(newGovernance != address(0x0), 'Invalid contract address');
+
+    address oldGovernance = _governance;
+    _governance = newGovernance;
+
+    emit GovernanceChanged(oldGovernance, newGovernance);
   }
 
   /*** RBAC ***/
 
   modifier onlyExchange() {
-    require(msg.sender == exchange, 'Caller must be Exchange contract');
+    require(msg.sender == _exchange, 'Caller must be Exchange contract');
     _;
   }
 
   modifier onlyGovernance() {
-    require(msg.sender == governance, 'Caller must be Governance contract');
+    require(msg.sender == _governance, 'Caller must be Governance contract');
     _;
   }
 }

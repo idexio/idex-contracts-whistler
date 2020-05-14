@@ -3,15 +3,18 @@ import { v1 as uuidv1 } from 'uuid';
 
 import type {
   ExchangeInstance,
-  TokenInstance,
+  TestTokenInstance,
 } from '../types/truffle-contracts';
 
 import {
   deployAndAssociateContracts,
   deployAndRegisterToken,
+  ethAddress,
+  ethSymbol,
   getSignature,
 } from './helpers';
 import {
+  decimalToPips,
   decimalToTokenQuantity,
   getOrderHash,
   getTradeArguments,
@@ -22,14 +25,12 @@ import {
   uuidToHexString,
 } from '../lib';
 
-const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
-const ethSymbol = 'ETH';
 const tokenSymbol = 'TKN';
 const marketSymbol = `${tokenSymbol}-${ethSymbol}`;
 
 // TODO Test tokens with decimals other than 18
 contract('Exchange (trades)', (accounts) => {
-  const Token = artifacts.require('Token');
+  const Token = artifacts.require('TestToken');
 
   describe('executeTrade', () => {
     it('should work for matching limit orders', async () => {
@@ -38,13 +39,36 @@ contract('Exchange (trades)', (accounts) => {
       await exchange.setDispatcher(accounts[0]);
       const [sellWallet, buyWallet] = accounts;
 
-      await depositAndTrade(exchange, token, buyWallet, sellWallet);
+      const fill = await depositAndTrade(
+        exchange,
+        token,
+        buyWallet,
+        sellWallet,
+      );
 
       const events = await exchange.getPastEvents('ExecutedTrade', {
         fromBlock: 0,
       });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+
+      const { buyOrderHash, sellOrderHash } = events[0].returnValues;
+      expect(
+        (await exchange.balanceOf(buyWallet, token.address)).toString(),
+      ).to.equal(decimalToTokenQuantity(fill.netBaseQuantity, 18));
+      expect(
+        (await exchange.balanceOf(sellWallet, ethAddress)).toString(),
+      ).to.equal(decimalToTokenQuantity(fill.netQuoteQuantity, 18));
+      expect(
+        (
+          await exchange.partiallyFilledOrderQuantityInPips(buyOrderHash)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.partiallyFilledOrderQuantityInPips(sellOrderHash)
+        ).toString(),
+      ).to.equal('0');
     });
 
     it('should work for partial fill of matching limit orders', async () => {
@@ -82,6 +106,24 @@ contract('Exchange (trades)', (accounts) => {
       });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+
+      const { buyOrderHash, sellOrderHash } = events[0].returnValues;
+      expect(
+        (await exchange.balanceOf(buyWallet, token.address)).toString(),
+      ).to.equal(decimalToTokenQuantity(fill.netBaseQuantity, 18));
+      expect(
+        (await exchange.balanceOf(sellWallet, ethAddress)).toString(),
+      ).to.equal(decimalToTokenQuantity(fill.netQuoteQuantity, 18));
+      expect(
+        (
+          await exchange.partiallyFilledOrderQuantityInPips(buyOrderHash)
+        ).toString(),
+      ).to.equal(decimalToPips(fill.grossBaseQuantity));
+      expect(
+        (
+          await exchange.partiallyFilledOrderQuantityInPips(sellOrderHash)
+        ).toString(),
+      ).to.equal(decimalToPips(fill.grossBaseQuantity));
     });
 
     it('should revert when not called by dispatcher', async () => {
@@ -746,17 +788,17 @@ contract('Exchange (trades)', (accounts) => {
 
 const depositAndTrade = async (
   exchange: ExchangeInstance,
-  token: TokenInstance,
+  token: TestTokenInstance,
   buyWallet: string,
   sellWallet: string,
-): Promise<void> => {
+): Promise<Trade> => {
   await deposit(exchange, token, buyWallet, sellWallet);
-  await generateAndExecuteTrade(exchange, token, buyWallet, sellWallet);
+  return generateAndExecuteTrade(exchange, token, buyWallet, sellWallet);
 };
 
 const deposit = async (
   exchange: ExchangeInstance,
-  token: TokenInstance,
+  token: TestTokenInstance,
   buyWallet: string,
   sellWallet: string,
 ): Promise<void> => {
@@ -784,10 +826,10 @@ const deposit = async (
 
 const generateAndExecuteTrade = async (
   exchange: ExchangeInstance,
-  token: TokenInstance,
+  token: TestTokenInstance,
   buyWallet: string,
   sellWallet: string,
-): Promise<void> => {
+): Promise<Trade> => {
   const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
     token,
     buyWallet,
@@ -801,6 +843,8 @@ const generateAndExecuteTrade = async (
     sellOrder,
     fill,
   );
+
+  return fill;
 };
 
 const executeTrade = async (
@@ -829,7 +873,7 @@ const executeTrade = async (
 };
 
 const generateOrdersAndFill = async (
-  token: TokenInstance,
+  token: TestTokenInstance,
   buyWallet: string,
   sellWallet: string,
 ): Promise<{ buyOrder: Order; sellOrder: Order; fill: Trade }> => {

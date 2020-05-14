@@ -1,4 +1,6 @@
-pragma solidity ^0.6.5;
+// SPDX-License-Identifier: UNLICENSED
+
+pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
 import { ECDSA } from '@openzeppelin/contracts/cryptography/ECDSA.sol';
@@ -29,54 +31,103 @@ contract Exchange is IExchange, Owned {
   using SafeMath256 for uint256;
   using Tokens for Tokens.Storage;
 
-  /* Events */
+  // Events //
 
-  event ChainPropagationDelayChanged(uint256 previousValue, uint256 newValue);
+  /**
+   * @dev Emitted when an admin changes the Chain Propagation Period tunable parameter with {setChainPropagationPeriod}
+   */
+  event ChainPropagationPeriodChanged(uint256 previousValue, uint256 newValue);
+  /**
+   * @dev Emitted when a user deposits ETH with {depositEther} or a token with {depositToken} or {depositTokenBySymbol}
+   */
   event Deposited(
     address indexed wallet,
     address indexed asset,
     uint64 quantityInPips,
     uint64 index
   );
+  /**
+   * @dev Emitted when an admin changes the Dispatch Wallet tunable parameter with {setDispatcher}
+   */
   event DispatcherChanged(address previousValue, address newValue);
+
+  /**
+   * @dev Emitted when an admin changes the Fee Wallet tunable parameter with {setFeeWallet}
+   */
   event FeeWalletChanged(address previousValue, address newValue);
+
+  /**
+   * @dev Emitted when a user invalidates an order nonce with {invalidateOrderNonce}
+   */
   event InvalidatedOrderNonce(
     address indexed wallet,
     uint128 nonce,
     uint128 timestamp,
     uint256 effectiveBlockNumber
   );
+  /**
+   * @dev Emitted when an admin initiates the token registration process with {registerToken}
+   */
   event RegisteredToken(
     address indexed tokenAddress,
     string symbol,
     uint8 decimals
   );
+  /**
+   * @dev Emitted when an admin finalizes the token registration process with {confirmTokenRegistration}, after
+   * which it can be deposited, traded, or withdrawn
+   */
   event ConfirmedRegisteredToken(
     address indexed tokenAddress,
     string symbol,
     uint8 decimals
   );
+  /**
+   * @dev Emitted when the Dispatcher Wallet submits a trade for execution with {executeTrade}
+   */
   event ExecutedTrade(
     address buyWallet,
     address sellWallet,
     string indexed baseSymbol,
     string indexed quoteSymbol,
-    uint64 baseQuantity,
-    uint64 quoteQuantity,
-    uint64 tradePrice
+    uint64 baseQuantityInPips,
+    uint64 quoteQuantityInPips,
+    uint64 tradePrice,
+    bytes32 buyOrderHash,
+    bytes32 sellOrderHash
   );
+  /**
+   * @dev Emitted when an admin changes the Maximum Maker Fee Rate tunable parameter with {setTradeMakerFeeBasisPoints}
+   */
   event TradeMakerFeeChanged(uint64 previousValue, uint64 newValue);
+
+  /**
+   * @dev Emitted when an admin changes the Maximum Taker Fee Rate tunable parameter with {setTradeTakerFeeBasisPoints}
+   */
   event TradeTakerFeeChanged(uint64 previousValue, uint64 newValue);
+
+  /**
+   * @dev Emitted when a user invokes the Exit Wallet mechanism with {exitWallet}
+   */
   event WalletExited(address indexed wallet, uint256 effectiveBlockNumber);
+  /**
+   * @dev Emitted when a user withdraws an asset balance through the Exit Wallet mechanism with {withdrawExit}
+   */
   event WalletExitWithdrawn(
     address indexed wallet,
     address asset,
     uint256 quantity
   );
+  /**
+   * @dev Emitted when the Dispatcher Wallet submits a withdrawal with {withdraw}
+   */
   event Withdrawn(address indexed wallet, address asset, uint256 quantity);
+  /**
+   * @dev Emitted when an admin changes the Maximum Withdrawal Fee Rate tunable parameter with {setWithdrawalFeeBasisPoints}
+   */
   event WithdrawalFeeChanged(uint64 previousValue, uint64 newValue);
 
-  /* Structs */
+  // Structs //
 
   struct NonceInvalidation {
     bool exists;
@@ -88,144 +139,166 @@ contract Exchange is IExchange, Owned {
     uint256 effectiveBlockNumber;
   }
 
-  /* Storage */
+  // Storage //
 
   // Mapping of order hash => isComplete
-  mapping(bytes32 => bool) completedOrderHashes;
+  mapping(bytes32 => bool) _completedOrderHashes;
   // Mapping of order hash => isComplete
-  mapping(bytes32 => bool) completedWithdrawalHashes;
-  address payable custodian;
+  mapping(bytes32 => bool) _completedWithdrawalHashes;
+  address payable _custodian;
   uint64 depositIndex;
   // Mapping of wallet => asset => balance
-  mapping(address => mapping(address => uint256)) balances;
+  mapping(address => mapping(address => uint256)) _balances;
   // Mapping of wallet => last invalidated timestamp
-  mapping(address => NonceInvalidation) nonceInvalidations;
+  mapping(address => NonceInvalidation) _nonceInvalidations;
   // Mapping of order hash => filled quantity in pips
-  mapping(bytes32 => uint64) partiallyFilledOrderQuantities;
-  Tokens.Storage internal tokens;
-  mapping(address => WalletExit) walletExits;
+  mapping(bytes32 => uint64) _partiallyFilledOrderQuantities;
+  Tokens.Storage internal _tokens;
+  mapping(address => WalletExit) _walletExits;
   // Tunable parameters
-  uint256 chainPropagationDelay;
+  uint256 _chainPropagationPeriod;
   address dispatcher;
-  address feeWallet;
-  uint64 tradeMakerFeeBasisPoints;
-  uint64 tradeTakerFeeBasisPoints;
-  uint64 withdrawalFeeBasisPoints;
+  address _feeWallet;
+  uint64 _tradeMakerFeeBasisPoints;
+  uint64 _tradeTakerFeeBasisPoints;
+  uint64 _withdrawalFeeBasisPoints;
   // Guards on tunable parameters
-  uint256 immutable maxChainPropagationDelay;
-  uint64 immutable maxTradeFeeBasisPoints;
-  uint64 immutable maxWithdrawalFeeBasisPoints;
+  uint256 immutable _maxChainPropagationPeriod;
+  uint64 immutable _maxTradeFeeBasisPoints;
+  uint64 immutable _maxWithdrawalFeeBasisPoints;
 
+  /**
+   * @dev Sets {owner} and {admin} to `msg.sender` Sets the values for {_maxChainPropagationPeriod},
+   * {_maxWithdrawalFeeBasisPoints}, and {_maxTradeFeeBasisPoints} to 1 week, 10%, and 10% respectively.
+   * All three of these values are immutable, and cannot be changed after construction
+   */
   constructor() public Owned() {
-    maxChainPropagationDelay = (7 * 24 * 60 * 60) / 15; // 1 week at 15s/block
-    maxWithdrawalFeeBasisPoints = 10 * 100; // 10%
-    maxTradeFeeBasisPoints = 10 * 100; // 10%
+    _maxChainPropagationPeriod = (7 * 24 * 60 * 60) / 15; // 1 week at 15s/block
+    _maxWithdrawalFeeBasisPoints = 10 * 100; // 10%
+    _maxTradeFeeBasisPoints = 10 * 100; // 10%
   }
 
-  function setCustodian(address payable _custodian) external onlyAdmin {
-    require(_custodian != address(0x0), 'Invalid address');
-    require(custodian == address(0x0), 'Custodian can only be set once');
-    custodian = _custodian;
+  /**
+   * @dev Sets {owner} and {admin} to `msg.sender` Sets the values for {_maxChainPropagationPeriod},
+   * {_maxWithdrawalFeeBasisPoints}, and {_maxTradeFeeBasisPoints} to 1 week, 10%, and 10% respectively.
+   * All three of these values are immutable, and cannot be changed after construction
+   */
+  function setCustodian(address payable newCustodian) external onlyAdmin {
+    require(_custodian == address(0x0), 'Custodian can only be set once');
+    require(newCustodian != address(0x0), 'Invalid address');
+
+    _custodian = newCustodian;
   }
 
   /*** Tunable parameters ***/
 
-  function setChainPropagationDelay(uint256 _chainPropagationDelay)
+  function setChainPropagationPeriod(uint256 newChainPropagationPeriod)
     external
     onlyAdmin
   {
     require(
-      _chainPropagationDelay < maxChainPropagationDelay,
+      newChainPropagationPeriod < _maxChainPropagationPeriod,
       'Must be less than 1 week'
     );
-    emit ChainPropagationDelayChanged(
-      chainPropagationDelay,
-      _chainPropagationDelay
+
+    uint256 oldChainPropagationPeriod = _chainPropagationPeriod;
+    _chainPropagationPeriod = newChainPropagationPeriod;
+
+    emit ChainPropagationPeriodChanged(
+      oldChainPropagationPeriod,
+      newChainPropagationPeriod
     );
-    chainPropagationDelay = _chainPropagationDelay;
   }
 
-  function setFeeWallet(address _feeWallet) external onlyAdmin {
-    require(_feeWallet != address(0x0), 'Invalid wallet address');
+  function setFeeWallet(address newFeeWallet) external onlyAdmin {
+    require(newFeeWallet != address(0x0), 'Invalid wallet address');
     require(
-      _feeWallet != feeWallet,
+      newFeeWallet != _feeWallet,
       'Must be different from current fee wallet'
     );
-    emit FeeWalletChanged(feeWallet, _feeWallet);
-    feeWallet = _feeWallet;
+
+    address oldFeeWallet = _feeWallet;
+    _feeWallet = newFeeWallet;
+
+    emit FeeWalletChanged(oldFeeWallet, newFeeWallet);
   }
 
-  function setWithdrawalFeeBasisPoints(uint64 _withdrawalFeeBasisPoints)
+  function setWithdrawalFeeBasisPoints(uint64 newWithdrawalFeeBasisPoints)
     external
     onlyAdmin
   {
     require(
-      _withdrawalFeeBasisPoints < maxWithdrawalFeeBasisPoints,
+      newWithdrawalFeeBasisPoints < _maxWithdrawalFeeBasisPoints,
       'Excessive withdrawal fee'
     );
+
+    uint64 oldWithdrawalFeeBasisPoints = _withdrawalFeeBasisPoints;
+    _withdrawalFeeBasisPoints = newWithdrawalFeeBasisPoints;
+
     emit WithdrawalFeeChanged(
-      withdrawalFeeBasisPoints,
-      _withdrawalFeeBasisPoints
+      oldWithdrawalFeeBasisPoints,
+      newWithdrawalFeeBasisPoints
     );
-    withdrawalFeeBasisPoints = _withdrawalFeeBasisPoints;
   }
 
-  function setTradeMakerFeeBasisPoints(uint64 _tradeMakerFeeBasisPoints)
+  function setTradeMakerFeeBasisPoints(uint64 newTradeMakerFeeBasisPoints)
     external
     onlyAdmin
   {
     require(
-      _tradeMakerFeeBasisPoints < maxTradeFeeBasisPoints,
+      newTradeMakerFeeBasisPoints < _maxTradeFeeBasisPoints,
       'Excessive maker fee'
     );
+
+    uint64 oldTradeMakerFeeBasisPoints = _tradeMakerFeeBasisPoints;
+    _tradeMakerFeeBasisPoints = newTradeMakerFeeBasisPoints;
+
     emit TradeMakerFeeChanged(
-      tradeMakerFeeBasisPoints,
-      _tradeMakerFeeBasisPoints
+      oldTradeMakerFeeBasisPoints,
+      newTradeMakerFeeBasisPoints
     );
-    tradeMakerFeeBasisPoints = _tradeMakerFeeBasisPoints;
   }
 
-  function setTradeTakerFeeBasisPoints(uint64 _tradeTakerFeeBasisPoints)
+  function setTradeTakerFeeBasisPoints(uint64 newTradeTakerFeeBasisPoints)
     external
     onlyAdmin
   {
     require(
-      _tradeTakerFeeBasisPoints < maxTradeFeeBasisPoints,
+      newTradeTakerFeeBasisPoints < _maxTradeFeeBasisPoints,
       'Excessive taker fee'
     );
+
+    uint64 oldTradeTakerFeeBasisPoints = _tradeTakerFeeBasisPoints;
+    _tradeTakerFeeBasisPoints = newTradeTakerFeeBasisPoints;
+
     emit TradeTakerFeeChanged(
-      tradeTakerFeeBasisPoints,
-      _tradeTakerFeeBasisPoints
+      oldTradeTakerFeeBasisPoints,
+      newTradeTakerFeeBasisPoints
     );
-    tradeTakerFeeBasisPoints = _tradeTakerFeeBasisPoints;
   }
 
   /*** Accessors ***/
 
-  /*
   function balanceOf(address wallet, address asset)
     external
     view
-    returns (uint256 balance)
+    returns (uint256)
   {
-    return balances[wallet][asset];
+    return _balances[wallet][asset];
   }
-  */
 
   /**
    * Only partially filled orders will return a non-zero value, filled orders will return 0.
    * Invalidating an order nonce will not clear partial fill quantities for earlier orders
    * because the gas cost for this is potentially unbound
    */
-  /*
-  function partiallyFilledOrderQuantity(bytes32 orderHash)
+  function partiallyFilledOrderQuantityInPips(bytes32 orderHash)
     external
     view
-    returns (uint64 quantity)
+    returns (uint64)
   {
-    return partiallyFilledOrderQuantities[orderHash];
+    return _partiallyFilledOrderQuantities[orderHash];
   }
-  */
 
   /*** Depositing ***/
 
@@ -245,7 +318,7 @@ contract Exchange is IExchange, Owned {
   function depositTokenBySymbol(string calldata tokenSymbol, uint256 quantity)
     external
   {
-    address tokenAddress = tokens.tokenSymbolToAddress(
+    address tokenAddress = _tokens.tokenSymbolToAddress(
       tokenSymbol,
       uint64(block.timestamp * 1000)
     );
@@ -260,29 +333,29 @@ contract Exchange is IExchange, Owned {
   ) private {
     // Calling exitWallet immediately disables deposits, in contrast to withdrawals and trades which
     // respect the effectiveBlockNumber via isWalletExitFinalized
-    require(!walletExits[wallet].exists, 'Wallet exited');
+    require(!_walletExits[wallet].exists, 'Wallet exited');
 
     // If asset is a token, it must be registered
     if (asset != address(0x0)) {
-      Tokens.Token storage token = tokens.tokensByAddress[asset];
+      Tokens.Token storage token = _tokens.tokensByAddress[asset];
       require(
         token.exists && token.isConfirmed,
         'No confirmed token found for address'
       );
     }
-    uint64 quantityInPips = tokens.transferFromWallet(wallet, asset, quantity);
+    uint64 quantityInPips = _tokens.transferFromWallet(wallet, asset, quantity);
 
     // Any fractional amount in the deposited quantity that is too small to express in pips
     // accumulates as dust in the Exchange contract
-    uint256 tokenQuantityInPipPrecision = tokens.pipsToTokenQuantity(
+    uint256 tokenQuantityInPipPrecision = _tokens.pipsToTokenQuantity(
       quantityInPips,
       asset
     );
-    uint256 newBalance = balances[wallet][asset].add(
+    uint256 newBalance = _balances[wallet][asset].add(
       tokenQuantityInPipPrecision
     );
-    balances[wallet][asset] = newBalance;
-    Transfers.transferTo(custodian, asset, tokenQuantityInPipPrecision);
+    _balances[wallet][asset] = newBalance;
+    Transfers.transferTo(_custodian, asset, tokenQuantityInPipPrecision);
 
     depositIndex++;
     emit Deposited(wallet, asset, quantityInPips, depositIndex);
@@ -293,28 +366,28 @@ contract Exchange is IExchange, Owned {
   function invalidateOrderNonce(uint128 nonce) external {
     uint64 timestamp = getTimestampFromUuid(nonce);
 
-    if (nonceInvalidations[msg.sender].exists) {
+    if (_nonceInvalidations[msg.sender].exists) {
       require(
-        nonceInvalidations[msg.sender].timestamp < timestamp,
+        _nonceInvalidations[msg.sender].timestamp < timestamp,
         'Nonce timestamp already invalidated'
       );
       require(
-        nonceInvalidations[msg.sender].effectiveBlockNumber <= block.number,
+        _nonceInvalidations[msg.sender].effectiveBlockNumber <= block.number,
         'Previous invalidation awaiting chain propagation'
       );
     }
 
-    nonceInvalidations[msg.sender] = NonceInvalidation(
+    _nonceInvalidations[msg.sender] = NonceInvalidation(
       true,
       timestamp,
-      block.number + chainPropagationDelay
+      block.number + _chainPropagationPeriod
     );
 
     emit InvalidatedOrderNonce(
       msg.sender,
       nonce,
       timestamp,
-      block.number + chainPropagationDelay
+      block.number + _chainPropagationPeriod
     );
   }
 
@@ -329,7 +402,7 @@ contract Exchange is IExchange, Owned {
     require(!isWalletExitFinalized(withdrawal.walletAddress), 'Wallet exited');
     require(
       getFeeBasisPoints(withdrawal.gasFee, withdrawal.quantity) <=
-        withdrawalFeeBasisPoints,
+        _withdrawalFeeBasisPoints,
       'Excessive withdrawal fee'
     );
     bytes32 withdrawalHash = validateWithdrawalSignature(
@@ -338,41 +411,41 @@ contract Exchange is IExchange, Owned {
       withdrawalWalletSignature
     );
     require(
-      !completedWithdrawalHashes[withdrawalHash],
+      !_completedWithdrawalHashes[withdrawalHash],
       'Hash already withdrawn'
     );
 
     // If withdrawal is by asset symbol (most common) then resolve to asset address
     address assetAddress = withdrawal.withdrawalType == WithdrawalType.BySymbol
-      ? tokens.tokenSymbolToAddress(
+      ? _tokens.tokenSymbolToAddress(
         withdrawalTokenSymbol,
         getTimestampFromUuid(withdrawal.nonce)
       )
       : withdrawal.assetAddress;
 
     // SafeMath reverts if overdrawn
-    uint256 quantityInWei = tokens.pipsToTokenQuantity(
+    uint256 quantityInWei = _tokens.pipsToTokenQuantity(
       withdrawal.quantity,
       assetAddress
     );
-    balances[withdrawal.walletAddress][assetAddress] = balances[withdrawal
+    _balances[withdrawal.walletAddress][assetAddress] = _balances[withdrawal
       .walletAddress][assetAddress]
       .sub(quantityInWei);
-    balances[feeWallet][withdrawal
-      .assetAddress] = balances[feeWallet][assetAddress].add(
-      tokens.pipsToTokenQuantity(withdrawal.gasFee, assetAddress)
+    _balances[_feeWallet][withdrawal
+      .assetAddress] = _balances[_feeWallet][assetAddress].add(
+      _tokens.pipsToTokenQuantity(withdrawal.gasFee, assetAddress)
     );
 
-    ICustodian(custodian).withdraw(
+    ICustodian(_custodian).withdraw(
       withdrawal.walletAddress,
       assetAddress,
-      tokens.pipsToTokenQuantity(
+      _tokens.pipsToTokenQuantity(
         withdrawal.quantity.sub(withdrawal.gasFee),
         assetAddress
       )
     );
 
-    completedWithdrawalHashes[withdrawalHash] = true;
+    _completedWithdrawalHashes[withdrawalHash] = true;
 
     emit Withdrawn(withdrawal.walletAddress, assetAddress, quantityInWei);
   }
@@ -380,34 +453,34 @@ contract Exchange is IExchange, Owned {
   /*** Wallet exits ***/
 
   function exitWallet() external {
-    require(!walletExits[msg.sender].exists, 'Wallet already exited');
+    require(!_walletExits[msg.sender].exists, 'Wallet already exited');
 
-    walletExits[msg.sender] = WalletExit(
+    _walletExits[msg.sender] = WalletExit(
       true,
-      block.number + chainPropagationDelay
+      block.number + _chainPropagationPeriod
     );
 
-    emit WalletExited(msg.sender, block.number + chainPropagationDelay);
+    emit WalletExited(msg.sender, block.number + _chainPropagationPeriod);
   }
 
   function withdrawExit(address assetAddress) external {
-    require(walletExits[msg.sender].exists, 'Wallet not yet exited');
+    require(_walletExits[msg.sender].exists, 'Wallet not yet exited');
     require(
       isWalletExitFinalized(msg.sender),
       'Wallet exit block delay not yet elapsed'
     );
 
-    uint256 balance = balances[msg.sender][assetAddress];
+    uint256 balance = _balances[msg.sender][assetAddress];
     require(balance > 0, 'No balance for asset');
-    balances[msg.sender][assetAddress] = 0;
+    _balances[msg.sender][assetAddress] = 0;
 
-    ICustodian(custodian).withdraw(msg.sender, assetAddress, balance);
+    ICustodian(_custodian).withdraw(msg.sender, assetAddress, balance);
 
     emit WalletExitWithdrawn(msg.sender, assetAddress, balance);
   }
 
   function isWalletExitFinalized(address wallet) internal view returns (bool) {
-    WalletExit storage exit = walletExits[wallet];
+    WalletExit storage exit = _walletExits[wallet];
     return exit.exists && exit.effectiveBlockNumber <= block.number;
   }
 
@@ -468,7 +541,9 @@ contract Exchange is IExchange, Owned {
       buyQuoteSymbol,
       trade.grossBaseQuantity,
       trade.grossQuoteQuantity,
-      trade.price
+      trade.price,
+      buyHash,
+      sellHash
     );
   }
 
@@ -481,47 +556,53 @@ contract Exchange is IExchange, Owned {
     Trade memory trade
   ) private {
     // Buyer receives base asset minus fees
-    balances[buy.walletAddress][buy.baseAssetAddress] = balances[buy
+    _balances[buy.walletAddress][buy.baseAssetAddress] = _balances[buy
       .walletAddress][buy.baseAssetAddress]
       .add(
-      tokens.pipsToTokenQuantity(trade.netBaseQuantity, buy.baseAssetAddress)
+      _tokens.pipsToTokenQuantity(trade.netBaseQuantity, buy.baseAssetAddress)
     );
     // Buyer gives quote asset including fees
-    balances[buy.walletAddress][buy.quoteAssetAddress] = balances[buy
+    _balances[buy.walletAddress][buy.quoteAssetAddress] = _balances[buy
       .walletAddress][buy.quoteAssetAddress]
       .sub(
-      tokens.pipsToTokenQuantity(
+      _tokens.pipsToTokenQuantity(
         trade.grossQuoteQuantity,
         buy.quoteAssetAddress
       )
     );
 
     // Seller gives base asset including fees
-    balances[sell.walletAddress][sell.baseAssetAddress] = balances[sell
+    _balances[sell.walletAddress][sell.baseAssetAddress] = _balances[sell
       .walletAddress][sell.baseAssetAddress]
       .sub(
-      tokens.pipsToTokenQuantity(trade.grossBaseQuantity, sell.baseAssetAddress)
+      _tokens.pipsToTokenQuantity(
+        trade.grossBaseQuantity,
+        sell.baseAssetAddress
+      )
     );
     // Seller receives quote asset minus fees
-    balances[sell.walletAddress][sell.quoteAssetAddress] = balances[sell
+    _balances[sell.walletAddress][sell.quoteAssetAddress] = _balances[sell
       .walletAddress][sell.quoteAssetAddress]
       .add(
-      tokens.pipsToTokenQuantity(trade.netQuoteQuantity, sell.quoteAssetAddress)
+      _tokens.pipsToTokenQuantity(
+        trade.netQuoteQuantity,
+        sell.quoteAssetAddress
+      )
     );
 
     // Maker and taker fees to fee wallet
-    balances[feeWallet][trade.makerFeeAssetAddress] = balances[feeWallet][trade
-      .makerFeeAssetAddress]
+    _balances[_feeWallet][trade
+      .makerFeeAssetAddress] = _balances[_feeWallet][trade.makerFeeAssetAddress]
       .add(
-      tokens.pipsToTokenQuantity(
+      _tokens.pipsToTokenQuantity(
         trade.makerFeeQuantity,
         trade.makerFeeAssetAddress
       )
     );
-    balances[feeWallet][trade.takerFeeAssetAddress] = balances[feeWallet][trade
-      .takerFeeAssetAddress]
+    _balances[_feeWallet][trade
+      .takerFeeAssetAddress] = _balances[_feeWallet][trade.takerFeeAssetAddress]
       .add(
-      tokens.pipsToTokenQuantity(
+      _tokens.pipsToTokenQuantity(
         trade.takerFeeQuantity,
         trade.takerFeeAssetAddress
       )
@@ -547,18 +628,18 @@ contract Exchange is IExchange, Owned {
     bytes32 orderHash,
     Trade memory trade
   ) private {
-    require(!completedOrderHashes[orderHash], 'Order double filled');
+    require(!_completedOrderHashes[orderHash], 'Order double filled');
 
     uint64 newFilledQuantity = trade.grossBaseQuantity.add(
-      partiallyFilledOrderQuantities[orderHash]
+      _partiallyFilledOrderQuantities[orderHash]
     );
     require(newFilledQuantity <= order.totalQuantity, 'Order overfilled');
 
     if (newFilledQuantity < order.totalQuantity) {
-      partiallyFilledOrderQuantities[orderHash] = newFilledQuantity;
+      _partiallyFilledOrderQuantities[orderHash] = newFilledQuantity;
     } else {
-      delete partiallyFilledOrderQuantities[orderHash];
-      completedOrderHashes[orderHash] = true;
+      delete _partiallyFilledOrderQuantities[orderHash];
+      _completedOrderHashes[orderHash] = true;
     }
   }
 
@@ -641,11 +722,11 @@ contract Exchange is IExchange, Owned {
     string memory quoteSymbol
   ) private view {
     uint64 timestamp = getTimestampFromUuid(order.nonce);
-    address baseAssetAddress = tokens.tokenSymbolToAddress(
+    address baseAssetAddress = _tokens.tokenSymbolToAddress(
       baseSymbol,
       timestamp
     );
-    address quoteAssetAddress = tokens.tokenSymbolToAddress(
+    address quoteAssetAddress = _tokens.tokenSymbolToAddress(
       quoteSymbol,
       timestamp
     );
@@ -674,12 +755,12 @@ contract Exchange is IExchange, Owned {
 
     require(
       getFeeBasisPoints(trade.makerFeeQuantity, makerTotalQuantity) <=
-        tradeMakerFeeBasisPoints,
+        _tradeMakerFeeBasisPoints,
       'Excessive maker fee'
     );
     require(
       getFeeBasisPoints(trade.takerFeeQuantity, takerTotalQuantity) <=
-        tradeTakerFeeBasisPoints,
+        _tradeTakerFeeBasisPoints,
       'Excessive taker fee'
     );
   }
@@ -787,7 +868,7 @@ contract Exchange is IExchange, Owned {
     string calldata symbol,
     uint8 decimals
   ) external onlyAdmin {
-    tokens.registerToken(tokenAddress, symbol, decimals);
+    _tokens.registerToken(tokenAddress, symbol, decimals);
     emit RegisteredToken(tokenAddress, symbol, decimals);
   }
 
@@ -796,7 +877,7 @@ contract Exchange is IExchange, Owned {
     string calldata symbol,
     uint8 decimals
   ) external onlyAdmin {
-    tokens.confirmTokenRegistration(tokenAddress, symbol, decimals);
+    _tokens.confirmTokenRegistration(tokenAddress, symbol, decimals);
     emit ConfirmedRegisteredToken(tokenAddress, symbol, decimals);
   }
 
@@ -805,7 +886,7 @@ contract Exchange is IExchange, Owned {
     view
     returns (address)
   {
-    return tokens.tokenSymbolToAddress(tokenSymbol, timestamp);
+    return _tokens.tokenSymbolToAddress(tokenSymbol, timestamp);
   }
 
   /*** RBAC ***/
@@ -846,10 +927,10 @@ contract Exchange is IExchange, Owned {
     returns (uint64)
   {
     if (
-      nonceInvalidations[walletAddress].exists &&
-      nonceInvalidations[walletAddress].effectiveBlockNumber <= block.number
+      _nonceInvalidations[walletAddress].exists &&
+      _nonceInvalidations[walletAddress].effectiveBlockNumber <= block.number
     ) {
-      return nonceInvalidations[walletAddress].timestamp;
+      return _nonceInvalidations[walletAddress].timestamp;
     }
 
     return 0;

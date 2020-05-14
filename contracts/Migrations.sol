@@ -1,4 +1,6 @@
-pragma solidity >=0.4.21 <0.7.0;
+// SPDX-License-Identifier: UNLICENSED
+
+pragma solidity 0.6.8;
 
 
 contract Migrations {

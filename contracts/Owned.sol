@@ -1,7 +1,9 @@
-pragma solidity ^0.6.5;
+// SPDX-License-Identifier: UNLICENSED
+
+pragma solidity ^0.6.8;
 
 
-contract Owned {
+abstract contract Owned {
   address immutable owner;
   address admin;
 

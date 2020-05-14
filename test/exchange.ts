@@ -77,14 +77,14 @@ contract('Exchange (tunable parameters)', (accounts) => {
     });
   });
 
-  describe('setChainPropagationDelay', () => {
+  describe('setChainPropagationPeriod', () => {
     it('should work for value in bounds', async () => {
       const { exchange } = await deployAndAssociateContracts();
 
-      await exchange.setChainPropagationDelay('10');
+      await exchange.setChainPropagationPeriod('10');
 
       const events = await exchange.getPastEvents(
-        'ChainPropagationDelayChanged',
+        'ChainPropagationPeriodChanged',
         {
           fromBlock: 0,
         },
@@ -98,7 +98,7 @@ contract('Exchange (tunable parameters)', (accounts) => {
 
       let error;
       try {
-        await exchange.setChainPropagationDelay('1000000000000000000000000');
+        await exchange.setChainPropagationPeriod('1000000000000000000000000');
       } catch (e) {
         error = e;
       }

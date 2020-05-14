@@ -53,15 +53,15 @@ export interface Order {
   quoteAssetAddress: string;
 }
 export interface Trade {
-  grossBaseQuantity: string; // pips
-  grossQuoteQuantity: string; // pips
-  netBaseQuantity: string; // pips
-  netQuoteQuantity: string; // pips
+  grossBaseQuantity: string;
+  grossQuoteQuantity: string;
+  netBaseQuantity: string;
+  netQuoteQuantity: string;
   makerFeeAssetAddress: string;
   takerFeeAssetAddress: string;
-  makerFeeQuantity: string; // pips
-  takerFeeQuantity: string; // pips
-  price: string; // decimal pips * 10^8
+  makerFeeQuantity: string;
+  takerFeeQuantity: string;
+  price: string;
   makerSide: OrderSide;
 }
 

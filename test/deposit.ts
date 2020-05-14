@@ -6,7 +6,8 @@ import {
 import { ethAddress } from '../lib';
 
 contract('Exchange (deposits)', (accounts) => {
-  const Token = artifacts.require('Token');
+  const SkimmingToken = artifacts.require('SkimmingTestToken');
+  const Token = artifacts.require('TestToken');
 
   const tokenSymbol = 'TKN';
 
@@ -169,6 +170,26 @@ contract('Exchange (deposits)', (accounts) => {
       }
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/no confirmed token found for address/i);
+    });
+
+    it('should revert when token skims from transfer', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await SkimmingToken.new();
+      await token.setShouldSkim(true);
+      await exchange.registerToken(token.address, tokenSymbol, 18);
+      await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
+      await token.approve(exchange.address, minimumTokenQuantity);
+
+      let error;
+      try {
+        await exchange.depositToken(token.address, minimumTokenQuantity);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        / transfer success without expected balance change/i,
+      );
     });
   });
 });

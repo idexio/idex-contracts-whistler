@@ -49,7 +49,7 @@ contract('Exchange (invalidations)', (accounts) => {
 
     it('should revert on subsequent call before block threshold of previous', async () => {
       const { exchange } = await deployAndAssociateContracts();
-      await exchange.setChainPropagationDelay(10);
+      await exchange.setChainPropagationPeriod(10);
       await exchange.invalidateOrderNonce(uuidToHexString(uuidv1()));
 
       let error;

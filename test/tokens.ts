@@ -4,9 +4,12 @@ import {
   ethSymbol,
 } from './helpers';
 import { ethAddress } from '../lib';
+import { TokensMockInstance } from '../types/truffle-contracts/TokensMock';
 
 contract('Exchange (tokens)', (accounts) => {
-  const Token = artifacts.require('Token');
+  const Token = artifacts.require('TestToken');
+  const TokensMock = artifacts.require('TokensMock');
+
   const tokenSymbol = 'TKN';
 
   describe('registerToken', () => {
@@ -188,6 +191,57 @@ contract('Exchange (tokens)', (accounts) => {
       }
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/no confirmed token found for symbol/i);
+    });
+  });
+
+  describe('tokenQuantityToPips', async () => {
+    let tokensMock: TokensMockInstance;
+    const tokenQuantityToPips = async (
+      quantity: string,
+      decimals: string,
+    ): Promise<string> =>
+      (await tokensMock.tokenQuantityToPips(quantity, decimals)).toString();
+
+    beforeEach(async () => {
+      tokensMock = await TokensMock.new();
+    });
+
+    it('should succeed', async () => {
+      expect(await tokenQuantityToPips('10000000000', '18')).to.equal('1');
+      expect(await tokenQuantityToPips('10000000000000', '18')).to.equal(
+        '1000',
+      );
+      expect(await tokenQuantityToPips('1', '8')).to.equal('1');
+      expect(await tokenQuantityToPips('1', '2')).to.equal('1000000');
+      expect(await tokenQuantityToPips('1', '0')).to.equal('100000000');
+    });
+
+    it('should truncate fractions of a pip', async () => {
+      expect(await tokenQuantityToPips('19', '9')).to.equal('1');
+      expect(await tokenQuantityToPips('1', '9')).to.equal('0');
+    });
+  });
+
+  describe('pipsToTokenQuantity', async () => {
+    let tokensMock: TokensMockInstance;
+    const pipsToTokenQuantity = async (
+      quantity: string,
+      decimals: string,
+    ): Promise<string> =>
+      (await tokensMock.pipsToTokenQuantity(quantity, decimals)).toString();
+
+    beforeEach(async () => {
+      tokensMock = await TokensMock.new();
+    });
+
+    it('should succeed', async () => {
+      expect(await pipsToTokenQuantity('1', '18')).to.equal('10000000000');
+      expect(await pipsToTokenQuantity('1000', '18')).to.equal(
+        '10000000000000',
+      );
+      expect(await pipsToTokenQuantity('1', '8')).to.equal('1');
+      expect(await pipsToTokenQuantity('1000000', '2')).to.equal('1');
+      expect(await pipsToTokenQuantity('100000000', '0')).to.equal('1');
     });
   });
 });

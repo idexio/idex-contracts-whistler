@@ -4,24 +4,25 @@ import type { CustodianInstance } from '../types/truffle-contracts/Custodian';
 import type { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 import type { GovernanceInstance } from '../types/truffle-contracts/Governance';
 
+import { getWithdrawArguments, getWithdrawalHash } from '../lib';
 import {
-  decimalToTokenQuantity,
-  getWithdrawArguments,
-  getWithdrawalHash,
-} from '../lib';
-import { ethAddress, ethSymbol, getSignature, withdraw } from './helpers';
+  deployAndRegisterToken,
+  ethAddress,
+  ethSymbol,
+  getSignature,
+  minimumDecimalQuantity,
+  minimumTokenQuantity,
+  withdraw,
+} from './helpers';
 
 contract('Exchange (withdrawals)', (accounts) => {
   const Custodian = artifacts.require('Custodian');
   const Exchange = artifacts.require('Exchange');
   const Governance = artifacts.require('Governance');
+  const SkimmingToken = artifacts.require('SkimmingTestToken');
+  const Token = artifacts.require('TestToken');
 
-  const minimumDecimalQuantity = '0.00000001';
-  // TODO Test tokens with decimals other than 18
-  const minimumTokenQuantity = decimalToTokenQuantity(
-    minimumDecimalQuantity,
-    18,
-  );
+  const tokenSymbol = 'TKN';
 
   // TODO Verify balances
   // TODO Test gas fees
@@ -80,6 +81,98 @@ contract('Exchange (withdrawals)', (accounts) => {
       });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+    });
+
+    it('should work by symbol for token', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      await token.approve(exchange.address, minimumTokenQuantity);
+      await exchange.depositToken(token.address, minimumTokenQuantity);
+
+      await withdraw(
+        web3,
+        exchange,
+        {
+          nonce: uuidv1(),
+          wallet: accounts[0],
+          quantity: minimumDecimalQuantity,
+          autoDispatchEnabled: true,
+          asset: tokenSymbol,
+        },
+        accounts[0],
+      );
+
+      const events = await exchange.getPastEvents('Withdrawn', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+    });
+
+    it('should revert for unknown token', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await Token.new();
+      await exchange.setDispatcher(accounts[0]);
+
+      let error;
+      try {
+        await withdraw(
+          web3,
+          exchange,
+          {
+            nonce: uuidv1(),
+            wallet: accounts[0],
+            quantity: minimumDecimalQuantity,
+            autoDispatchEnabled: true,
+            assetContractAddress: token.address,
+          },
+          accounts[0],
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/no confirmed token found for address/i);
+    });
+
+    it('should revert when token skims from transfer', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      await exchange.setDispatcher(accounts[0]);
+      const token = await SkimmingToken.new();
+      await exchange.registerToken(token.address, tokenSymbol, 18);
+      await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
+      await token.approve(exchange.address, minimumTokenQuantity);
+      await exchange.depositToken(token.address, minimumTokenQuantity);
+      await token.setShouldSkim(true);
+
+      let error;
+      try {
+        await withdraw(
+          web3,
+          exchange,
+          {
+            nonce: uuidv1(),
+            wallet: accounts[0],
+            quantity: minimumDecimalQuantity,
+            autoDispatchEnabled: true,
+            asset: tokenSymbol,
+          },
+          accounts[0],
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        / transfer success without expected balance change/i,
+      );
+
+      const events = await exchange.getPastEvents('Withdrawn', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(0);
     });
 
     it('should revert for invalid signature', async () => {

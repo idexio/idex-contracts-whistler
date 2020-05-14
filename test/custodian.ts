@@ -2,7 +2,7 @@ import { ethAddress } from './helpers';
 
 contract('Custodian', (accounts) => {
   const Custodian = artifacts.require('Custodian');
-  const Token = artifacts.require('Token');
+  const Token = artifacts.require('TestToken');
 
   describe('deploy', () => {
     it('should work', async () => {
