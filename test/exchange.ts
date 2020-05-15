@@ -43,6 +43,28 @@ contract('Exchange (tunable parameters)', (accounts) => {
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/must be different/i);
     });
+
+    it('should revert when not called by owner', async () => {
+      const exchange = await Exchange.new();
+
+      let error;
+      try {
+        await exchange.setAdmin(accounts[1], { from: accounts[1] });
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/caller must be owner/i);
+    });
+  });
+
+  describe('removeAdmin', async () => {
+    it('should work', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      await exchange.removeAdmin();
+    });
   });
 
   describe('setCustodian', () => {

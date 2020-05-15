@@ -16,8 +16,19 @@ import { Transfers } from './libraries/Transfers.sol';
 contract Custodian is ICustodian, Owned {
   using SafeMath256 for uint256;
 
+  // Events //
+
+  /**
+   * @dev Emitted on construction and when Governance upgrades the Exchange contract address
+   */
   event ExchangeChanged(address oldExchange, address newExchange);
+  /**
+   * @dev Emitted on construction and when Governance replaces itself by upgrading the Governance contract address
+   */
   event GovernanceChanged(address oldGovernance, address newGovernance);
+  /**
+   * @dev Emitted when the Exchange withdraws ETH or token
+   */
   event Withdrawn(
     address indexed wallet,
     address indexed asset,
@@ -28,17 +39,30 @@ contract Custodian is ICustodian, Owned {
   address _exchange;
   address _governance;
 
+  /**
+   * @dev Sets `owner` and `admin` to `msg.sender`. Sets initial values for Exchange and Governance
+   * contract addresses, after which they can only be changed by the currently set Governance contract
+   * itself
+   */
   constructor(address exchange, address governance) public Owned() {
     require(exchange != address(0x0), 'Invalid exchange contract address');
     require(governance != address(0x0), 'Invalid governance contract address');
-    emit ExchangeChanged(_exchange, exchange);
-    emit GovernanceChanged(_governance, governance);
+
     _exchange = exchange;
     _governance = governance;
+
+    emit ExchangeChanged(address(0x0), exchange);
+    emit GovernanceChanged(address(0x0), governance);
   }
 
+  /**
+   * @dev ETH can only be sent by the Exchange
+   */
   receive() external override payable onlyExchange {}
 
+  /**
+   * Withdraw any asset and amount to a target wallet. No balance checking performed
+   */
   function withdraw(
     address payable wallet,
     address asset,
@@ -48,10 +72,16 @@ contract Custodian is ICustodian, Owned {
     emit Withdrawn(wallet, asset, quantity, _exchange);
   }
 
+  /**
+   * @dev Returns address of current Exchange contract
+   */
   function getExchange() external override returns (address) {
     return _exchange;
   }
 
+  /**
+   * @dev Sets a new Exchange contract address
+   */
   function setExchange(address newExchange) external override onlyGovernance {
     require(newExchange != address(0x0), 'Invalid contract address');
 
@@ -61,10 +91,16 @@ contract Custodian is ICustodian, Owned {
     emit ExchangeChanged(oldExchange, newExchange);
   }
 
+  /**
+   * @dev Returns address of current Governance contract
+   */
   function getGovernance() external override returns (address) {
     return _governance;
   }
 
+  /**
+   * @dev Sets a new Governance contract address
+   */
   function setGovernance(address newGovernance)
     external
     override
@@ -78,7 +114,7 @@ contract Custodian is ICustodian, Owned {
     emit GovernanceChanged(oldGovernance, newGovernance);
   }
 
-  /*** RBAC ***/
+  // RBAC //
 
   modifier onlyExchange() {
     require(msg.sender == _exchange, 'Caller must be Exchange contract');

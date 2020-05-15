@@ -358,5 +358,20 @@ contract('Governance', (accounts) => {
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/address mismatch/i);
     });
+
+    it('should revert when called before block threshold reached', async () => {
+      const { governance } = await deployAndAssociateContracts(10);
+      const newGovernance = await Governance.new(10);
+      await governance.initiateGovernanceUpgrade(newGovernance.address);
+
+      let error;
+      try {
+        await governance.finalizeGovernanceUpgrade(newGovernance.address);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/block threshold not yet reached/i);
+    });
   });
 });

@@ -168,7 +168,7 @@ contract Exchange is IExchange, Owned {
   uint64 immutable _maxWithdrawalFeeBasisPoints;
 
   /**
-   * @dev Sets `owner` and `admin` to `msg.sender` Sets the values for `_maxChainPropagationPeriod`,
+   * @dev Sets `owner` and `admin` to `msg.sender`. Sets the values for `_maxChainPropagationPeriod`,
    * `_maxWithdrawalFeeBasisPoints`, and `_maxTradeFeeBasisPoints` to 1 week, 10%, and 10% respectively.
    * All three of these values are immutable, and cannot be changed after construction
    */
@@ -995,7 +995,7 @@ contract Exchange is IExchange, Owned {
     _;
   }
 
-  /*** Utils ***/
+  // Utils //
 
   function getFeeBasisPoints(uint64 fee, uint64 total)
     private
