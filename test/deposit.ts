@@ -12,7 +12,7 @@ contract('Exchange (deposits)', (accounts) => {
 
   const tokenSymbol = 'TKN';
 
-  it.only('should revert when receiving ETH directly', async () => {
+  it('should revert when receiving ETH directly', async () => {
     const exchange = await Exchange.new();
 
     let error;
