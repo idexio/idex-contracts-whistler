@@ -34,11 +34,11 @@ contract Exchange is IExchange, Owned {
   // Events //
 
   /**
-   * @dev Emitted when an admin changes the Chain Propagation Period tunable parameter with {setChainPropagationPeriod}
+   * @dev Emitted when an admin changes the Chain Propagation Period tunable parameter with `setChainPropagationPeriod`
    */
   event ChainPropagationPeriodChanged(uint256 previousValue, uint256 newValue);
   /**
-   * @dev Emitted when a user deposits ETH with {depositEther} or a token with {depositToken} or {depositTokenBySymbol}
+   * @dev Emitted when a user deposits ETH with `depositEther` or a token with `depositToken` or `depositTokenBySymbol`
    */
   event Deposited(
     address indexed wallet,
@@ -47,17 +47,17 @@ contract Exchange is IExchange, Owned {
     uint64 index
   );
   /**
-   * @dev Emitted when an admin changes the Dispatch Wallet tunable parameter with {setDispatcher}
+   * @dev Emitted when an admin changes the Dispatch Wallet tunable parameter with `setDispatcher`
    */
   event DispatcherChanged(address previousValue, address newValue);
 
   /**
-   * @dev Emitted when an admin changes the Fee Wallet tunable parameter with {setFeeWallet}
+   * @dev Emitted when an admin changes the Fee Wallet tunable parameter with `setFeeWallet`
    */
   event FeeWalletChanged(address previousValue, address newValue);
 
   /**
-   * @dev Emitted when a user invalidates an order nonce with {invalidateOrderNonce}
+   * @dev Emitted when a user invalidates an order nonce with `invalidateOrderNonce`
    */
   event InvalidatedOrderNonce(
     address indexed wallet,
@@ -66,7 +66,7 @@ contract Exchange is IExchange, Owned {
     uint256 effectiveBlockNumber
   );
   /**
-   * @dev Emitted when an admin initiates the token registration process with {registerToken}
+   * @dev Emitted when an admin initiates the token registration process with `registerToken`
    */
   event RegisteredToken(
     address indexed tokenAddress,
@@ -74,7 +74,7 @@ contract Exchange is IExchange, Owned {
     uint8 decimals
   );
   /**
-   * @dev Emitted when an admin finalizes the token registration process with {confirmTokenRegistration}, after
+   * @dev Emitted when an admin finalizes the token registration process with `confirmTokenRegistration`, after
    * which it can be deposited, traded, or withdrawn
    */
   event ConfirmedRegisteredToken(
@@ -83,7 +83,7 @@ contract Exchange is IExchange, Owned {
     uint8 decimals
   );
   /**
-   * @dev Emitted when the Dispatcher Wallet submits a trade for execution with {executeTrade}
+   * @dev Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade`
    */
   event ExecutedTrade(
     address buyWallet,
@@ -97,21 +97,21 @@ contract Exchange is IExchange, Owned {
     bytes32 sellOrderHash
   );
   /**
-   * @dev Emitted when an admin changes the Maximum Maker Fee Rate tunable parameter with {setTradeMakerFeeBasisPoints}
+   * @dev Emitted when an admin changes the Maximum Maker Fee Rate tunable parameter with `setTradeMakerFeeBasisPoints`
    */
   event TradeMakerFeeChanged(uint64 previousValue, uint64 newValue);
 
   /**
-   * @dev Emitted when an admin changes the Maximum Taker Fee Rate tunable parameter with {setTradeTakerFeeBasisPoints}
+   * @dev Emitted when an admin changes the Maximum Taker Fee Rate tunable parameter with `setTradeTakerFeeBasisPoints`
    */
   event TradeTakerFeeChanged(uint64 previousValue, uint64 newValue);
 
   /**
-   * @dev Emitted when a user invokes the Exit Wallet mechanism with {exitWallet}
+   * @dev Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
    */
   event WalletExited(address indexed wallet, uint256 effectiveBlockNumber);
   /**
-   * @dev Emitted when a user withdraws an asset balance through the Exit Wallet mechanism with {withdrawExit}
+   * @dev Emitted when a user withdraws an asset balance through the Exit Wallet mechanism with `withdrawExit`
    */
   event WalletExitWithdrawn(
     address indexed wallet,
@@ -119,11 +119,11 @@ contract Exchange is IExchange, Owned {
     uint256 quantity
   );
   /**
-   * @dev Emitted when the Dispatcher Wallet submits a withdrawal with {withdraw}
+   * @dev Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
    */
   event Withdrawn(address indexed wallet, address asset, uint256 quantity);
   /**
-   * @dev Emitted when an admin changes the Maximum Withdrawal Fee Rate tunable parameter with {setWithdrawalFeeBasisPoints}
+   * @dev Emitted when an admin changes the Maximum Withdrawal Fee Rate tunable parameter with `setWithdrawalFeeBasisPoints`
    */
   event WithdrawalFeeChanged(uint64 previousValue, uint64 newValue);
 
@@ -168,8 +168,8 @@ contract Exchange is IExchange, Owned {
   uint64 immutable _maxWithdrawalFeeBasisPoints;
 
   /**
-   * @dev Sets {owner} and {admin} to `msg.sender` Sets the values for {_maxChainPropagationPeriod},
-   * {_maxWithdrawalFeeBasisPoints}, and {_maxTradeFeeBasisPoints} to 1 week, 10%, and 10% respectively.
+   * @dev Sets `owner` and `admin` to `msg.sender` Sets the values for `_maxChainPropagationPeriod`,
+   * `_maxWithdrawalFeeBasisPoints`, and `_maxTradeFeeBasisPoints` to 1 week, 10%, and 10% respectively.
    * All three of these values are immutable, and cannot be changed after construction
    */
   constructor() public Owned() {
@@ -179,9 +179,9 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Sets {owner} and {admin} to `msg.sender` Sets the values for {_maxChainPropagationPeriod},
-   * {_maxWithdrawalFeeBasisPoints}, and {_maxTradeFeeBasisPoints} to 1 week, 10%, and 10% respectively.
-   * All three of these values are immutable, and cannot be changed after construction
+   * @dev Sets the address of the `Custodian` contract. This value is immutable once set and cannot be changed again
+   *
+   * @param newCustodian The address of the `Custodian` contract deployed against this `Exchange` contract's address
    */
   function setCustodian(address payable newCustodian) external onlyAdmin {
     require(_custodian == address(0x0), 'Custodian can only be set once');
@@ -192,6 +192,12 @@ contract Exchange is IExchange, Owned {
 
   /*** Tunable parameters ***/
 
+  /**
+   * @dev Sets the address of the `Custodian` contract. This value is immutable once set and cannot be changed again
+   *
+   * @param newChainPropagationPeriod The new Chain Propagation Period expressed as a number of blocks. Must be less
+   * than `_maxChainPropagationPeriod`
+   */
   function setChainPropagationPeriod(uint256 newChainPropagationPeriod)
     external
     onlyAdmin
@@ -210,6 +216,12 @@ contract Exchange is IExchange, Owned {
     );
   }
 
+  /**
+   * @dev Sets the address of the Fee wallet. Trade and Withdraw fees will accrue in the `_balances`
+   * mappings for this wallet
+   *
+   * @param newFeeWallet The new Fee wallet. Must be different from the current one
+   */
   function setFeeWallet(address newFeeWallet) external onlyAdmin {
     require(newFeeWallet != address(0x0), 'Invalid wallet address');
     require(
@@ -223,6 +235,11 @@ contract Exchange is IExchange, Owned {
     emit FeeWalletChanged(oldFeeWallet, newFeeWallet);
   }
 
+  /**
+   * @dev Sets the Maximum Withdrawal Fee Rate
+   *
+   * @param newWithdrawalFeeBasisPoints The new rate expressed in basis points
+   */
   function setWithdrawalFeeBasisPoints(uint64 newWithdrawalFeeBasisPoints)
     external
     onlyAdmin
@@ -241,6 +258,10 @@ contract Exchange is IExchange, Owned {
     );
   }
 
+  /**
+   * @dev Sets the Maximum Maker Fee Rate
+   * @param newTradeMakerFeeBasisPoints The new rate expressed in basis points
+   */
   function setTradeMakerFeeBasisPoints(uint64 newTradeMakerFeeBasisPoints)
     external
     onlyAdmin
@@ -259,6 +280,10 @@ contract Exchange is IExchange, Owned {
     );
   }
 
+  /**
+   * @dev Sets the Maximum Taker Fee Rate
+   * @param newTradeTakerFeeBasisPoints The new rate expressed in basis points
+   */
   function setTradeTakerFeeBasisPoints(uint64 newTradeTakerFeeBasisPoints)
     external
     onlyAdmin
@@ -277,8 +302,11 @@ contract Exchange is IExchange, Owned {
     );
   }
 
-  /*** Accessors ***/
+  // Accessors //
 
+  /**
+   * @dev Returns the amount of `asset` currently deposited by `wallet`
+   */
   function balanceOf(address wallet, address asset)
     external
     view
@@ -288,9 +316,9 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * Only partially filled orders will return a non-zero value, filled orders will return 0.
-   * Invalidating an order nonce will not clear partial fill quantities for earlier orders
-   * because the gas cost for this is potentially unbound
+   * @dev Only partially filled orders will return a non-zero value, filled orders will return 0.
+   * Invalidating an order nonce will not clear partial fill quantities for earlier orders because
+   * the gas cost for this is potentially unbound
    */
   function partiallyFilledOrderQuantityInPips(bytes32 orderHash)
     external
@@ -300,21 +328,34 @@ contract Exchange is IExchange, Owned {
     return _partiallyFilledOrderQuantities[orderHash];
   }
 
-  /*** Depositing ***/
+  // Depositing //
 
+  /**
+   * Deposit ETH
+   */
   function depositEther() external payable {
     deposit(msg.sender, address(0x0), msg.value);
   }
 
   /**
-   * Before a token other than ETH can be deposited, the sending wallet must call
-   * the approve method on the token contract for at least the deposit quantity
+   * Deposit `IERC20` compliant tokens
+   *
+   * @param tokenAddress The token contract address
+   * @param quantity The quantity to deposit. The sending wallet must first call the `approve` method on
+   * the token contract for at least this quantity first
    */
   function depositToken(address tokenAddress, uint256 quantity) external {
     require(tokenAddress != address(0x0), 'Use depositEther to deposit Ether');
     deposit(msg.sender, tokenAddress, quantity);
   }
 
+  /**
+   * Deposit `IERC20` compliant tokens
+   *
+   * @param tokenSymbol The case-sensitive symbol string for the token
+   * @param quantity The quantity to deposit. The sending wallet must first call the `approve` method on
+   * the token contract for at least this quantity first
+   */
   function depositTokenBySymbol(string calldata tokenSymbol, uint256 quantity)
     external
   {
@@ -332,7 +373,7 @@ contract Exchange is IExchange, Owned {
     uint256 quantity
   ) private {
     // Calling exitWallet immediately disables deposits, in contrast to withdrawals and trades which
-    // respect the effectiveBlockNumber via isWalletExitFinalized
+    // respect the `effectiveBlockNumber` via `isWalletExitFinalized`
     require(!_walletExits[wallet].exists, 'Wallet exited');
 
     // If asset is a token, it must be registered
@@ -346,7 +387,7 @@ contract Exchange is IExchange, Owned {
     uint64 quantityInPips = _tokens.transferFromWallet(wallet, asset, quantity);
 
     // Any fractional amount in the deposited quantity that is too small to express in pips
-    // accumulates as dust in the Exchange contract
+    // accumulates as dust in the `Exchange` contract
     uint256 tokenQuantityInPipPrecision = _tokens.pipsToTokenQuantity(
       quantityInPips,
       asset
@@ -361,8 +402,14 @@ contract Exchange is IExchange, Owned {
     emit Deposited(wallet, asset, quantityInPips, depositIndex);
   }
 
-  /*** Invalidation ***/
+  // Invalidation //
 
+  /**
+   * Invalidate all order nonces with a timestamp lower than the one provided
+   *
+   * @param nonce A Version 1 UUID. After calling, any order nonces from this wallet with a
+   * timestamp component lower than the one provided will be rejected by `executeTrade`
+   */
   function invalidateOrderNonce(uint128 nonce) external {
     uint64 timestamp = getTimestampFromUuid(nonce);
 
@@ -391,8 +438,17 @@ contract Exchange is IExchange, Owned {
     );
   }
 
-  /*** Withdrawing ***/
+  // Withdrawing //
 
+  /**
+   * Settles a user withdrawal submitted off-chain. Calls restricted to currently whitelisted Dispatcher wallet
+   *
+   * @param withdrawal A `Withdrawal` struct encoding the parameters of the withdrawal
+   * @param withdrawalTokenSymbol The case-sensitive token symbol. Mutually exclusive with the `assetAddress`
+   * field of the `withdrawal` struct argument
+   * @param withdrawalWalletSignature The ECDSA signature of the withdrawal hash as produced by
+   * `Signatures.getWithdrawalWalletHash`
+   */
   function withdraw(
     Withdrawal calldata withdrawal,
     string calldata withdrawalTokenSymbol,
@@ -450,8 +506,13 @@ contract Exchange is IExchange, Owned {
     emit Withdrawn(withdrawal.walletAddress, assetAddress, quantityInWei);
   }
 
-  /*** Wallet exits ***/
+  // Wallet exits //
 
+  /**
+   * Permanently flags the sending wallet as exited, immediately disabling deposits. Once the
+   * Chain Propagation Delay passes trades and withdrawals are also disabled for the wallet,
+   * and assets may be withdrawn one at a time via `withdrawExit`
+   */
   function exitWallet() external {
     require(!_walletExits[msg.sender].exists, 'Wallet already exited');
 
@@ -463,6 +524,10 @@ contract Exchange is IExchange, Owned {
     emit WalletExited(msg.sender, block.number + _chainPropagationPeriod);
   }
 
+  /**
+   * Withdraw the entire balance of an asset for an exited wallet. The Chain Propagation Delay must
+   * have already passed since calling `exitWallet`
+   */
   function withdrawExit(address assetAddress) external {
     require(_walletExits[msg.sender].exists, 'Wallet not yet exited');
     require(
@@ -484,10 +549,27 @@ contract Exchange is IExchange, Owned {
     return exit.exists && exit.effectiveBlockNumber <= block.number;
   }
 
-  /*** Trades ***/
+  // Trades //
 
   /**
+   * Settles a trade between two orders submitted and matched off-chain
+   * @dev Variable-length fields like strings and bytes cannot be encoded in an argument struct, and
+   * must be passed in as separate arguments. As a gas optimization, base and quote symbols are passed
+   * in separately and combined to verify the wallet hash, since this is cheaper than splitting the
+   * market symbol into its two constituent asset symbols
    * @dev Stack level too deep if declared external
+   *
+   * @param buy An `Order` struct encoding the parameters of the buy-side order (giving quote, receiving base)
+   * @param buyBaseSymbol The case-sensitive symbol for the market base asset for the buy order
+   * @param buyQuoteSymbol The case-sensitive symbol for the market quote asset for the buy order
+   * @param buyClientOrderId An optional custom client ID for the buy order
+   * @param buyWalletSignature The ECDSA signature of the buy order hash as produced by `Signatures.getOrderWalletHash`
+   * @param sell An `Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
+   * @param sellBaseSymbol The case-sensitive symbol for the market base asset for the sell order
+   * @param sellQuoteSymbol The case-sensitive symbol for the market quote asset for the sell order
+   * @param sellClientOrderId An optional custom client ID for the sell order
+   * @param sellWalletSignature The ECDSA signature of the sell order hash as produced by `Signatures.getOrderWalletHash`
+   * @param trade A `trade` struct encoding the parameters of this trade execution of the counterparty orders
    */
   function executeTrade(
     Order memory buy,
@@ -505,7 +587,6 @@ contract Exchange is IExchange, Owned {
     require(!isWalletExitFinalized(buy.walletAddress), 'Buy wallet exited');
     require(!isWalletExitFinalized(sell.walletAddress), 'Sell wallet exited');
 
-    // TODO Validate max fee amounts
     validateAssetPair(
       buy,
       buyBaseSymbol,
@@ -547,9 +628,7 @@ contract Exchange is IExchange, Owned {
     );
   }
 
-  /*
-   * Updates buyer, seller, and fee wallet balances for both assets in trade pair according to fill parameters
-   */
+  // Updates buyer, seller, and fee wallet balances for both assets in trade pair according to trade parameters
   function updateBalancesForTrade(
     Order memory buy,
     Order memory sell,
@@ -620,9 +699,7 @@ contract Exchange is IExchange, Owned {
     updateOrderFilledQuantity(sellOrder, sellOrderHash, trade);
   }
 
-  /*
-   * Update filled quantities tracking for order to prevent over- or double-filling orders
-   */
+  // Update filled quantities tracking for order to prevent over- or double-filling orders
   function updateOrderFilledQuantity(
     Order memory order,
     bytes32 orderHash,
@@ -643,7 +720,7 @@ contract Exchange is IExchange, Owned {
     }
   }
 
-  /*** Validations ***/
+  // Validations //
 
   function validateAssetPair(
     Order memory buy,
@@ -861,8 +938,11 @@ contract Exchange is IExchange, Owned {
     return withdrawalHash;
   }
 
-  /*** Token registry ***/
+  // Token registry //
 
+  /**
+   * @dev Initiate registration process for a token asset
+   */
   function registerToken(
     address tokenAddress,
     string calldata symbol,
@@ -872,6 +952,10 @@ contract Exchange is IExchange, Owned {
     emit RegisteredToken(tokenAddress, symbol, decimals);
   }
 
+  /**
+   * @dev Finalize registration process for a token asset. All parameters must exactly match a previous
+   * call to `registerToken`
+   */
   function confirmTokenRegistration(
     address tokenAddress,
     string calldata symbol,
@@ -889,7 +973,7 @@ contract Exchange is IExchange, Owned {
     return _tokens.tokenSymbolToAddress(tokenSymbol, timestamp);
   }
 
-  /*** RBAC ***/
+  // RBAC //
 
   function setDispatcher(address _dispatcher) external onlyAdmin {
     require(_dispatcher != address(0x0), 'Invalid wallet address');
