@@ -66,7 +66,7 @@
   "husky": {
     "hooks": {
       "commit-msg": "[[ -n $HUSKY_BYPASS ]] || commitlint -E HUSKY_GIT_PARAMS",
-      "pre-commit": "yarn lint:markdown && yarn clean && yarn build && yarn coverage && git add assets/coverage-*.svg"
+      "pre-commit": "yarn lint:markdown && yarn clean && yarn build && yarn coverage && git add assets/coverage-*.svg && git add assets/tests.svg"
     }
   },
   "commitlint": {
