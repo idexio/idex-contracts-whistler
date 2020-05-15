@@ -6,10 +6,28 @@ import {
 import { ethAddress } from '../lib';
 
 contract('Exchange (deposits)', (accounts) => {
+  const Exchange = artifacts.require('Exchange');
   const SkimmingToken = artifacts.require('SkimmingTestToken');
   const Token = artifacts.require('TestToken');
 
   const tokenSymbol = 'TKN';
+
+  it.only('should revert when receiving ETH directly', async () => {
+    const exchange = await Exchange.new();
+
+    let error;
+    try {
+      await web3.eth.sendTransaction({
+        from: accounts[0],
+        to: exchange.address,
+        value: web3.utils.toWei('1', 'ether'),
+      });
+    } catch (e) {
+      error = e;
+    }
+    expect(error).to.not.be.undefined;
+    console.log(error.message);
+  });
 
   // TODO Verify balances
   describe('depositEther', () => {
