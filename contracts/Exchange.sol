@@ -15,14 +15,10 @@ import { Signatures } from './libraries/Signatures.sol';
 import { Tokens } from './libraries/Tokens.sol';
 import { Transfers } from './libraries/Transfers.sol';
 import {
+  Enums,
   ICustodian,
   IExchange,
-  Order,
-  OrderType,
-  OrderSide,
-  Trade,
-  Withdrawal,
-  WithdrawalType
+  Structs
 } from './libraries/Interfaces.sol';
 
 
@@ -123,7 +119,7 @@ contract Exchange is IExchange, Owned {
    */
   event Withdrawn(address indexed wallet, address asset, uint256 quantity);
   /**
-   * @dev Emitted when an admin changes the Maximum Withdrawal Fee Rate tunable parameter with `setWithdrawalFeeBasisPoints`
+   * @dev Emitted when an admin changes the Maximum Structs.Withdrawal Fee Rate tunable parameter with `setWithdrawalFeeBasisPoints`
    */
   event WithdrawalFeeChanged(uint64 previousValue, uint64 newValue);
 
@@ -217,7 +213,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Sets the address of the Fee wallet. Trade and Withdraw fees will accrue in the `_balances`
+   * @dev Sets the address of the Fee wallet. Structs.Trade and Withdraw fees will accrue in the `_balances`
    * mappings for this wallet
    *
    * @param newFeeWallet The new Fee wallet. Must be different from the current one
@@ -236,7 +232,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Sets the Maximum Withdrawal Fee Rate
+   * @dev Sets the Maximum Structs.Withdrawal Fee Rate
    *
    * @param newWithdrawalFeeBasisPoints The new rate expressed in basis points
    */
@@ -443,14 +439,14 @@ contract Exchange is IExchange, Owned {
   /**
    * Settles a user withdrawal submitted off-chain. Calls restricted to currently whitelisted Dispatcher wallet
    *
-   * @param withdrawal A `Withdrawal` struct encoding the parameters of the withdrawal
+   * @param withdrawal A `Structs.Withdrawal` struct encoding the parameters of the withdrawal
    * @param withdrawalTokenSymbol The case-sensitive token symbol. Mutually exclusive with the `assetAddress`
    * field of the `withdrawal` struct argument
    * @param withdrawalWalletSignature The ECDSA signature of the withdrawal hash as produced by
    * `Signatures.getWithdrawalWalletHash`
    */
   function withdraw(
-    Withdrawal calldata withdrawal,
+    Structs.Withdrawal calldata withdrawal,
     string calldata withdrawalTokenSymbol,
     bytes calldata withdrawalWalletSignature
   ) external override onlyDispatcher {
@@ -472,7 +468,8 @@ contract Exchange is IExchange, Owned {
     );
 
     // If withdrawal is by asset symbol (most common) then resolve to asset address
-    address assetAddress = withdrawal.withdrawalType == WithdrawalType.BySymbol
+    address assetAddress = withdrawal.withdrawalType ==
+      Enums.WithdrawalType.BySymbol
       ? _tokens.tokenSymbolToAddress(
         withdrawalTokenSymbol,
         getTimestampFromUuid(withdrawal.nonce)
@@ -559,12 +556,12 @@ contract Exchange is IExchange, Owned {
    * market symbol into its two constituent asset symbols
    * @dev Stack level too deep if declared external
    *
-   * @param buy An `Order` struct encoding the parameters of the buy-side order (giving quote, receiving base)
+   * @param buy An `Structs.Order` struct encoding the parameters of the buy-side order (giving quote, receiving base)
    * @param buyBaseSymbol The case-sensitive symbol for the market base asset for the buy order
    * @param buyQuoteSymbol The case-sensitive symbol for the market quote asset for the buy order
    * @param buyClientOrderId An optional custom client ID for the buy order
    * @param buyWalletSignature The ECDSA signature of the buy order hash as produced by `Signatures.getOrderWalletHash`
-   * @param sell An `Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
+   * @param sell An `Structs.Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
    * @param sellBaseSymbol The case-sensitive symbol for the market base asset for the sell order
    * @param sellQuoteSymbol The case-sensitive symbol for the market quote asset for the sell order
    * @param sellClientOrderId An optional custom client ID for the sell order
@@ -572,17 +569,17 @@ contract Exchange is IExchange, Owned {
    * @param trade A `trade` struct encoding the parameters of this trade execution of the counterparty orders
    */
   function executeTrade(
-    Order memory buy,
+    Structs.Order memory buy,
     string memory buyBaseSymbol,
     string memory buyQuoteSymbol,
     string memory buyClientOrderId,
     bytes memory buyWalletSignature,
-    Order memory sell,
+    Structs.Order memory sell,
     string memory sellBaseSymbol,
     string memory sellQuoteSymbol,
     string memory sellClientOrderId,
     bytes memory sellWalletSignature,
-    Trade memory trade
+    Structs.Trade memory trade
   ) public override onlyDispatcher {
     require(!isWalletExitFinalized(buy.walletAddress), 'Buy wallet exited');
     require(!isWalletExitFinalized(sell.walletAddress), 'Sell wallet exited');
@@ -630,9 +627,9 @@ contract Exchange is IExchange, Owned {
 
   // Updates buyer, seller, and fee wallet balances for both assets in trade pair according to trade parameters
   function updateBalancesForTrade(
-    Order memory buy,
-    Order memory sell,
-    Trade memory trade
+    Structs.Order memory buy,
+    Structs.Order memory sell,
+    Structs.Trade memory trade
   ) private {
     // Buyer receives base asset minus fees
     _balances[buy.walletAddress][buy.baseAssetAddress] = _balances[buy
@@ -689,11 +686,11 @@ contract Exchange is IExchange, Owned {
   }
 
   function updateOrderFilledQuantities(
-    Order memory buyOrder,
+    Structs.Order memory buyOrder,
     bytes32 buyOrderHash,
-    Order memory sellOrder,
+    Structs.Order memory sellOrder,
     bytes32 sellOrderHash,
-    Trade memory trade
+    Structs.Trade memory trade
   ) private {
     updateOrderFilledQuantity(buyOrder, buyOrderHash, trade);
     updateOrderFilledQuantity(sellOrder, sellOrderHash, trade);
@@ -701,16 +698,19 @@ contract Exchange is IExchange, Owned {
 
   // Update filled quantities tracking for order to prevent over- or double-filling orders
   function updateOrderFilledQuantity(
-    Order memory order,
+    Structs.Order memory order,
     bytes32 orderHash,
-    Trade memory trade
+    Structs.Trade memory trade
   ) private {
-    require(!_completedOrderHashes[orderHash], 'Order double filled');
+    require(!_completedOrderHashes[orderHash], 'Structs.Order double filled');
 
     uint64 newFilledQuantity = trade.grossBaseQuantity.add(
       _partiallyFilledOrderQuantities[orderHash]
     );
-    require(newFilledQuantity <= order.totalQuantity, 'Order overfilled');
+    require(
+      newFilledQuantity <= order.totalQuantity,
+      'Structs.Order overfilled'
+    );
 
     if (newFilledQuantity < order.totalQuantity) {
       _partiallyFilledOrderQuantities[orderHash] = newFilledQuantity;
@@ -723,13 +723,13 @@ contract Exchange is IExchange, Owned {
   // Validations //
 
   function validateAssetPair(
-    Order memory buy,
+    Structs.Order memory buy,
     string memory buyBaseSymbol,
     string memory buyQuoteSymbol,
-    Order memory sell,
+    Structs.Order memory sell,
     string memory sellBaseSymbol,
     string memory sellQuoteSymbol,
-    Trade memory trade
+    Structs.Trade memory trade
   ) private view {
     validateTokenAddresses(buy, buyBaseSymbol, buyQuoteSymbol);
     validateTokenAddresses(sell, sellBaseSymbol, sellQuoteSymbol);
@@ -768,9 +768,9 @@ contract Exchange is IExchange, Owned {
   }
 
   function validateLimitPrices(
-    Order memory buy,
-    Order memory sell,
-    Trade memory trade
+    Structs.Order memory buy,
+    Structs.Order memory sell,
+    Structs.Trade memory trade
   ) private pure {
     require(
       trade.grossBaseQuantity > 0,
@@ -784,17 +784,17 @@ contract Exchange is IExchange, Owned {
       trade.grossBaseQuantity
     );
 
-    bool exceedsBuyLimit = buy.orderType == OrderType.Limit &&
+    bool exceedsBuyLimit = buy.orderType == Enums.OrderType.Limit &&
       price > buy.limitPrice;
     require(!exceedsBuyLimit, 'Buy order limit price exceeded');
 
-    bool exceedsSellLimit = sell.orderType == OrderType.Limit &&
+    bool exceedsSellLimit = sell.orderType == Enums.OrderType.Limit &&
       price < sell.limitPrice;
     require(!exceedsSellLimit, 'Sell order limit price exceeded');
   }
 
   function validateTokenAddresses(
-    Order memory order,
+    Structs.Order memory order,
     string memory baseSymbol,
     string memory quoteSymbol
   ) private view {
@@ -811,16 +811,16 @@ contract Exchange is IExchange, Owned {
     require(
       baseAssetAddress == order.baseAssetAddress &&
         quoteAssetAddress == order.quoteAssetAddress,
-      order.side == OrderSide.Buy
+      order.side == Enums.OrderSide.Buy
         ? 'Buy order market symbol address resolution mismatch'
         : 'Sell order market symbol address resolution mismatch'
     );
   }
 
-  function validateTradeFees(Order memory order, Trade memory trade)
-    private
-    view
-  {
+  function validateTradeFees(
+    Structs.Order memory order,
+    Structs.Trade memory trade
+  ) private view {
     uint64 makerTotalQuantity = trade.makerFeeAssetAddress ==
       order.baseAssetAddress
       ? trade.grossBaseQuantity
@@ -843,12 +843,12 @@ contract Exchange is IExchange, Owned {
   }
 
   function validateOrderSignatures(
-    Order memory buy,
+    Structs.Order memory buy,
     string memory buyBaseSymbol,
     string memory buyQuoteSymbol,
     string memory buyClientOrderId,
     bytes memory buyWalletSignature,
-    Order memory sell,
+    Structs.Order memory sell,
     string memory sellBaseSymbol,
     string memory sellQuoteSymbol,
     string memory sellClientOrderId,
@@ -873,7 +873,7 @@ contract Exchange is IExchange, Owned {
   }
 
   function validateOrderSignature(
-    Order memory order,
+    Structs.Order memory order,
     string memory baseSymbol,
     string memory quoteSymbol,
     string memory clientOrderId,
@@ -892,7 +892,7 @@ contract Exchange is IExchange, Owned {
         walletSignature,
         order.walletAddress
       ),
-      order.side == OrderSide.Buy
+      order.side == Enums.OrderSide.Buy
         ? 'Invalid wallet signature for buy order'
         : 'Invalid wallet signature for sell order'
     );
@@ -900,10 +900,10 @@ contract Exchange is IExchange, Owned {
     return orderHash;
   }
 
-  function validateOrderNonces(Order memory buy, Order memory sell)
-    private
-    view
-  {
+  function validateOrderNonces(
+    Structs.Order memory buy,
+    Structs.Order memory sell
+  ) private view {
     require(
       getTimestampFromUuid(buy.nonce) >
         getLastInvalidatedTimestamp(buy.walletAddress),
@@ -917,7 +917,7 @@ contract Exchange is IExchange, Owned {
   }
 
   function validateWithdrawalSignature(
-    Withdrawal memory withdrawal,
+    Structs.Withdrawal memory withdrawal,
     string memory withdrawalTokenSymbol,
     bytes memory withdrawalWalletSignature
   ) private pure returns (bytes32) {

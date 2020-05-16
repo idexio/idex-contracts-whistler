@@ -26,7 +26,7 @@ contract('Exchange (deposits)', (accounts) => {
       error = e;
     }
     expect(error).to.not.be.undefined;
-    console.log(error.message);
+    expect(error.message).to.match(/revert/i);
   });
 
   // TODO Verify balances

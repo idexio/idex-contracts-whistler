@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 
 import { ECDSA } from '@openzeppelin/contracts/cryptography/ECDSA.sol';
 
-import { Order, Withdrawal, WithdrawalType } from './Interfaces.sol';
+import { Enums, Structs } from './Interfaces.sol';
 
 
 library Signatures {
@@ -19,7 +19,7 @@ library Signatures {
   }
 
   function getOrderWalletHash(
-    Order memory order,
+    Structs.Order memory order,
     string memory baseSymbol,
     string memory quoteSymbol,
     string memory clientOrderId
@@ -52,12 +52,12 @@ library Signatures {
   }
 
   function getWithdrawalWalletHash(
-    Withdrawal memory withdrawal,
+    Structs.Withdrawal memory withdrawal,
     string memory withdrawalTokenSymbol
   ) internal pure returns (bytes32) {
     return
       keccak256(
-        withdrawal.withdrawalType == WithdrawalType.BySymbol
+        withdrawal.withdrawalType == Enums.WithdrawalType.BySymbol
           ? abi.encodePacked(
             withdrawal.nonce,
             withdrawal.walletAddress,
