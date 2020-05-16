@@ -784,11 +784,11 @@ contract Exchange is IExchange, Owned {
       trade.grossBaseQuantity
     );
 
-    bool exceedsBuyLimit = buy.orderType == Enums.OrderType.Limit &&
+    bool exceedsBuyLimit = isLimitOrderType(buy.orderType) &&
       price > buy.limitPrice;
     require(!exceedsBuyLimit, 'Buy order limit price exceeded');
 
-    bool exceedsSellLimit = sell.orderType == Enums.OrderType.Limit &&
+    bool exceedsSellLimit = isLimitOrderType(sell.orderType) &&
       price < sell.limitPrice;
     require(!exceedsSellLimit, 'Sell order limit price exceeded');
   }
@@ -996,6 +996,18 @@ contract Exchange is IExchange, Owned {
   }
 
   // Utils //
+
+  function isLimitOrderType(Enums.OrderType orderType)
+    private
+    pure
+    returns (bool)
+  {
+    return
+      orderType == Enums.OrderType.Limit ||
+      orderType == Enums.OrderType.LimitMaker ||
+      orderType == Enums.OrderType.StopLossLimit ||
+      orderType == Enums.OrderType.TakeProfitLimit;
+  }
 
   function getFeeBasisPoints(uint64 fee, uint64 total)
     private
