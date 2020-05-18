@@ -3,19 +3,10 @@
 pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
-import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {
-  SafeMath as SafeMath256
-} from '@openzeppelin/contracts/math/SafeMath.sol';
-
 import { Structs } from './Interfaces.sol';
-import { AssetTransfers } from './AssetTransfers.sol';
-import { AssetUnitConversions } from './AssetUnitConversions.sol';
 
 
 library AssetRegistry {
-  using SafeMath256 for uint256;
-
   struct Storage {
     mapping(address => Structs.Asset) assetsByAddress;
     // Mapping value is array since the same symbol can be re-used for a different address
