@@ -126,6 +126,53 @@ contract('Exchange (trades)', (accounts) => {
       ).to.equal(decimalToPips(fill.grossBaseQuantity));
     });
 
+    it('should revert for order overfill', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.grossBaseQuantity = new BigNumber(fill.grossBaseQuantity)
+        .multipliedBy(0.9)
+        .toString();
+      fill.netBaseQuantity = fill.grossBaseQuantity;
+      fill.grossQuoteQuantity = new BigNumber(fill.grossQuoteQuantity)
+        .multipliedBy(0.9)
+        .toString();
+      fill.netQuoteQuantity = fill.grossQuoteQuantity;
+
+      await executeTrade(
+        exchange,
+        buyWallet,
+        sellWallet,
+        buyOrder,
+        sellOrder,
+        fill,
+      );
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/order overfill/i);
+    });
+
     it('should revert when not called by dispatcher', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);

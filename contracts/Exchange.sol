@@ -272,7 +272,7 @@ contract Exchange is IExchange, Owned {
   function depositTokenBySymbol(string calldata tokenSymbol, uint256 quantity)
     external
   {
-    address tokenAddress = _tokens.tokenSymbolToAddress(
+    address tokenAddress = _tokens.getAddressForSymbol(
       tokenSymbol,
       uint64(block.timestamp * 1000)
     );
@@ -299,8 +299,9 @@ contract Exchange is IExchange, Owned {
     }
     uint64 quantityInPips = _tokens.transferFromWallet(wallet, asset, quantity);
 
-    // Any fractional amount in the deposited quantity that is too small to express in pips
-    // accumulates as dust in the `Exchange` contract
+    // Any fractional ETH amount in the deposited quantity that is too small to express in pips
+    // accumulates as dust in the `Exchange` contract. This does not affect tokens, since this
+    // contract will explicitly call transferFrom with the token amount in pip precision
     uint256 tokenQuantityInPipPrecision = _tokens.pipsToTokenQuantity(
       quantityInPips,
       asset
@@ -387,7 +388,7 @@ contract Exchange is IExchange, Owned {
     // If withdrawal is by asset symbol (most common) then resolve to asset address
     address assetAddress = withdrawal.withdrawalType ==
       Enums.WithdrawalType.BySymbol
-      ? _tokens.tokenSymbolToAddress(
+      ? _tokens.getAddressForSymbol(
         withdrawalTokenSymbol,
         getTimestampFromUuid(withdrawal.nonce)
       )
@@ -857,12 +858,12 @@ contract Exchange is IExchange, Owned {
     emit ConfirmedRegisteredToken(tokenAddress, symbol, decimals);
   }
 
-  function tokenSymbolToAddress(string memory tokenSymbol, uint64 timestamp)
+  function getAddressForSymbol(string memory tokenSymbol, uint64 timestamp)
     public
     view
     returns (address)
   {
-    return _tokens.tokenSymbolToAddress(tokenSymbol, timestamp);
+    return _tokens.getAddressForSymbol(tokenSymbol, timestamp);
   }
 
   // Dispatcher wallet //

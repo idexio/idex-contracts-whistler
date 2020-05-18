@@ -25,9 +25,22 @@ contract SkimmingTestToken is ERC20 {
     returns (bool)
   {
     if (_shouldSkim) {
-      _transfer(_msgSender(), recipient, amount - 1);
+      _transfer(_msgSender(), recipient, amount - 1); // Skim 1
     } else {
       _transfer(_msgSender(), recipient, amount);
+    }
+    return true;
+  }
+
+  function transferFrom(
+    address sender,
+    address recipient,
+    uint256 amount
+  ) public virtual override returns (bool) {
+    if (_shouldSkim) {
+      _transfer(sender, recipient, amount - 1); // Skim 1
+    } else {
+      _transfer(sender, recipient, amount);
     }
     return true;
   }

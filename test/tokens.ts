@@ -134,11 +134,11 @@ contract('Exchange (tokens)', (accounts) => {
     });
   });
 
-  describe('tokenSymbolToAddress', () => {
+  describe('getAddressForSymbol', () => {
     it('should work for ETH', async () => {
       const { exchange } = await deployAndAssociateContracts();
 
-      const registeredAddress = await exchange.tokenSymbolToAddress(
+      const registeredAddress = await exchange.getAddressForSymbol(
         ethSymbol,
         new Date().getTime(),
       );
@@ -150,7 +150,7 @@ contract('Exchange (tokens)', (accounts) => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
 
-      const registeredAddress = await exchange.tokenSymbolToAddress(
+      const registeredAddress = await exchange.getAddressForSymbol(
         tokenSymbol,
         new Date().getTime(),
       );
@@ -164,7 +164,7 @@ contract('Exchange (tokens)', (accounts) => {
 
       let error;
       try {
-        await exchange.tokenSymbolToAddress(
+        await exchange.getAddressForSymbol(
           `${tokenSymbol}123`,
           new Date().getTime(),
         );
@@ -182,7 +182,7 @@ contract('Exchange (tokens)', (accounts) => {
 
       let error;
       try {
-        await exchange.tokenSymbolToAddress(
+        await exchange.getAddressForSymbol(
           tokenSymbol,
           timestampBeforeTokenRegistered,
         );

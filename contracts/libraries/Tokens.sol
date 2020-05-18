@@ -6,6 +6,8 @@ pragma experimental ABIEncoderV2;
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import { SafeMath } from '@openzeppelin/contracts/math/SafeMath.sol';
 
+import { Transfers } from './Transfers.sol';
+
 
 library Tokens {
   using SafeMath for uint256;
@@ -68,15 +70,14 @@ library Tokens {
   }
 
   /**
-    * Resolves a token symbol into corresponding asset address
-    *
-    * @param symbol Token symbol, e.g. 'IDEX'
-    * @param timestamp Milliseconds since Unix epoch, usually parsed from a UUID v1 order nonce.
-    *                  Constrains symbol resolution to the token most recently confirmed prior to
-                       timestamp. Reverts if no such token exists
-    * @return assetAddress
-    */
-  function tokenSymbolToAddress(
+   * @dev Resolves a token symbol into corresponding asset address
+   *
+   * @param symbol Token symbol, e.g. 'IDEX'
+   * @param timestamp Milliseconds since Unix epoch, usually parsed from a UUID v1 order nonce.
+   * Constrains symbol resolution to the token most recently confirmed prior to timestamp. Reverts
+   * if no such token exists
+   */
+  function getAddressForSymbol(
     Storage storage self,
     string memory symbol,
     uint64 timestamp
@@ -85,14 +86,13 @@ library Tokens {
   }
 
   /**
-    * Resolves a token symbol into corresponding asset address
-    *
-    * @param symbol Token symbol, e.g. 'IDEX'
-    * @param timestamp Milliseconds since Unix epoch, usually parsed from a UUID v1 order nonce.
-    *                  Constrains symbol resolution to the token most recently confirmed prior to
-                       timestamp. Reverts if no such token exists
-    * @return assetAddress
-    */
+   * @dev Resolves a token symbol into corresponding Token struct
+   *
+   * @param symbol Token symbol, e.g. 'IDEX'
+   * @param timestamp Milliseconds since Unix epoch, usually parsed from a UUID v1 order nonce.
+   * Constrains symbol resolution to the token most recently confirmed prior to timestamp. Reverts
+   * if no such token exists
+   */
   function getTokenForSymbol(
     Storage storage self,
     string memory symbol,
@@ -147,37 +147,18 @@ library Tokens {
     }
     require(quantityInPips > 0, 'Quantity is too low');
 
-    if (tokenAddress == address(0x0)) {
-      return quantityInPips;
+    // If the asset is ETH then the funds were already sent via msg.value and no further steps are
+    // needed. Otherwise, call the transferFrom function on the token contract for the pre-approved
+    // amount
+    if (tokenAddress != address(0x0)) {
+      // Convert back to token qty to prevent transferring fractions of pips
+      uint256 tokenQuantityInPipPrecision = pipsToTokenQuantity(
+        quantityInPips,
+        self.tokensByAddress[tokenAddress].decimals
+      );
+      Transfers.transferFrom(wallet, tokenAddress, tokenQuantity);
     }
 
-    // Convert back to token qty to prevent transferring fractions of pips
-    uint256 tokenQuantityInPipPrecision = pipsToTokenQuantity(
-      quantityInPips,
-      self.tokensByAddress[tokenAddress].decimals
-    );
-
-    uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
-
-    try
-      IERC20(tokenAddress).transferFrom(
-        wallet,
-        address(this),
-        tokenQuantityInPipPrecision
-      )
-    returns (bool success) {
-      require(success, 'Token transfer failed');
-    } catch Error(
-      string memory /*reason*/
-    ) {
-      revert('Token transfer failed');
-    }
-
-    uint256 balanceAfter = IERC20(tokenAddress).balanceOf(address(this));
-    require(
-      balanceAfter.sub(balanceBefore) == tokenQuantityInPipPrecision,
-      'Token contract returned transferFrom success without expected balance change'
-    );
     return quantityInPips;
   }
 

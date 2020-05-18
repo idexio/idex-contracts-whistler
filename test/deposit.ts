@@ -206,7 +206,7 @@ contract('Exchange (deposits)', (accounts) => {
       }
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(
-        /transfer success without expected balance change/i,
+        /transferFrom success without expected balance change/i,
       );
     });
   });
