@@ -655,8 +655,6 @@ contract Exchange is IExchange, Owned {
     bytes32 orderHash,
     Structs.Trade memory trade
   ) private {
-    require(!_completedOrderHashes[orderHash], 'Order double filled');
-    // All other orders track partially filled quantities in base terms
     uint64 newFilledQuantityInPips = trade.grossBaseQuantityInPips.add(
       _partiallyFilledOrderQuantitiesInPips[orderHash]
     );

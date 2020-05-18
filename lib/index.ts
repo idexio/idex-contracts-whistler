@@ -32,6 +32,7 @@ export enum OrderType {
   TakeProfitLimit,
 }
 export interface Order {
+  signatureHashVersion: number;
   nonce: string;
   wallet: string;
   market: string;
@@ -78,7 +79,7 @@ export const ethAddress = '0x0000000000000000000000000000000000000000';
 
 export const getOrderHash = (order: Order): string =>
   solidityHashOfParams([
-    ['uint8', 1], // Signature hash version - only version 1 supported
+    ['uint8', order.signatureHashVersion], // Signature hash version - only version 1 supported
     ['uint128', uuidToUint8Array(order.nonce)],
     ['address', order.wallet],
     ['string', order.market],
@@ -124,7 +125,7 @@ export const getTradeArguments = (
 ): ExchangeInstance['executeTrade']['arguments'] => {
   const orderToArgumentStruct = (o: Order) => {
     return {
-      signatureHashVersion: 1,
+      signatureHashVersion: o.signatureHashVersion,
       nonce: uuidToHexString(o.nonce),
       walletAddress: o.wallet,
       orderType: o.type,
