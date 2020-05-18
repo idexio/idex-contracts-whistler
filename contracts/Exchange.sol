@@ -92,15 +92,6 @@ contract Exchange is IExchange, Owned {
     bytes32 buyOrderHash,
     bytes32 sellOrderHash
   );
-  /**
-   * @dev Emitted when an admin changes the Maximum Maker Fee Rate tunable parameter with `setTradeMakerFeeBasisPoints`
-   */
-  event TradeMakerFeeChanged(uint64 previousValue, uint64 newValue);
-
-  /**
-   * @dev Emitted when an admin changes the Maximum Taker Fee Rate tunable parameter with `setTradeTakerFeeBasisPoints`
-   */
-  event TradeTakerFeeChanged(uint64 previousValue, uint64 newValue);
 
   /**
    * @dev Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
@@ -118,10 +109,6 @@ contract Exchange is IExchange, Owned {
    * @dev Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
    */
   event Withdrawn(address indexed wallet, address asset, uint256 quantity);
-  /**
-   * @dev Emitted when an admin changes the Maximum Structs.Withdrawal Fee Rate tunable parameter with `setWithdrawalFeeBasisPoints`
-   */
-  event WithdrawalFeeChanged(uint64 previousValue, uint64 newValue);
 
   // Structs //
 
@@ -137,12 +124,12 @@ contract Exchange is IExchange, Owned {
 
   // Storage //
 
-  // Mapping of order hash => isComplete
+  // Mapping of order wallet hash => isComplete
   mapping(bytes32 => bool) _completedOrderHashes;
-  // Mapping of order hash => isComplete
+  // Mapping of withdrawal wallet hash => isComplete
   mapping(bytes32 => bool) _completedWithdrawalHashes;
   address payable _custodian;
-  uint64 depositIndex;
+  uint64 _depositIndex;
   // Mapping of wallet => asset => balance
   mapping(address => mapping(address => uint256)) _balances;
   // Mapping of wallet => last invalidated timestamp
@@ -153,12 +140,9 @@ contract Exchange is IExchange, Owned {
   mapping(address => WalletExit) _walletExits;
   // Tunable parameters
   uint256 _chainPropagationPeriod;
-  address dispatcher;
+  address _dispatcherWallet;
   address _feeWallet;
-  uint64 _tradeMakerFeeBasisPoints;
-  uint64 _tradeTakerFeeBasisPoints;
-  uint64 _withdrawalFeeBasisPoints;
-  // Guards on tunable parameters
+  // Fixed fee maximums
   uint256 immutable _maxChainPropagationPeriod;
   uint64 immutable _maxTradeFeeBasisPoints;
   uint64 immutable _maxWithdrawalFeeBasisPoints;
@@ -170,8 +154,8 @@ contract Exchange is IExchange, Owned {
    */
   constructor() public Owned() {
     _maxChainPropagationPeriod = (7 * 24 * 60 * 60) / 15; // 1 week at 15s/block
-    _maxWithdrawalFeeBasisPoints = 10 * 100; // 10%
     _maxTradeFeeBasisPoints = 10 * 100; // 10%
+    _maxWithdrawalFeeBasisPoints = 10 * 100; // 10%
   }
 
   /**
@@ -229,73 +213,6 @@ contract Exchange is IExchange, Owned {
     _feeWallet = newFeeWallet;
 
     emit FeeWalletChanged(oldFeeWallet, newFeeWallet);
-  }
-
-  /**
-   * @dev Sets the Maximum Structs.Withdrawal Fee Rate
-   *
-   * @param newWithdrawalFeeBasisPoints The new rate expressed in basis points
-   */
-  function setWithdrawalFeeBasisPoints(uint64 newWithdrawalFeeBasisPoints)
-    external
-    onlyAdmin
-  {
-    require(
-      newWithdrawalFeeBasisPoints < _maxWithdrawalFeeBasisPoints,
-      'Excessive withdrawal fee'
-    );
-
-    uint64 oldWithdrawalFeeBasisPoints = _withdrawalFeeBasisPoints;
-    _withdrawalFeeBasisPoints = newWithdrawalFeeBasisPoints;
-
-    emit WithdrawalFeeChanged(
-      oldWithdrawalFeeBasisPoints,
-      newWithdrawalFeeBasisPoints
-    );
-  }
-
-  /**
-   * @dev Sets the Maximum Maker Fee Rate
-   * @param newTradeMakerFeeBasisPoints The new rate expressed in basis points
-   */
-  function setTradeMakerFeeBasisPoints(uint64 newTradeMakerFeeBasisPoints)
-    external
-    onlyAdmin
-  {
-    require(
-      newTradeMakerFeeBasisPoints < _maxTradeFeeBasisPoints,
-      'Excessive maker fee'
-    );
-
-    uint64 oldTradeMakerFeeBasisPoints = _tradeMakerFeeBasisPoints;
-    _tradeMakerFeeBasisPoints = newTradeMakerFeeBasisPoints;
-
-    emit TradeMakerFeeChanged(
-      oldTradeMakerFeeBasisPoints,
-      newTradeMakerFeeBasisPoints
-    );
-  }
-
-  /**
-   * @dev Sets the Maximum Taker Fee Rate
-   * @param newTradeTakerFeeBasisPoints The new rate expressed in basis points
-   */
-  function setTradeTakerFeeBasisPoints(uint64 newTradeTakerFeeBasisPoints)
-    external
-    onlyAdmin
-  {
-    require(
-      newTradeTakerFeeBasisPoints < _maxTradeFeeBasisPoints,
-      'Excessive taker fee'
-    );
-
-    uint64 oldTradeTakerFeeBasisPoints = _tradeTakerFeeBasisPoints;
-    _tradeTakerFeeBasisPoints = newTradeTakerFeeBasisPoints;
-
-    emit TradeTakerFeeChanged(
-      oldTradeTakerFeeBasisPoints,
-      newTradeTakerFeeBasisPoints
-    );
   }
 
   // Accessors //
@@ -394,8 +311,8 @@ contract Exchange is IExchange, Owned {
     _balances[wallet][asset] = newBalance;
     Transfers.transferTo(_custodian, asset, tokenQuantityInPipPrecision);
 
-    depositIndex++;
-    emit Deposited(wallet, asset, quantityInPips, depositIndex);
+    _depositIndex++;
+    emit Deposited(wallet, asset, quantityInPips, _depositIndex);
   }
 
   // Invalidation //
@@ -454,7 +371,7 @@ contract Exchange is IExchange, Owned {
     require(!isWalletExitFinalized(withdrawal.walletAddress), 'Wallet exited');
     require(
       getFeeBasisPoints(withdrawal.gasFee, withdrawal.quantity) <=
-        _withdrawalFeeBasisPoints,
+        _maxWithdrawalFeeBasisPoints,
       'Excessive withdrawal fee'
     );
     bytes32 withdrawalHash = validateWithdrawalSignature(
@@ -556,27 +473,23 @@ contract Exchange is IExchange, Owned {
    * market symbol into its two constituent asset symbols
    * @dev Stack level too deep if declared external
    *
+   * @param baseSymbol The case-sensitive symbol for the trade market base asset
+   * @param quoteSymbol The case-sensitive symbol for the trade market quote asset
    * @param buy An `Structs.Order` struct encoding the parameters of the buy-side order (giving quote, receiving base)
-   * @param buyBaseSymbol The case-sensitive symbol for the market base asset for the buy order
-   * @param buyQuoteSymbol The case-sensitive symbol for the market quote asset for the buy order
    * @param buyClientOrderId An optional custom client ID for the buy order
    * @param buyWalletSignature The ECDSA signature of the buy order hash as produced by `Signatures.getOrderWalletHash`
    * @param sell An `Structs.Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
-   * @param sellBaseSymbol The case-sensitive symbol for the market base asset for the sell order
-   * @param sellQuoteSymbol The case-sensitive symbol for the market quote asset for the sell order
    * @param sellClientOrderId An optional custom client ID for the sell order
    * @param sellWalletSignature The ECDSA signature of the sell order hash as produced by `Signatures.getOrderWalletHash`
    * @param trade A `trade` struct encoding the parameters of this trade execution of the counterparty orders
    */
   function executeTrade(
+    string memory baseSymbol,
+    string memory quoteSymbol,
     Structs.Order memory buy,
-    string memory buyBaseSymbol,
-    string memory buyQuoteSymbol,
     string memory buyClientOrderId,
     bytes memory buyWalletSignature,
     Structs.Order memory sell,
-    string memory sellBaseSymbol,
-    string memory sellQuoteSymbol,
     string memory sellClientOrderId,
     bytes memory sellWalletSignature,
     Structs.Trade memory trade
@@ -584,39 +497,37 @@ contract Exchange is IExchange, Owned {
     require(!isWalletExitFinalized(buy.walletAddress), 'Buy wallet exited');
     require(!isWalletExitFinalized(sell.walletAddress), 'Sell wallet exited');
 
-    validateAssetPair(
-      buy,
-      buyBaseSymbol,
-      buyQuoteSymbol,
-      sell,
-      sellBaseSymbol,
-      sellQuoteSymbol,
-      trade
-    );
+    (
+      Tokens.Token memory baseToken,
+      Tokens.Token memory quoteToken
+    ) = validateAssetPair(baseSymbol, quoteSymbol, buy, sell, trade);
     validateLimitPrices(buy, sell, trade);
-    validateOrderNonces(buy, sell);
+    validateOrderNonces(
+      buy.walletAddress,
+      buy.nonce,
+      sell.walletAddress,
+      sell.nonce
+    );
     (bytes32 buyHash, bytes32 sellHash) = validateOrderSignatures(
+      baseSymbol,
+      quoteSymbol,
       buy,
-      buyBaseSymbol,
-      buyQuoteSymbol,
       buyClientOrderId,
       buyWalletSignature,
       sell,
-      sellBaseSymbol,
-      sellQuoteSymbol,
       sellClientOrderId,
       sellWalletSignature
     );
-    validateTradeFees(buy, trade);
+    validateTradeFees(trade);
 
     updateOrderFilledQuantities(buy, buyHash, sell, sellHash, trade);
-    updateBalancesForTrade(buy, sell, trade);
+    updateBalancesForTrade(baseToken, quoteToken, buy, sell, trade);
 
     emit ExecutedTrade(
       buy.walletAddress,
       sell.walletAddress,
-      buyBaseSymbol,
-      buyQuoteSymbol,
+      baseSymbol,
+      quoteSymbol,
       trade.grossBaseQuantity,
       trade.grossQuoteQuantity,
       trade.price,
@@ -627,60 +538,57 @@ contract Exchange is IExchange, Owned {
 
   // Updates buyer, seller, and fee wallet balances for both assets in trade pair according to trade parameters
   function updateBalancesForTrade(
+    Tokens.Token memory baseToken,
+    Tokens.Token memory quoteToken,
     Structs.Order memory buy,
     Structs.Order memory sell,
     Structs.Trade memory trade
   ) private {
     // Buyer receives base asset minus fees
-    _balances[buy.walletAddress][buy.baseAssetAddress] = _balances[buy
-      .walletAddress][buy.baseAssetAddress]
+    _balances[buy.walletAddress][trade.baseAssetAddress] = _balances[buy
+      .walletAddress][trade.baseAssetAddress]
       .add(
-      _tokens.pipsToTokenQuantity(trade.netBaseQuantity, buy.baseAssetAddress)
+      Tokens.pipsToTokenQuantity(trade.netBaseQuantity, baseToken.decimals)
     );
     // Buyer gives quote asset including fees
-    _balances[buy.walletAddress][buy.quoteAssetAddress] = _balances[buy
-      .walletAddress][buy.quoteAssetAddress]
+    _balances[buy.walletAddress][trade.quoteAssetAddress] = _balances[buy
+      .walletAddress][trade.quoteAssetAddress]
       .sub(
-      _tokens.pipsToTokenQuantity(
-        trade.grossQuoteQuantity,
-        buy.quoteAssetAddress
-      )
+      Tokens.pipsToTokenQuantity(trade.grossQuoteQuantity, quoteToken.decimals)
     );
 
     // Seller gives base asset including fees
-    _balances[sell.walletAddress][sell.baseAssetAddress] = _balances[sell
-      .walletAddress][sell.baseAssetAddress]
+    _balances[sell.walletAddress][trade.baseAssetAddress] = _balances[sell
+      .walletAddress][trade.baseAssetAddress]
       .sub(
-      _tokens.pipsToTokenQuantity(
-        trade.grossBaseQuantity,
-        sell.baseAssetAddress
-      )
+      Tokens.pipsToTokenQuantity(trade.grossBaseQuantity, baseToken.decimals)
     );
     // Seller receives quote asset minus fees
-    _balances[sell.walletAddress][sell.quoteAssetAddress] = _balances[sell
-      .walletAddress][sell.quoteAssetAddress]
+    _balances[sell.walletAddress][trade.quoteAssetAddress] = _balances[sell
+      .walletAddress][trade.quoteAssetAddress]
       .add(
-      _tokens.pipsToTokenQuantity(
-        trade.netQuoteQuantity,
-        sell.quoteAssetAddress
-      )
+      Tokens.pipsToTokenQuantity(trade.netQuoteQuantity, quoteToken.decimals)
     );
 
     // Maker and taker fees to fee wallet
     _balances[_feeWallet][trade
       .makerFeeAssetAddress] = _balances[_feeWallet][trade.makerFeeAssetAddress]
       .add(
-      _tokens.pipsToTokenQuantity(
+      Tokens.pipsToTokenQuantity(
         trade.makerFeeQuantity,
-        trade.makerFeeAssetAddress
+        trade.makerFeeAssetAddress == baseToken.tokenAddress
+          ? baseToken.decimals
+          : quoteToken.decimals
       )
     );
     _balances[_feeWallet][trade
       .takerFeeAssetAddress] = _balances[_feeWallet][trade.takerFeeAssetAddress]
       .add(
-      _tokens.pipsToTokenQuantity(
+      Tokens.pipsToTokenQuantity(
         trade.takerFeeQuantity,
-        trade.takerFeeAssetAddress
+        trade.takerFeeAssetAddress == baseToken.tokenAddress
+          ? baseToken.decimals
+          : quoteToken.decimals
       )
     );
   }
@@ -702,17 +610,14 @@ contract Exchange is IExchange, Owned {
     bytes32 orderHash,
     Structs.Trade memory trade
   ) private {
-    require(!_completedOrderHashes[orderHash], 'Structs.Order double filled');
+    require(!_completedOrderHashes[orderHash], 'Order double filled');
 
     uint64 newFilledQuantity = trade.grossBaseQuantity.add(
       _partiallyFilledOrderQuantities[orderHash]
     );
-    require(
-      newFilledQuantity <= order.totalQuantity,
-      'Structs.Order overfilled'
-    );
+    require(newFilledQuantity <= order.quantity, 'Order overfilled');
 
-    if (newFilledQuantity < order.totalQuantity) {
+    if (newFilledQuantity < order.quantity) {
       _partiallyFilledOrderQuantities[orderHash] = newFilledQuantity;
     } else {
       delete _partiallyFilledOrderQuantities[orderHash];
@@ -723,48 +628,64 @@ contract Exchange is IExchange, Owned {
   // Validations //
 
   function validateAssetPair(
+    string memory baseSymbol,
+    string memory quoteSymbol,
     Structs.Order memory buy,
-    string memory buyBaseSymbol,
-    string memory buyQuoteSymbol,
     Structs.Order memory sell,
-    string memory sellBaseSymbol,
-    string memory sellQuoteSymbol,
     Structs.Trade memory trade
-  ) private view {
-    validateTokenAddresses(buy, buyBaseSymbol, buyQuoteSymbol);
-    validateTokenAddresses(sell, sellBaseSymbol, sellQuoteSymbol);
-
-    // Both orders must be for same asset pair
+  ) private view returns (Tokens.Token memory, Tokens.Token memory) {
     require(
-      buy.baseAssetAddress == sell.baseAssetAddress,
-      'Base asset mismatch'
-    );
-    require(
-      buy.quoteAssetAddress == sell.quoteAssetAddress,
-      'Quote asset mismatch'
-    );
-
-    // Same pair for both orders validated, so just need to check for mismatch in one
-    require(
-      buy.baseAssetAddress != buy.quoteAssetAddress,
+      trade.baseAssetAddress != trade.quoteAssetAddress,
       'Base and quote assets must be different'
+    );
+
+    // Buy order market pair
+    Tokens.Token memory buyBaseToken = _tokens.getTokenForSymbol(
+      baseSymbol,
+      getTimestampFromUuid(buy.nonce)
+    );
+    Tokens.Token memory buyQuoteToken = _tokens.getTokenForSymbol(
+      quoteSymbol,
+      getTimestampFromUuid(buy.nonce)
+    );
+    require(
+      buyBaseToken.tokenAddress == trade.baseAssetAddress &&
+        buyQuoteToken.tokenAddress == trade.quoteAssetAddress,
+      'Buy order market symbol address resolution mismatch'
+    );
+
+    // Sell order market pair
+    Tokens.Token memory sellBaseToken = _tokens.getTokenForSymbol(
+      baseSymbol,
+      getTimestampFromUuid(sell.nonce)
+    );
+    Tokens.Token memory sellQuoteToken = _tokens.getTokenForSymbol(
+      quoteSymbol,
+      getTimestampFromUuid(sell.nonce)
+    );
+    require(
+      sellBaseToken.tokenAddress == trade.baseAssetAddress &&
+        sellQuoteToken.tokenAddress == trade.quoteAssetAddress,
+      'Sell order market symbol address resolution mismatch'
     );
 
     // Fee asset validation
     require(
-      trade.makerFeeAssetAddress == buy.baseAssetAddress ||
-        trade.makerFeeAssetAddress == buy.quoteAssetAddress,
+      trade.makerFeeAssetAddress == trade.baseAssetAddress ||
+        trade.makerFeeAssetAddress == trade.quoteAssetAddress,
       'Maker fee asset is not in trade pair'
     );
     require(
-      trade.takerFeeAssetAddress == buy.baseAssetAddress ||
-        trade.takerFeeAssetAddress == buy.quoteAssetAddress,
+      trade.takerFeeAssetAddress == trade.baseAssetAddress ||
+        trade.takerFeeAssetAddress == trade.quoteAssetAddress,
       'Taker fee asset is not in trade pair'
     );
     require(
       trade.makerFeeAssetAddress != trade.takerFeeAssetAddress,
       'Maker and taker fee assets must be different'
     );
+
+    return (buyBaseToken, buyQuoteToken);
   }
 
   function validateLimitPrices(
@@ -793,78 +714,49 @@ contract Exchange is IExchange, Owned {
     require(!exceedsSellLimit, 'Sell order limit price exceeded');
   }
 
-  function validateTokenAddresses(
-    Structs.Order memory order,
-    string memory baseSymbol,
-    string memory quoteSymbol
-  ) private view {
-    uint64 timestamp = getTimestampFromUuid(order.nonce);
-    address baseAssetAddress = _tokens.tokenSymbolToAddress(
-      baseSymbol,
-      timestamp
-    );
-    address quoteAssetAddress = _tokens.tokenSymbolToAddress(
-      quoteSymbol,
-      timestamp
-    );
-
-    require(
-      baseAssetAddress == order.baseAssetAddress &&
-        quoteAssetAddress == order.quoteAssetAddress,
-      order.side == Enums.OrderSide.Buy
-        ? 'Buy order market symbol address resolution mismatch'
-        : 'Sell order market symbol address resolution mismatch'
-    );
-  }
-
-  function validateTradeFees(
-    Structs.Order memory order,
-    Structs.Trade memory trade
-  ) private view {
+  function validateTradeFees(Structs.Trade memory trade) private view {
     uint64 makerTotalQuantity = trade.makerFeeAssetAddress ==
-      order.baseAssetAddress
+      trade.baseAssetAddress
       ? trade.grossBaseQuantity
       : trade.grossQuoteQuantity;
     uint64 takerTotalQuantity = trade.takerFeeAssetAddress ==
-      order.baseAssetAddress
+      trade.baseAssetAddress
       ? trade.grossBaseQuantity
       : trade.grossQuoteQuantity;
 
     require(
       getFeeBasisPoints(trade.makerFeeQuantity, makerTotalQuantity) <=
-        _tradeMakerFeeBasisPoints,
+        _maxTradeFeeBasisPoints,
       'Excessive maker fee'
     );
     require(
       getFeeBasisPoints(trade.takerFeeQuantity, takerTotalQuantity) <=
-        _tradeTakerFeeBasisPoints,
+        _maxTradeFeeBasisPoints,
       'Excessive taker fee'
     );
   }
 
   function validateOrderSignatures(
+    string memory baseSymbol,
+    string memory quoteSymbol,
     Structs.Order memory buy,
-    string memory buyBaseSymbol,
-    string memory buyQuoteSymbol,
     string memory buyClientOrderId,
     bytes memory buyWalletSignature,
     Structs.Order memory sell,
-    string memory sellBaseSymbol,
-    string memory sellQuoteSymbol,
     string memory sellClientOrderId,
     bytes memory sellWalletSignature
   ) private pure returns (bytes32, bytes32) {
     bytes32 buyOrderHash = validateOrderSignature(
       buy,
-      buyBaseSymbol,
-      buyQuoteSymbol,
+      baseSymbol,
+      quoteSymbol,
       buyClientOrderId,
       buyWalletSignature
     );
     bytes32 sellOrderHash = validateOrderSignature(
       sell,
-      sellBaseSymbol,
-      sellQuoteSymbol,
+      baseSymbol,
+      quoteSymbol,
       sellClientOrderId,
       sellWalletSignature
     );
@@ -901,17 +793,17 @@ contract Exchange is IExchange, Owned {
   }
 
   function validateOrderNonces(
-    Structs.Order memory buy,
-    Structs.Order memory sell
+    address buyWallet,
+    uint128 buyNonce,
+    address sellWallet,
+    uint128 sellNonce
   ) private view {
     require(
-      getTimestampFromUuid(buy.nonce) >
-        getLastInvalidatedTimestamp(buy.walletAddress),
+      getTimestampFromUuid(buyNonce) > getLastInvalidatedTimestamp(buyWallet),
       'Buy order nonce timestamp too low'
     );
     require(
-      getTimestampFromUuid(sell.nonce) >
-        getLastInvalidatedTimestamp(sell.walletAddress),
+      getTimestampFromUuid(sellNonce) > getLastInvalidatedTimestamp(sellWallet),
       'Sell order nonce timestamp too low'
     );
   }
@@ -973,25 +865,30 @@ contract Exchange is IExchange, Owned {
     return _tokens.tokenSymbolToAddress(tokenSymbol, timestamp);
   }
 
-  // RBAC //
+  // Dispatcher wallet //
 
-  function setDispatcher(address _dispatcher) external onlyAdmin {
-    require(_dispatcher != address(0x0), 'Invalid wallet address');
+  /**
+   * @dev Sets the wallet whitelisted to dispatch transactions calling the `executeTrade` and `withdraw` functions
+   */
+  function setDispatcher(address newDispatcherWallet) external onlyAdmin {
+    require(newDispatcherWallet != address(0x0), 'Invalid wallet address');
     require(
-      _dispatcher != dispatcher,
+      newDispatcherWallet != _dispatcherWallet,
       'Must be different from current dispatcher'
     );
-    emit DispatcherChanged(dispatcher, _dispatcher);
-    dispatcher = _dispatcher;
+    address oldDispatcherWallet = _dispatcherWallet;
+    _dispatcherWallet = newDispatcherWallet;
+
+    emit DispatcherChanged(oldDispatcherWallet, newDispatcherWallet);
   }
 
   function removeDispatcher() external onlyAdmin {
-    emit DispatcherChanged(dispatcher, address(0x0));
-    dispatcher = address(0x0);
+    emit DispatcherChanged(_dispatcherWallet, address(0x0));
+    _dispatcherWallet = address(0x0);
   }
 
   modifier onlyDispatcher() {
-    require(msg.sender == dispatcher, 'Caller is not dispatcher');
+    require(msg.sender == _dispatcherWallet, 'Caller is not dispatcher');
     _;
   }
 

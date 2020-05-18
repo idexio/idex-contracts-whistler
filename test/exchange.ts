@@ -9,9 +9,27 @@ contract('Exchange (tunable parameters)', (accounts) => {
     await Exchange.new();
   });
 
+  it('should revert when receiving ETH directly', async () => {
+    const exchange = await Exchange.new();
+
+    let error;
+    try {
+      await web3.eth.sendTransaction({
+        to: exchange.address,
+        from: accounts[0],
+        value: web3.utils.toWei('1', 'ether'),
+      });
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error).to.not.be.undefined;
+    expect(error.message).to.match(/revert/i);
+  });
+
   describe('setAdmin', async () => {
     it('should work for valid address', async () => {
-      const { exchange } = await deployAndAssociateContracts();
+      const exchange = await Exchange.new();
 
       await exchange.setAdmin(accounts[1]);
     });
@@ -226,87 +244,6 @@ contract('Exchange (tunable parameters)', (accounts) => {
       }
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/must be different/i);
-    });
-  });
-
-  describe('setWithdrawalFeeBasisPoints', () => {
-    it('should work for value in bounds', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-
-      await exchange.setWithdrawalFeeBasisPoints('10');
-
-      const events = await exchange.getPastEvents('WithdrawalFeeChanged', {
-        fromBlock: 0,
-      });
-      expect(events).to.be.an('array');
-      expect(events.length).to.equal(1);
-    });
-
-    it('should revert for value out of bounds', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-
-      let error;
-      try {
-        await exchange.setWithdrawalFeeBasisPoints('1000000000000000000000000');
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/excessive withdrawal fee/i);
-    });
-  });
-
-  describe('setTradeMakerFeeBasisPoints', () => {
-    it('should work for value in bounds', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-
-      await exchange.setTradeMakerFeeBasisPoints('10');
-
-      const events = await exchange.getPastEvents('TradeMakerFeeChanged', {
-        fromBlock: 0,
-      });
-      expect(events).to.be.an('array');
-      expect(events.length).to.equal(1);
-    });
-
-    it('should revert for value out of bounds', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-
-      let error;
-      try {
-        await exchange.setTradeMakerFeeBasisPoints('1000000000000000000000000');
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/excessive maker fee/i);
-    });
-  });
-
-  describe('setTradeTakerFeeBasisPoints', () => {
-    it('should work for value in bounds', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-
-      await exchange.setTradeTakerFeeBasisPoints('10');
-
-      const events = await exchange.getPastEvents('TradeTakerFeeChanged', {
-        fromBlock: 0,
-      });
-      expect(events).to.be.an('array');
-      expect(events.length).to.equal(1);
-    });
-
-    it('should revert for value out of bounds', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-
-      let error;
-      try {
-        await exchange.setTradeTakerFeeBasisPoints('1000000000000000000000000');
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/excessive taker fee/i);
     });
   });
 });

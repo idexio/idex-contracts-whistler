@@ -44,13 +44,11 @@ contract Structs {
     uint64 stopPrice; // decimal pips * 10^8
     Enums.OrderSelfTradePrevention selfTradePrevention;
     uint64 cancelAfter;
-    // Augmented fields
-    address baseAssetAddress;
-    address quoteAssetAddress;
-    uint64 totalQuantity; // pips
   }
 
   struct Trade {
+    address baseAssetAddress;
+    address quoteAssetAddress;
     uint64 grossBaseQuantity; // pips
     uint64 grossQuoteQuantity; // pips
     uint64 netBaseQuantity; // pips
@@ -96,14 +94,12 @@ interface ICustodian {
 
 interface IExchange {
   function executeTrade(
+    string calldata baseSymbol,
+    string calldata quoteSymbol,
     Structs.Order calldata buy,
-    string calldata buyBaseSymbol,
-    string calldata buyQuoteSymbol,
     string calldata buyClientOrderId,
     bytes calldata buyWalletSignature,
     Structs.Order calldata sell,
-    string calldata sellBaseSymbol,
-    string calldata sellQuoteSymbol,
     string calldata sellClientOrderId,
     bytes calldata sellWalletSignature,
     Structs.Trade calldata trade

@@ -81,9 +81,26 @@ library Tokens {
     string memory symbol,
     uint64 timestamp
   ) internal view returns (address) {
+    return getTokenForSymbol(self, symbol, timestamp).tokenAddress;
+  }
+
+  /**
+    * Resolves a token symbol into corresponding asset address
+    *
+    * @param symbol Token symbol, e.g. 'IDEX'
+    * @param timestamp Milliseconds since Unix epoch, usually parsed from a UUID v1 order nonce.
+    *                  Constrains symbol resolution to the token most recently confirmed prior to
+                       timestamp. Reverts if no such token exists
+    * @return assetAddress
+    */
+  function getTokenForSymbol(
+    Storage storage self,
+    string memory symbol,
+    uint64 timestamp
+  ) internal view returns (Token memory) {
     Token memory token;
     if (isStringEqual('ETH', symbol)) {
-      return address(0x0);
+      token = Token(true, address(0x0), 'ETH', 18, true, 0);
     } else if (self.tokensBySymbol[symbol].length > 0) {
       for (uint8 i = 0; i < self.tokensBySymbol[symbol].length; i++) {
         if (self.tokensBySymbol[symbol][i].confirmedAt <= timestamp) {
@@ -93,7 +110,7 @@ library Tokens {
     }
     require(token.exists, 'No confirmed token found for symbol');
 
-    return token.tokenAddress;
+    return token;
   }
 
   function pipsToTokenQuantity(

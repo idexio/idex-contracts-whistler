@@ -4,33 +4,31 @@ pragma solidity ^0.6.8;
 
 
 abstract contract Owned {
-  address immutable owner;
-  address admin;
+  address immutable _owner;
+  address _admin;
 
   modifier onlyOwner {
-    require(msg.sender == owner, 'Caller must be owner');
+    require(msg.sender == _owner, 'Caller must be owner');
     _;
   }
   modifier onlyAdmin {
-    require(msg.sender == admin, 'Caller must be admin');
+    require(msg.sender == _admin, 'Caller must be admin');
     _;
   }
 
   constructor() public {
-    owner = msg.sender;
-    admin = msg.sender;
+    _owner = msg.sender;
+    _admin = msg.sender;
   }
 
-  function setAdmin(address _admin) external onlyOwner {
-    require(_admin != address(0x0), 'Invalid wallet address');
-    require(_admin != admin, 'Must be different from current admin');
-    // TODO Is below necessary?
-    // require(_admin != owner, 'Admin must be different from owner');
+  function setAdmin(address newAdmin) external onlyOwner {
+    require(newAdmin != address(0x0), 'Invalid wallet address');
+    require(newAdmin != _admin, 'Must be different from current admin');
 
-    admin = _admin;
+    _admin = newAdmin;
   }
 
   function removeAdmin() external onlyOwner {
-    admin = address(0x0);
+    _admin = address(0x0);
   }
 }

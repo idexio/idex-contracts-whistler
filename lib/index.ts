@@ -45,14 +45,10 @@ export interface Order {
   stopPrice?: string;
   selfTradePrevention?: OrderSelfTradePrevention;
   cancelAfter?: number;
-  // Augmented fields not signed by trader wallet
-  /* An order can be created with less quantity than originally specified above, for example
-   * decreaseAndCancel self-trade prevention */
-  totalQuantity: string;
-  baseAssetAddress: string;
-  quoteAssetAddress: string;
 }
 export interface Trade {
+  baseAssetAddress: string;
+  quoteAssetAddress: string;
   grossBaseQuantity: string;
   grossQuoteQuantity: string;
   netBaseQuantity: string;
@@ -138,13 +134,12 @@ export const getTradeArguments = (
       stopPrice: decimalToPips(o.stopPrice || '0'),
       selfTradePrevention: o.selfTradePrevention || 0,
       cancelAfter: o.cancelAfter || 0,
-      baseAssetAddress: o.baseAssetAddress,
-      quoteAssetAddress: o.quoteAssetAddress,
-      totalQuantity: decimalToPips(o.totalQuantity),
     };
   };
   const tradeToArgumentStruct = (t: Trade) => {
     return {
+      baseAssetAddress: t.baseAssetAddress,
+      quoteAssetAddress: t.quoteAssetAddress,
       grossBaseQuantity: decimalToPips(t.grossBaseQuantity),
       grossQuoteQuantity: decimalToPips(t.grossQuoteQuantity),
       netBaseQuantity: decimalToPips(t.netBaseQuantity),
@@ -158,14 +153,12 @@ export const getTradeArguments = (
     };
   };
   return [
-    orderToArgumentStruct(buyOrder),
     buyOrder.market.split('-')[0],
     buyOrder.market.split('-')[1],
+    orderToArgumentStruct(buyOrder),
     buyOrder.customClientOrderId || '',
     buyWalletSignature,
     orderToArgumentStruct(sellOrder),
-    sellOrder.market.split('-')[0],
-    sellOrder.market.split('-')[1],
     sellOrder.customClientOrderId || '',
     sellWalletSignature,
     tradeToArgumentStruct(trade),

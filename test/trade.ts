@@ -226,74 +226,6 @@ contract('Exchange (trades)', (accounts) => {
       expect(error.message).to.match(/sell order nonce timestamp too low/i);
     });
 
-    it('should revert for buy order asset resolution mismatch', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-      const token = await deployAndRegisterToken(exchange, tokenSymbol);
-      await exchange.setDispatcher(accounts[0]);
-      const [sellWallet, buyWallet] = accounts;
-
-      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
-        buyWallet,
-        sellWallet,
-      );
-      buyOrder.baseAssetAddress = ethAddress;
-
-      await deposit(exchange, token, buyWallet, sellWallet);
-
-      let error;
-      try {
-        await executeTrade(
-          exchange,
-          buyWallet,
-          sellWallet,
-          buyOrder,
-          sellOrder,
-          fill,
-        );
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error.message).to.match(
-        /buy order market symbol address resolution mismatch/i,
-      );
-    });
-
-    it('should revert for buy order asset resolution mismatch', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-      const token = await deployAndRegisterToken(exchange, tokenSymbol);
-      await exchange.setDispatcher(accounts[0]);
-      const [sellWallet, buyWallet] = accounts;
-
-      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
-        buyWallet,
-        sellWallet,
-      );
-      sellOrder.baseAssetAddress = ethAddress;
-
-      await deposit(exchange, token, buyWallet, sellWallet);
-
-      let error;
-      try {
-        await executeTrade(
-          exchange,
-          buyWallet,
-          sellWallet,
-          buyOrder,
-          sellOrder,
-          fill,
-        );
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error.message).to.match(
-        /sell order market symbol address resolution mismatch/i,
-      );
-    });
-
     it('should revert for unconfirmed base asset', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await Token.new();
@@ -548,70 +480,12 @@ contract('Exchange (trades)', (accounts) => {
       expect(error.message).to.match(/sell order limit price exceeded/i);
     });
 
-    it('should revert when base assets are mismatched', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-      const token2Symbol = `${tokenSymbol}2`;
-      const token = await deployAndRegisterToken(exchange, tokenSymbol);
-      const token2 = await deployAndRegisterToken(exchange, token2Symbol);
-      await exchange.setDispatcher(accounts[0]);
-      const [sellWallet, buyWallet] = accounts;
-
-      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
-        buyWallet,
-        sellWallet,
-      );
-      buyOrder.market = `${token2Symbol}-${ethSymbol}`;
-      buyOrder.baseAssetAddress = token2.address;
-
-      let error;
-      try {
-        await executeTrade(
-          exchange,
-          buyWallet,
-          sellWallet,
-          buyOrder,
-          sellOrder,
-          fill,
-        );
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/base asset mismatch/i);
+    it.skip('should revert when buy order base asset is mismatched with trade', async () => {
+      // TODO Advance EVM block timestamp to test
     });
 
-    it('should revert when quote assets are mismatched', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-      const token2Symbol = `${tokenSymbol}2`;
-      const token = await deployAndRegisterToken(exchange, tokenSymbol);
-      const token2 = await deployAndRegisterToken(exchange, token2Symbol);
-      await exchange.setDispatcher(accounts[0]);
-      const [sellWallet, buyWallet] = accounts;
-
-      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
-        buyWallet,
-        sellWallet,
-      );
-      buyOrder.market = `${tokenSymbol}-${token2Symbol}`;
-      buyOrder.quoteAssetAddress = token2.address;
-
-      let error;
-      try {
-        await executeTrade(
-          exchange,
-          buyWallet,
-          sellWallet,
-          buyOrder,
-          sellOrder,
-          fill,
-        );
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/quote asset mismatch/i);
+    it.skip('should revert when sell order base asset is mismatched with trade', async () => {
+      // TODO Advance EVM block timestamp to test
     });
 
     it('should revert when base and quote assets are the same', async () => {
@@ -626,9 +500,8 @@ contract('Exchange (trades)', (accounts) => {
         sellWallet,
       );
       buyOrder.market = `${ethSymbol}-${ethSymbol}`;
-      buyOrder.baseAssetAddress = ethAddress;
       sellOrder.market = `${ethSymbol}-${ethSymbol}`;
-      sellOrder.baseAssetAddress = ethAddress;
+      fill.baseAssetAddress = ethAddress;
 
       let error;
       try {
@@ -681,7 +554,7 @@ contract('Exchange (trades)', (accounts) => {
       expect(error.message).to.match(/maker fee asset is not in trade pair/i);
     });
 
-    it('should revert wten taker fee asset not in trade pair', async () => {
+    it('should revert when taker fee asset not in trade pair', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
       const token2Symbol = `${tokenSymbol}2`;
@@ -891,9 +764,6 @@ const generateOrdersAndFill = async (
     side: OrderSide.Sell,
     quantity,
     price,
-    baseAssetAddress: token.address,
-    quoteAssetAddress: ethAddress,
-    totalQuantity: quantity,
   };
 
   const buyOrder: Order = {
@@ -904,12 +774,11 @@ const generateOrdersAndFill = async (
     side: OrderSide.Buy,
     quantity,
     price,
-    baseAssetAddress: token.address,
-    quoteAssetAddress: ethAddress,
-    totalQuantity: quantity,
   };
 
   const fill: Trade = {
+    baseAssetAddress: token.address,
+    quoteAssetAddress: ethAddress,
     grossBaseQuantity: quantity,
     grossQuoteQuantity: quoteQuantity,
     netBaseQuantity: quantity, // No fee
