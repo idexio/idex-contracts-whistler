@@ -21,6 +21,8 @@ library Tokens {
     mapping(string => Structs.Token[]) tokensBySymbol;
   }
 
+  // Registration //
+
   function registerToken(
     Storage storage self,
     address tokenAddress,
@@ -125,6 +127,33 @@ library Tokens {
     return pipsToTokenQuantity(quantityInPips, token.decimals);
   }
 
+  function pipsToTokenQuantity(uint64 quantityInPips, uint64 tokenDecimals)
+    internal
+    pure
+    returns (uint256)
+  {
+    if (tokenDecimals > 8) {
+      return quantityInPips * uint256(10)**(tokenDecimals - 8);
+    }
+    return quantityInPips / uint256(10)**(8 - tokenDecimals);
+  }
+
+  function tokenQuantityToPips(uint256 tokenQuantity, uint256 tokenDecimals)
+    internal
+    pure
+    returns (uint64)
+  {
+    uint256 quantityInPips;
+    if (tokenDecimals > 8) {
+      quantityInPips = tokenQuantity / uint256(10)**(tokenDecimals - 8);
+    } else {
+      quantityInPips = tokenQuantity * uint256(10)**(8 - tokenDecimals);
+    }
+    require(quantityInPips < 2**64, 'Pip quantity overflows uint64');
+
+    return uint64(quantityInPips);
+  }
+
   function transferFromWallet(
     Storage storage self,
     address payable wallet,
@@ -154,33 +183,6 @@ library Tokens {
     }
 
     return quantityInPips;
-  }
-
-  function tokenQuantityToPips(uint256 tokenQuantity, uint256 tokenDecimals)
-    internal
-    pure
-    returns (uint64)
-  {
-    uint256 quantityInPips;
-    if (tokenDecimals > 8) {
-      quantityInPips = tokenQuantity / uint256(10)**(tokenDecimals - 8);
-    } else {
-      quantityInPips = tokenQuantity * uint256(10)**(8 - tokenDecimals);
-    }
-    require(quantityInPips < 2**64, 'Pip quantity overflows uint64');
-
-    return uint64(quantityInPips);
-  }
-
-  function pipsToTokenQuantity(uint64 quantityInPips, uint64 tokenDecimals)
-    internal
-    pure
-    returns (uint256)
-  {
-    if (tokenDecimals > 8) {
-      return quantityInPips * uint256(10)**(tokenDecimals - 8);
-    }
-    return quantityInPips / uint256(10)**(8 - tokenDecimals);
   }
 
   // See https://solidity.readthedocs.io/en/latest/types.html#bytes-and-strings-as-arrays

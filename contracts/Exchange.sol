@@ -231,10 +231,10 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Returns the amount filled so far for a partially filled orders. Only partially filled orders
-   * will return a non-zero value, filled orders will return 0.
-   * Invalidating an order nonce will not clear partial fill quantities for earlier orders because
-   * the gas cost for this is potentially unbound
+   * @dev Returns the amount filled so far for a partially filled orders. Only partially filled
+   * orders will return a non-zero value - orders in any other state will return 0. Invalidating
+   * an order nonce will not clear partial fill quantities for earlier orders because the gas cost
+   * would potentially be unbound
    */
   function partiallyFilledOrderQuantityInPips(bytes32 orderHash)
     external
