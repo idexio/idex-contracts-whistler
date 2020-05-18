@@ -31,8 +31,10 @@ contract Enums {
 // TODO These structs need to be wrapped in a contract so Slither can parse it
 // https://github.com/crytic/slither/issues/487
 contract Structs {
+  /**
+   * @dev Argument type for `Exchange.executeTrade`
+   */
   struct Order {
-    // Signature fields
     uint128 nonce;
     address walletAddress;
     Enums.OrderType orderType;
@@ -46,6 +48,21 @@ contract Structs {
     uint64 cancelAfter;
   }
 
+  /**
+   * @dev Return type for `Exchange.getTokenForSymbol`
+   */
+  struct Token {
+    bool exists;
+    address tokenAddress;
+    string symbol;
+    uint8 decimals;
+    bool isConfirmed;
+    uint64 confirmedAt; // ms since Unix epoch
+  }
+
+  /**
+   * @dev Argument type for `Exchange.executeTrade` and `Signatures.getOrderWalletHash`
+   */
   struct Trade {
     address baseAssetAddress;
     address quoteAssetAddress;
@@ -61,6 +78,9 @@ contract Structs {
     Enums.OrderSide makerSide;
   }
 
+  /**
+   * @dev Argument type for `Exchange.withdraw` and `Signatures.getWithdrawalWalletHash`
+   */
   struct Withdrawal {
     Enums.WithdrawalType withdrawalType;
     uint128 nonce;

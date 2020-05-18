@@ -26,6 +26,7 @@ library Signatures {
   ) internal pure returns (bytes32) {
     return
       keccak256(
+        // Placing all the fields in a single `abi.encodePacked` call causes a `stack too deep` error
         abi.encodePacked(
           abi.encodePacked(
             order.nonce,

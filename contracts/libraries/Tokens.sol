@@ -4,27 +4,21 @@ pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import { SafeMath } from '@openzeppelin/contracts/math/SafeMath.sol';
+import {
+  SafeMath as SafeMath256
+} from '@openzeppelin/contracts/math/SafeMath.sol';
 
+import { Structs } from './Interfaces.sol';
 import { Transfers } from './Transfers.sol';
 
 
 library Tokens {
-  using SafeMath for uint256;
-
-  struct Token {
-    bool exists;
-    address tokenAddress;
-    string symbol;
-    uint8 decimals;
-    bool isConfirmed;
-    uint64 confirmedAt; // ms since Unix epoch
-  }
+  using SafeMath256 for uint256;
 
   struct Storage {
-    mapping(address => Token) tokensByAddress;
+    mapping(address => Structs.Token) tokensByAddress;
     // The same symbol can be re-used for a different token
-    mapping(string => Token[]) tokensBySymbol;
+    mapping(string => Structs.Token[]) tokensBySymbol;
   }
 
   function registerToken(
@@ -38,7 +32,7 @@ library Tokens {
       'Registration of this token is already finalized'
     );
     require(decimals <= 18, 'Decimals cannot exceed 18');
-    self.tokensByAddress[tokenAddress] = Token({
+    self.tokensByAddress[tokenAddress] = Structs.Token({
       exists: true,
       tokenAddress: tokenAddress,
       symbol: symbol,
@@ -54,7 +48,7 @@ library Tokens {
     string memory symbol,
     uint8 decimals
   ) internal {
-    Token memory token = self.tokensByAddress[tokenAddress];
+    Structs.Token memory token = self.tokensByAddress[tokenAddress];
     require(token.exists, 'Unknown token');
     require(
       !token.isConfirmed,
@@ -97,10 +91,10 @@ library Tokens {
     Storage storage self,
     string memory symbol,
     uint64 timestamp
-  ) internal view returns (Token memory) {
-    Token memory token;
+  ) internal view returns (Structs.Token memory) {
+    Structs.Token memory token;
     if (isStringEqual('ETH', symbol)) {
-      token = Token(true, address(0x0), 'ETH', 18, true, 0);
+      token = Structs.Token(true, address(0x0), 'ETH', 18, true, 0);
     } else if (self.tokensBySymbol[symbol].length > 0) {
       for (uint8 i = 0; i < self.tokensBySymbol[symbol].length; i++) {
         if (self.tokensBySymbol[symbol][i].confirmedAt <= timestamp) {
@@ -122,7 +116,7 @@ library Tokens {
       return pipsToTokenQuantity(quantityInPips, 18);
     }
 
-    Token memory token = self.tokensByAddress[tokenAddress];
+    Structs.Token memory token = self.tokensByAddress[tokenAddress];
     require(
       token.exists && token.isConfirmed,
       'No confirmed token found for address'
@@ -156,7 +150,7 @@ library Tokens {
         quantityInPips,
         self.tokensByAddress[tokenAddress].decimals
       );
-      Transfers.transferFrom(wallet, tokenAddress, tokenQuantity);
+      Transfers.transferFrom(wallet, tokenAddress, tokenQuantityInPipPrecision);
     }
 
     return quantityInPips;

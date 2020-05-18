@@ -291,7 +291,7 @@ contract Exchange is IExchange, Owned {
 
     // If asset is a token, it must be registered
     if (asset != address(0x0)) {
-      Tokens.Token storage token = _tokens.tokensByAddress[asset];
+      Structs.Token storage token = _tokens.tokensByAddress[asset];
       require(
         token.exists && token.isConfirmed,
         'No confirmed token found for address'
@@ -499,8 +499,8 @@ contract Exchange is IExchange, Owned {
     require(!isWalletExitFinalized(sell.walletAddress), 'Sell wallet exited');
 
     (
-      Tokens.Token memory baseToken,
-      Tokens.Token memory quoteToken
+      Structs.Token memory baseToken,
+      Structs.Token memory quoteToken
     ) = validateAssetPair(baseSymbol, quoteSymbol, buy, sell, trade);
     validateLimitPrices(buy, sell, trade);
     validateOrderNonces(
@@ -539,8 +539,8 @@ contract Exchange is IExchange, Owned {
 
   // Updates buyer, seller, and fee wallet balances for both assets in trade pair according to trade parameters
   function updateBalancesForTrade(
-    Tokens.Token memory baseToken,
-    Tokens.Token memory quoteToken,
+    Structs.Token memory baseToken,
+    Structs.Token memory quoteToken,
     Structs.Order memory buy,
     Structs.Order memory sell,
     Structs.Trade memory trade
@@ -634,18 +634,18 @@ contract Exchange is IExchange, Owned {
     Structs.Order memory buy,
     Structs.Order memory sell,
     Structs.Trade memory trade
-  ) private view returns (Tokens.Token memory, Tokens.Token memory) {
+  ) private view returns (Structs.Token memory, Structs.Token memory) {
     require(
       trade.baseAssetAddress != trade.quoteAssetAddress,
       'Base and quote assets must be different'
     );
 
     // Buy order market pair
-    Tokens.Token memory buyBaseToken = _tokens.getTokenForSymbol(
+    Structs.Token memory buyBaseToken = _tokens.getTokenForSymbol(
       baseSymbol,
       getTimestampFromUuid(buy.nonce)
     );
-    Tokens.Token memory buyQuoteToken = _tokens.getTokenForSymbol(
+    Structs.Token memory buyQuoteToken = _tokens.getTokenForSymbol(
       quoteSymbol,
       getTimestampFromUuid(buy.nonce)
     );
@@ -656,11 +656,11 @@ contract Exchange is IExchange, Owned {
     );
 
     // Sell order market pair
-    Tokens.Token memory sellBaseToken = _tokens.getTokenForSymbol(
+    Structs.Token memory sellBaseToken = _tokens.getTokenForSymbol(
       baseSymbol,
       getTimestampFromUuid(sell.nonce)
     );
-    Tokens.Token memory sellQuoteToken = _tokens.getTokenForSymbol(
+    Structs.Token memory sellQuoteToken = _tokens.getTokenForSymbol(
       quoteSymbol,
       getTimestampFromUuid(sell.nonce)
     );
@@ -858,12 +858,20 @@ contract Exchange is IExchange, Owned {
     emit ConfirmedRegisteredToken(tokenAddress, symbol, decimals);
   }
 
-  function getAddressForSymbol(string memory tokenSymbol, uint64 timestamp)
-    public
+  function getAddressForSymbol(string calldata tokenSymbol, uint64 timestamp)
+    external
     view
     returns (address)
   {
     return _tokens.getAddressForSymbol(tokenSymbol, timestamp);
+  }
+
+  function getTokenForSymbol(string calldata tokenSymbol, uint64 timestamp)
+    external
+    view
+    returns (Structs.Token memory)
+  {
+    return _tokens.getTokenForSymbol(tokenSymbol, timestamp);
   }
 
   // Dispatcher wallet //

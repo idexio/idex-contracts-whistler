@@ -194,6 +194,19 @@ contract('Exchange (tokens)', (accounts) => {
     });
   });
 
+  describe('getTokenForSymbol', () => {
+    it('should work for ETH', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      const token = await exchange.getTokenForSymbol(
+        ethSymbol,
+        new Date().getTime(),
+      );
+
+      expect(token.tokenAddress).to.equal(ethAddress);
+    });
+  });
+
   describe('tokenQuantityToPips', async () => {
     let tokensMock: TokensMockInstance;
     const tokenQuantityToPips = async (
