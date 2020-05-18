@@ -133,7 +133,7 @@ contract('Exchange (withdrawals)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/no confirmed token found for address/i);
+      expect(error.message).to.match(/no confirmed asset found/i);
     });
 
     it('should revert when token skims from transfer', async () => {

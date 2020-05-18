@@ -9,11 +9,12 @@ import {
   SafeMath as SafeMath256
 } from '@openzeppelin/contracts/math/SafeMath.sol';
 
+import { AssetRegistry } from './libraries/AssetRegistry.sol';
+import { AssetTransfers } from './libraries/AssetTransfers.sol';
+import { AssetUnitConversions } from './libraries/AssetUnitConversions.sol';
 import { Owned } from './Owned.sol';
 import { SafeMath64 } from './libraries/SafeMath64.sol';
 import { Signatures } from './libraries/Signatures.sol';
-import { Tokens } from './libraries/Tokens.sol';
-import { Transfers } from './libraries/Transfers.sol';
 import {
   Enums,
   ICustodian,
@@ -25,7 +26,7 @@ import {
 contract Exchange is IExchange, Owned {
   using SafeMath64 for uint64;
   using SafeMath256 for uint256;
-  using Tokens for Tokens.Storage;
+  using AssetRegistry for AssetRegistry.Storage;
 
   // Events //
 
@@ -34,7 +35,7 @@ contract Exchange is IExchange, Owned {
    */
   event ChainPropagationPeriodChanged(uint256 previousValue, uint256 newValue);
   /**
-   * @dev Emitted when a user deposits ETH with `depositEther` or a token with `depositToken` or `depositTokenBySymbol`
+   * @dev Emitted when a user deposits ETH with `depositEther` or a token with `depositAsset` or `depositAssetBySymbol`
    */
   event Deposited(
     address indexed wallet,
@@ -62,19 +63,19 @@ contract Exchange is IExchange, Owned {
     uint256 effectiveBlockNumber
   );
   /**
-   * @dev Emitted when an admin initiates the token registration process with `registerToken`
+   * @dev Emitted when an admin initiates the token registration process with `registerAsset`
    */
   event RegisteredToken(
-    address indexed tokenAddress,
+    address indexed assetAddress,
     string symbol,
     uint8 decimals
   );
   /**
-   * @dev Emitted when an admin finalizes the token registration process with `confirmTokenRegistration`, after
+   * @dev Emitted when an admin finalizes the token registration process with `confirmAssetRegistration`, after
    * which it can be deposited, traded, or withdrawn
    */
   event ConfirmedRegisteredToken(
-    address indexed tokenAddress,
+    address indexed assetAddress,
     string symbol,
     uint8 decimals
   );
@@ -108,7 +109,12 @@ contract Exchange is IExchange, Owned {
   /**
    * @dev Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
    */
-  event Withdrawn(address indexed wallet, address asset, uint256 tokenQuantity);
+  event Withdrawn(
+    address indexed wallet,
+    address assetAddress,
+    uint256 quantityInAssetUnits,
+    uint256 newWalletBalance
+  );
 
   // Internally used structs //
 
@@ -124,6 +130,8 @@ contract Exchange is IExchange, Owned {
 
   // Storage //
 
+  // Asset registry data
+  AssetRegistry.Storage _assetRegistry;
   // Mapping of order wallet hash => isComplete
   mapping(bytes32 => bool) _completedOrderHashes;
   // Mapping of withdrawal wallet hash => isComplete
@@ -136,14 +144,12 @@ contract Exchange is IExchange, Owned {
   mapping(address => NonceInvalidation) _nonceInvalidations;
   // Mapping of order hash => filled quantity in pips
   mapping(bytes32 => uint64) _partiallyFilledOrderQuantitiesInPips;
-  // Token registry data
-  Tokens.Storage _tokens;
   mapping(address => WalletExit) _walletExits;
   // Tunable parameters
   uint256 _chainPropagationPeriod;
   address _dispatcherWallet;
   address _feeWallet;
-  // Fixed fee maximums
+  // Fixed max fee values
   uint256 immutable _maxChainPropagationPeriod;
   uint64 immutable _maxTradeFeeBasisPoints;
   uint64 immutable _maxWithdrawalFeeBasisPoints;
@@ -256,72 +262,64 @@ contract Exchange is IExchange, Owned {
   /**
    * Deposit `IERC20` compliant tokens
    *
-   * @param tokenAddress The token contract address
+   * @param assetAddress The token contract address
    * @param tokenQuantity The quantity to deposit. The sending wallet must first call the `approve` method on
    * the token contract for at least this quantity first
    */
-  function depositToken(address tokenAddress, uint256 tokenQuantity) external {
-    require(tokenAddress != address(0x0), 'Use depositEther to deposit Ether');
-    deposit(msg.sender, tokenAddress, tokenQuantity);
+  function depositToken(address assetAddress, uint256 tokenQuantity) external {
+    require(assetAddress != address(0x0), 'Use depositEther to deposit Ether');
+    deposit(msg.sender, assetAddress, tokenQuantity);
   }
 
   /**
    * Deposit `IERC20` compliant tokens
    *
-   * @param tokenSymbol The case-sensitive symbol string for the token
-   * @param tokenQuantity The quantity to deposit. The sending wallet must first call the `approve` method on
+   * @param assetSymbol The case-sensitive symbol string for the token
+   * @param quantityInAssetUnits The quantity to deposit. The sending wallet must first call the `approve` method on
    * the token contract for at least this quantity first
    */
   function depositTokenBySymbol(
-    string calldata tokenSymbol,
-    uint256 tokenQuantity
+    string calldata assetSymbol,
+    uint256 quantityInAssetUnits
   ) external {
-    address tokenAddress = _tokens.getAddressForSymbol(
-      tokenSymbol,
-      uint64(block.timestamp * 1000)
-    );
-    require(tokenAddress != address(0x0), 'Use depositEther to deposit Ether');
-    deposit(msg.sender, tokenAddress, tokenQuantity);
+    address assetAddress = _assetRegistry
+      .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
+      .assetAddress;
+    require(assetAddress != address(0x0), 'Use depositEther to deposit ETH');
+
+    deposit(msg.sender, assetAddress, quantityInAssetUnits);
   }
 
   function deposit(
     address payable wallet,
-    address asset,
-    uint256 tokenQuantity
+    address assetAddress,
+    uint256 quantityInAssetUnits
   ) private {
     // Calling exitWallet immediately disables deposits, in contrast to withdrawals and trades which
     // respect the `effectiveBlockNumber` via `isWalletExitFinalized`
     require(!_walletExits[wallet].exists, 'Wallet exited');
 
-    // If asset is a token, it must be registered
-    if (asset != address(0x0)) {
-      Structs.Token storage token = _tokens.tokensByAddress[asset];
-      require(
-        token.exists && token.isConfirmed,
-        'No confirmed token found for address'
-      );
-    }
-    uint64 quantityInPips = _tokens.transferFromWallet(
-      wallet,
-      asset,
-      tokenQuantity
-    );
+    (Structs.Asset memory asset, uint64 quantityInPips) = _assetRegistry
+      .transferFromWallet(wallet, assetAddress, quantityInAssetUnits);
 
     // Any fractional ETH amount in the deposited quantity that is too small to express in pips
     // accumulates as dust in the `Exchange` contract. This does not affect tokens, since this
-    // contract will explicitly call transferFrom with the token amount in pip precision
-    uint256 tokenQuantityInPipPrecision = _tokens.pipsToTokenQuantity(
-      quantityInPips,
-      asset
+    // contract will explicitly call transferFrom with a token amount without fractional pips
+    uint256 quantityInAssetUnitsWithoutFractionalPips = AssetUnitConversions
+      .pipsToAssetUnits(quantityInPips, asset.decimals);
+    uint256 newBalance = _balances[wallet][assetAddress].add(
+      quantityInAssetUnitsWithoutFractionalPips
     );
-    uint256 newBalance = _balances[wallet][asset].add(
-      tokenQuantityInPipPrecision
+    _balances[wallet][assetAddress] = newBalance;
+
+    AssetTransfers.transferTo(
+      _custodian,
+      assetAddress,
+      quantityInAssetUnitsWithoutFractionalPips
     );
-    _balances[wallet][asset] = newBalance;
-    Transfers.transferTo(_custodian, asset, tokenQuantityInPipPrecision);
 
     _depositIndex++;
-    emit Deposited(wallet, asset, quantityInPips, _depositIndex);
+    emit Deposited(wallet, assetAddress, quantityInPips, _depositIndex);
   }
 
   // Invalidation //
@@ -366,14 +364,14 @@ contract Exchange is IExchange, Owned {
    * Settles a user withdrawal submitted off-chain. Calls restricted to currently whitelisted Dispatcher wallet
    *
    * @param withdrawal A `Structs.Withdrawal` struct encoding the parameters of the withdrawal
-   * @param withdrawalTokenSymbol The case-sensitive token symbol. Mutually exclusive with the `assetAddress`
+   * @param withdrawalAssetSymbol The case-sensitive token symbol. Mutually exclusive with the `assetAddress`
    * field of the `withdrawal` struct argument
    * @param withdrawalWalletSignature The ECDSA signature of the withdrawal hash as produced by
    * `Signatures.getWithdrawalWalletHash`
    */
   function withdraw(
     Structs.Withdrawal calldata withdrawal,
-    string calldata withdrawalTokenSymbol,
+    string calldata withdrawalAssetSymbol,
     bytes calldata withdrawalWalletSignature
   ) external override onlyDispatcher {
     // Validations
@@ -385,7 +383,7 @@ contract Exchange is IExchange, Owned {
     );
     bytes32 withdrawalHash = validateWithdrawalSignature(
       withdrawal,
-      withdrawalTokenSymbol,
+      withdrawalAssetSymbol,
       withdrawalWalletSignature
     );
     require(
@@ -394,45 +392,48 @@ contract Exchange is IExchange, Owned {
     );
 
     // If withdrawal is by asset symbol (most common) then resolve to asset address
-    address assetAddress = withdrawal.withdrawalType ==
+    Structs.Asset memory asset = withdrawal.withdrawalType ==
       Enums.WithdrawalType.BySymbol
-      ? _tokens.getAddressForSymbol(
-        withdrawalTokenSymbol,
+      ? _assetRegistry.loadAssetBySymbol(
+        withdrawalAssetSymbol,
         getTimestampFromUuid(withdrawal.nonce)
       )
-      : withdrawal.assetAddress;
+      : _assetRegistry.loadAssetByAddress(withdrawal.assetAddress);
 
     // SafeMath reverts if balance is overdrawn
-    uint256 grossTokenQuantityInPips = _tokens.pipsToTokenQuantity(
+    uint256 grossQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
       withdrawal.quantityInPips,
-      assetAddress
+      asset.decimals
     );
-    uint256 feeTokenQuantityInPips = _tokens.pipsToTokenQuantity(
+    uint256 feeInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
       withdrawal.gasFeeInPips,
-      assetAddress
+      asset.decimals
     );
-    uint256 netTokenQuantityInPips = grossTokenQuantityInPips.sub(
-      feeTokenQuantityInPips
+    uint256 netAssetQuantityInAssetUnits = grossQuantityInAssetUnits.sub(
+      feeInAssetUnits
     );
 
-    _balances[withdrawal.walletAddress][assetAddress] = _balances[withdrawal
-      .walletAddress][assetAddress]
-      .sub(grossTokenQuantityInPips);
-    _balances[_feeWallet][assetAddress] = _balances[_feeWallet][assetAddress]
-      .add(feeTokenQuantityInPips);
+    uint256 newWalletBalance = _balances[withdrawal.walletAddress][asset
+      .assetAddress]
+      .sub(grossQuantityInAssetUnits);
+    _balances[withdrawal.walletAddress][asset.assetAddress] = newWalletBalance;
+    _balances[_feeWallet][asset.assetAddress] = _balances[_feeWallet][asset
+      .assetAddress]
+      .add(feeInAssetUnits);
 
     ICustodian(_custodian).withdraw(
       withdrawal.walletAddress,
-      assetAddress,
-      netTokenQuantityInPips
+      asset.assetAddress,
+      netAssetQuantityInAssetUnits
     );
 
     _completedWithdrawalHashes[withdrawalHash] = true;
 
     emit Withdrawn(
       withdrawal.walletAddress,
-      assetAddress,
-      grossTokenQuantityInPips
+      asset.assetAddress,
+      grossQuantityInAssetUnits,
+      newWalletBalance
     );
   }
 
@@ -514,8 +515,8 @@ contract Exchange is IExchange, Owned {
     require(!isWalletExitFinalized(sell.walletAddress), 'Sell wallet exited');
 
     (
-      Structs.Token memory baseToken,
-      Structs.Token memory quoteToken
+      Structs.Asset memory baseAsset,
+      Structs.Asset memory quoteAsset
     ) = validateAssetPair(baseSymbol, quoteSymbol, buy, sell, trade);
     validateLimitPrices(buy, sell, trade);
     validateOrderNonces(
@@ -537,7 +538,7 @@ contract Exchange is IExchange, Owned {
     validateTradeFees(trade);
 
     updateOrderFilledQuantities(buy, buyHash, sell, sellHash, trade);
-    updateBalancesForTrade(baseToken, quoteToken, buy, sell, trade);
+    updateBalancesForTrade(baseAsset, quoteAsset, buy, sell, trade);
 
     emit ExecutedTrade(
       buy.walletAddress,
@@ -554,8 +555,8 @@ contract Exchange is IExchange, Owned {
 
   // Updates buyer, seller, and fee wallet balances for both assets in trade pair according to trade parameters
   function updateBalancesForTrade(
-    Structs.Token memory baseToken,
-    Structs.Token memory quoteToken,
+    Structs.Asset memory baseAsset,
+    Structs.Asset memory quoteAsset,
     Structs.Order memory buy,
     Structs.Order memory sell,
     Structs.Trade memory trade
@@ -564,18 +565,18 @@ contract Exchange is IExchange, Owned {
     _balances[buy.walletAddress][trade.baseAssetAddress] = _balances[buy
       .walletAddress][trade.baseAssetAddress]
       .add(
-      Tokens.pipsToTokenQuantity(
+      AssetUnitConversions.pipsToAssetUnits(
         trade.netBaseQuantityInPips,
-        baseToken.decimals
+        baseAsset.decimals
       )
     );
     // Buyer gives quote asset including fees
     _balances[buy.walletAddress][trade.quoteAssetAddress] = _balances[buy
       .walletAddress][trade.quoteAssetAddress]
       .sub(
-      Tokens.pipsToTokenQuantity(
+      AssetUnitConversions.pipsToAssetUnits(
         trade.grossQuoteQuantityInPips,
-        quoteToken.decimals
+        quoteAsset.decimals
       )
     );
 
@@ -583,18 +584,18 @@ contract Exchange is IExchange, Owned {
     _balances[sell.walletAddress][trade.baseAssetAddress] = _balances[sell
       .walletAddress][trade.baseAssetAddress]
       .sub(
-      Tokens.pipsToTokenQuantity(
+      AssetUnitConversions.pipsToAssetUnits(
         trade.grossBaseQuantityInPips,
-        baseToken.decimals
+        baseAsset.decimals
       )
     );
     // Seller receives quote asset minus fees
     _balances[sell.walletAddress][trade.quoteAssetAddress] = _balances[sell
       .walletAddress][trade.quoteAssetAddress]
       .add(
-      Tokens.pipsToTokenQuantity(
+      AssetUnitConversions.pipsToAssetUnits(
         trade.netQuoteQuantityInPips,
-        quoteToken.decimals
+        quoteAsset.decimals
       )
     );
 
@@ -602,21 +603,21 @@ contract Exchange is IExchange, Owned {
     _balances[_feeWallet][trade
       .makerFeeAssetAddress] = _balances[_feeWallet][trade.makerFeeAssetAddress]
       .add(
-      Tokens.pipsToTokenQuantity(
+      AssetUnitConversions.pipsToAssetUnits(
         trade.makerFeeQuantityInPips,
-        trade.makerFeeAssetAddress == baseToken.tokenAddress
-          ? baseToken.decimals
-          : quoteToken.decimals
+        trade.makerFeeAssetAddress == baseAsset.assetAddress
+          ? baseAsset.decimals
+          : quoteAsset.decimals
       )
     );
     _balances[_feeWallet][trade
       .takerFeeAssetAddress] = _balances[_feeWallet][trade.takerFeeAssetAddress]
       .add(
-      Tokens.pipsToTokenQuantity(
+      AssetUnitConversions.pipsToAssetUnits(
         trade.takerFeeQuantityInPips,
-        trade.takerFeeAssetAddress == baseToken.tokenAddress
-          ? baseToken.decimals
-          : quoteToken.decimals
+        trade.takerFeeAssetAddress == baseAsset.assetAddress
+          ? baseAsset.decimals
+          : quoteAsset.decimals
       )
     );
   }
@@ -700,39 +701,39 @@ contract Exchange is IExchange, Owned {
     Structs.Order memory buy,
     Structs.Order memory sell,
     Structs.Trade memory trade
-  ) private view returns (Structs.Token memory, Structs.Token memory) {
+  ) private view returns (Structs.Asset memory, Structs.Asset memory) {
     require(
       trade.baseAssetAddress != trade.quoteAssetAddress,
       'Base and quote assets must be different'
     );
 
     // Buy order market pair
-    Structs.Token memory buyBaseToken = _tokens.getTokenForSymbol(
+    Structs.Asset memory buyBaseAsset = _assetRegistry.loadAssetBySymbol(
       baseSymbol,
       getTimestampFromUuid(buy.nonce)
     );
-    Structs.Token memory buyQuoteToken = _tokens.getTokenForSymbol(
+    Structs.Asset memory buyQuoteAsset = _assetRegistry.loadAssetBySymbol(
       quoteSymbol,
       getTimestampFromUuid(buy.nonce)
     );
     require(
-      buyBaseToken.tokenAddress == trade.baseAssetAddress &&
-        buyQuoteToken.tokenAddress == trade.quoteAssetAddress,
+      buyBaseAsset.assetAddress == trade.baseAssetAddress &&
+        buyQuoteAsset.assetAddress == trade.quoteAssetAddress,
       'Buy order market symbol address resolution mismatch'
     );
 
     // Sell order market pair
-    Structs.Token memory sellBaseToken = _tokens.getTokenForSymbol(
+    Structs.Asset memory sellBaseAsset = _assetRegistry.loadAssetBySymbol(
       baseSymbol,
       getTimestampFromUuid(sell.nonce)
     );
-    Structs.Token memory sellQuoteToken = _tokens.getTokenForSymbol(
+    Structs.Asset memory sellQuoteAsset = _assetRegistry.loadAssetBySymbol(
       quoteSymbol,
       getTimestampFromUuid(sell.nonce)
     );
     require(
-      sellBaseToken.tokenAddress == trade.baseAssetAddress &&
-        sellQuoteToken.tokenAddress == trade.quoteAssetAddress,
+      sellBaseAsset.assetAddress == trade.baseAssetAddress &&
+        sellQuoteAsset.assetAddress == trade.quoteAssetAddress,
       'Sell order market symbol address resolution mismatch'
     );
 
@@ -752,7 +753,7 @@ contract Exchange is IExchange, Owned {
       'Maker and taker fee assets must be different'
     );
 
-    return (buyBaseToken, buyQuoteToken);
+    return (buyBaseAsset, buyQuoteAsset);
   }
 
   function validateLimitPrices(
@@ -881,12 +882,12 @@ contract Exchange is IExchange, Owned {
 
   function validateWithdrawalSignature(
     Structs.Withdrawal memory withdrawal,
-    string memory withdrawalTokenSymbol,
+    string memory withdrawalAssetSymbol,
     bytes memory withdrawalWalletSignature
   ) private pure returns (bytes32) {
     bytes32 withdrawalHash = Signatures.getWithdrawalWalletHash(
       withdrawal,
-      withdrawalTokenSymbol
+      withdrawalAssetSymbol
     );
 
     require(
@@ -901,7 +902,7 @@ contract Exchange is IExchange, Owned {
     return withdrawalHash;
   }
 
-  // Token registry //
+  // Asset registry //
 
   /**
    * @dev Initiate registration process for a token asset
@@ -911,43 +912,35 @@ contract Exchange is IExchange, Owned {
     string calldata symbol,
     uint8 decimals
   ) external onlyAdmin {
-    _tokens.registerToken(tokenAddress, symbol, decimals);
+    _assetRegistry.registerToken(tokenAddress, symbol, decimals);
     emit RegisteredToken(tokenAddress, symbol, decimals);
   }
 
   /**
    * @dev Finalize registration process for a token asset. All parameters must exactly match a previous
-   * call to `registerToken`
+   * call to `registerAsset`
    */
   function confirmTokenRegistration(
     address tokenAddress,
     string calldata symbol,
     uint8 decimals
   ) external onlyAdmin {
-    _tokens.confirmTokenRegistration(tokenAddress, symbol, decimals);
+    _assetRegistry.confirmTokenRegistration(tokenAddress, symbol, decimals);
     emit ConfirmedRegisteredToken(tokenAddress, symbol, decimals);
   }
 
-  function getAddressForSymbol(string calldata tokenSymbol, uint64 timestamp)
+  function loadAssetBySymbol(string calldata assetSymbol, uint64 timestamp)
     external
     view
-    returns (address)
+    returns (Structs.Asset memory)
   {
-    return _tokens.getAddressForSymbol(tokenSymbol, timestamp);
+    return _assetRegistry.loadAssetBySymbol(assetSymbol, timestamp);
   }
 
-  function getTokenForSymbol(string calldata tokenSymbol, uint64 timestamp)
-    external
-    view
-    returns (Structs.Token memory)
-  {
-    return _tokens.getTokenForSymbol(tokenSymbol, timestamp);
-  }
-
-  // Dispatcher wallet //
+  // Dispatcher whitelisting //
 
   /**
-   * @dev Sets the wallet whitelisted to dispatch transactions calling the `executeTrade` and `withdraw` functions
+   * @dev Sets the wallet whitelisted to dispatch transactions invoking the `executeTrade` and `withdraw` functions
    */
   function setDispatcher(address newDispatcherWallet) external onlyAdmin {
     require(newDispatcherWallet != address(0x0), 'Invalid wallet address');

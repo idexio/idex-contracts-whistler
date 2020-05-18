@@ -4,12 +4,12 @@ import {
   ethSymbol,
 } from './helpers';
 import { ethAddress } from '../lib';
-import { TokensMockInstance } from '../types/truffle-contracts/TokensMock';
+import { AssetsMockInstance } from '../types/truffle-contracts/AssetsMock';
 
 // TODO Timestamp-based tests for symbol collision, need to call evm_increaseTime
 contract('Exchange (tokens)', (accounts) => {
   const Token = artifacts.require('TestToken');
-  const TokensMock = artifacts.require('TokensMock');
+  const AssetsMock = artifacts.require('AssetsMock');
 
   const tokenSymbol = 'TKN';
 
@@ -78,7 +78,7 @@ contract('Exchange (tokens)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/unknown token/i);
+      expect(error.message).to.match(/unknown asset/i);
     });
 
     it('should revert when already finalized', async () => {
@@ -135,14 +135,13 @@ contract('Exchange (tokens)', (accounts) => {
     });
   });
 
-  describe('getAddressForSymbol', () => {
+  describe('loadAssetBySymbol', () => {
     it('should work for ETH', async () => {
       const { exchange } = await deployAndAssociateContracts();
 
-      const registeredAddress = await exchange.getAddressForSymbol(
-        ethSymbol,
-        new Date().getTime(),
-      );
+      const registeredAddress = (
+        await exchange.loadAssetBySymbol(ethSymbol, new Date().getTime())
+      ).assetAddress;
 
       expect(registeredAddress).to.equal(ethAddress);
     });
@@ -151,10 +150,9 @@ contract('Exchange (tokens)', (accounts) => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
 
-      const registeredAddress = await exchange.getAddressForSymbol(
-        tokenSymbol,
-        new Date().getTime(),
-      );
+      const registeredAddress = (
+        await exchange.loadAssetBySymbol(tokenSymbol, new Date().getTime())
+      ).assetAddress;
 
       expect(registeredAddress).to.equal(token.address);
     });
@@ -165,7 +163,7 @@ contract('Exchange (tokens)', (accounts) => {
 
       let error;
       try {
-        await exchange.getAddressForSymbol(
+        await exchange.loadAssetBySymbol(
           `${tokenSymbol}123`,
           new Date().getTime(),
         );
@@ -173,7 +171,7 @@ contract('Exchange (tokens)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/no confirmed token found for symbol/i);
+      expect(error.message).to.match(/no confirmed asset found for symbol/i);
     });
 
     it('should revert when no token registered for symbol prior to timestamp', async () => {
@@ -183,7 +181,7 @@ contract('Exchange (tokens)', (accounts) => {
 
       let error;
       try {
-        await exchange.getAddressForSymbol(
+        await exchange.loadAssetBySymbol(
           tokenSymbol,
           timestampBeforeTokenRegistered,
         );
@@ -191,71 +189,54 @@ contract('Exchange (tokens)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/no confirmed token found for symbol/i);
+      expect(error.message).to.match(/no confirmed asset found for symbol/i);
     });
   });
 
-  describe('getTokenForSymbol', () => {
-    it('should work for ETH', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-
-      const token = await exchange.getTokenForSymbol(
-        ethSymbol,
-        new Date().getTime(),
-      );
-
-      expect(token.tokenAddress).to.equal(ethAddress);
-    });
-  });
-
-  describe('tokenQuantityToPips', async () => {
-    let tokensMock: TokensMockInstance;
-    const tokenQuantityToPips = async (
+  describe('assetUnitsToPips', async () => {
+    let assetsMock: AssetsMockInstance;
+    const assetUnitsToPips = async (
       quantity: string,
       decimals: string,
     ): Promise<string> =>
-      (await tokensMock.tokenQuantityToPips(quantity, decimals)).toString();
+      (await assetsMock.assetUnitsToPips(quantity, decimals)).toString();
 
     beforeEach(async () => {
-      tokensMock = await TokensMock.new();
+      assetsMock = await AssetsMock.new();
     });
 
     it('should succeed', async () => {
-      expect(await tokenQuantityToPips('10000000000', '18')).to.equal('1');
-      expect(await tokenQuantityToPips('10000000000000', '18')).to.equal(
-        '1000',
-      );
-      expect(await tokenQuantityToPips('1', '8')).to.equal('1');
-      expect(await tokenQuantityToPips('1', '2')).to.equal('1000000');
-      expect(await tokenQuantityToPips('1', '0')).to.equal('100000000');
+      expect(await assetUnitsToPips('10000000000', '18')).to.equal('1');
+      expect(await assetUnitsToPips('10000000000000', '18')).to.equal('1000');
+      expect(await assetUnitsToPips('1', '8')).to.equal('1');
+      expect(await assetUnitsToPips('1', '2')).to.equal('1000000');
+      expect(await assetUnitsToPips('1', '0')).to.equal('100000000');
     });
 
     it('should truncate fractions of a pip', async () => {
-      expect(await tokenQuantityToPips('19', '9')).to.equal('1');
-      expect(await tokenQuantityToPips('1', '9')).to.equal('0');
+      expect(await assetUnitsToPips('19', '9')).to.equal('1');
+      expect(await assetUnitsToPips('1', '9')).to.equal('0');
     });
   });
 
-  describe('pipsToTokenQuantity', async () => {
-    let tokensMock: TokensMockInstance;
-    const pipsToTokenQuantity = async (
+  describe('pipsToAssetUnits', async () => {
+    let assetsMock: AssetsMockInstance;
+    const pipsToAssetUnits = async (
       quantity: string,
       decimals: string,
     ): Promise<string> =>
-      (await tokensMock.pipsToTokenQuantity(quantity, decimals)).toString();
+      (await assetsMock.pipsToAssetUnits(quantity, decimals)).toString();
 
     beforeEach(async () => {
-      tokensMock = await TokensMock.new();
+      assetsMock = await AssetsMock.new();
     });
 
     it('should succeed', async () => {
-      expect(await pipsToTokenQuantity('1', '18')).to.equal('10000000000');
-      expect(await pipsToTokenQuantity('1000', '18')).to.equal(
-        '10000000000000',
-      );
-      expect(await pipsToTokenQuantity('1', '8')).to.equal('1');
-      expect(await pipsToTokenQuantity('1000000', '2')).to.equal('1');
-      expect(await pipsToTokenQuantity('100000000', '0')).to.equal('1');
+      expect(await pipsToAssetUnits('1', '18')).to.equal('10000000000');
+      expect(await pipsToAssetUnits('1000', '18')).to.equal('10000000000000');
+      expect(await pipsToAssetUnits('1', '8')).to.equal('1');
+      expect(await pipsToAssetUnits('1000000', '2')).to.equal('1');
+      expect(await pipsToAssetUnits('100000000', '0')).to.equal('1');
     });
   });
 });

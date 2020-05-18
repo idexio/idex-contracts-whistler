@@ -90,7 +90,7 @@ contract('Exchange (deposits)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/use depositEther to deposit ether/i);
+      expect(error.message).to.match(/use depositEther to deposit ETH/i);
     });
 
     it('should revert for exited wallet', async () => {
@@ -139,7 +139,7 @@ contract('Exchange (deposits)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/no confirmed token found for symbol/i);
+      expect(error.message).to.match(/no confirmed asset found for symbol/i);
     });
   });
 
@@ -187,7 +187,7 @@ contract('Exchange (deposits)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/no confirmed token found for address/i);
+      expect(error.message).to.match(/no confirmed asset found for address/i);
     });
 
     it('should revert when token skims from transfer', async () => {

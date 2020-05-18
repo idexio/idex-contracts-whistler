@@ -10,7 +10,7 @@ import {
 
 import { ICustodian } from './libraries/Interfaces.sol';
 import { Owned } from './Owned.sol';
-import { Transfers } from './libraries/Transfers.sol';
+import { AssetTransfers } from './libraries/AssetTransfers.sol';
 
 
 contract Custodian is ICustodian, Owned {
@@ -66,10 +66,10 @@ contract Custodian is ICustodian, Owned {
   function withdraw(
     address payable wallet,
     address asset,
-    uint256 tokenQuantity
+    uint256 quantityInAssetUnits
   ) external override onlyExchange {
-    Transfers.transferTo(wallet, asset, tokenQuantity);
-    emit Withdrawn(wallet, asset, tokenQuantity, _exchange);
+    AssetTransfers.transferTo(wallet, asset, quantityInAssetUnits);
+    emit Withdrawn(wallet, asset, quantityInAssetUnits, _exchange);
   }
 
   /**

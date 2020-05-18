@@ -14,7 +14,7 @@ import {
  * a generic syntax for ETH or tokens. It further validates ERC-20 compliant balance updates in the
  * case of tokens
  */
-library Transfers {
+library AssetTransfers {
   using SafeMath256 for uint256;
 
   /**

@@ -458,7 +458,7 @@ contract('Exchange (trades)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/no confirmed token found for symbol/i);
+      expect(error.message).to.match(/no confirmed asset found for symbol/i);
     });
 
     it('should revert for invalid signatureHashVersion', async () => {

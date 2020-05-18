@@ -50,11 +50,11 @@ contract Structs {
   }
 
   /**
-   * @dev Return type for `Exchange.getTokenForSymbol`
+   * @dev Return type for `Exchange.getTokenForSymbol`, also used internally by AssetRegistry
    */
-  struct Token {
+  struct Asset {
     bool exists;
-    address tokenAddress;
+    address assetAddress;
     string symbol;
     uint8 decimals;
     bool isConfirmed;
