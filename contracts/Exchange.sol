@@ -640,6 +640,23 @@ contract Exchange is IExchange, Owned {
   ) private {
     require(!_completedOrderHashes[orderHash], 'Order double filled');
 
+    // Market orders can express quantity in quote terms, and can be partially filled by multiple
+    // limit maker orders necessitating tracking partially filled amounts in quote terms
+    if (order.quoteOrderQuantityInPips > 0) {
+      updateOrderFilledQuantityOnQuoteTerms(order, orderHash, trade);
+      // All other orders track partially filled quantities in base terms
+    } else {
+      updateOrderFilledQuantityOnBaseTerms(order, orderHash, trade);
+    }
+  }
+
+  function updateOrderFilledQuantityOnBaseTerms(
+    Structs.Order memory order,
+    bytes32 orderHash,
+    Structs.Trade memory trade
+  ) private {
+    require(!_completedOrderHashes[orderHash], 'Order double filled');
+    // All other orders track partially filled quantities in base terms
     uint64 newFilledQuantityInPips = trade.grossBaseQuantityInPips.add(
       _partiallyFilledOrderQuantitiesInPips[orderHash]
     );
@@ -649,6 +666,27 @@ contract Exchange is IExchange, Owned {
     );
 
     if (newFilledQuantityInPips < order.quantityInPips) {
+      _partiallyFilledOrderQuantitiesInPips[orderHash] = newFilledQuantityInPips;
+    } else {
+      delete _partiallyFilledOrderQuantitiesInPips[orderHash];
+      _completedOrderHashes[orderHash] = true;
+    }
+  }
+
+  function updateOrderFilledQuantityOnQuoteTerms(
+    Structs.Order memory order,
+    bytes32 orderHash,
+    Structs.Trade memory trade
+  ) private {
+    uint64 newFilledQuantityInPips = trade.grossQuoteQuantityInPips.add(
+      _partiallyFilledOrderQuantitiesInPips[orderHash]
+    );
+    require(
+      newFilledQuantityInPips <= order.quoteOrderQuantityInPips,
+      'Order overfilled'
+    );
+
+    if (newFilledQuantityInPips < order.quoteOrderQuantityInPips) {
       _partiallyFilledOrderQuantitiesInPips[orderHash] = newFilledQuantityInPips;
     } else {
       delete _partiallyFilledOrderQuantitiesInPips[orderHash];

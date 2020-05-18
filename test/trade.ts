@@ -129,6 +129,63 @@ contract('Exchange (trades)', (accounts) => {
       ).to.equal(decimalToPips(fill.grossBaseQuantity));
     });
 
+    it('should work for partial fill of matching maker limit and taker market order in quote terms', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      sellOrder.type = OrderType.Market;
+      sellOrder.quoteOrderQuantity = fill.grossQuoteQuantity;
+      fill.grossBaseQuantity = new BigNumber(fill.grossBaseQuantity)
+        .dividedBy(2)
+        .toString();
+      fill.netBaseQuantity = fill.grossBaseQuantity;
+      fill.grossQuoteQuantity = new BigNumber(fill.grossQuoteQuantity)
+        .dividedBy(2)
+        .toString();
+      fill.netQuoteQuantity = fill.grossQuoteQuantity;
+
+      await executeTrade(
+        exchange,
+        buyWallet,
+        sellWallet,
+        buyOrder,
+        sellOrder,
+        fill,
+      );
+
+      const events = await exchange.getPastEvents('ExecutedTrade', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+
+      const { buyOrderHash, sellOrderHash } = events[0].returnValues;
+      expect(
+        (await exchange.balanceOf(buyWallet, token.address)).toString(),
+      ).to.equal(decimalToTokenQuantity(fill.netBaseQuantity, 18));
+      expect(
+        (await exchange.balanceOf(sellWallet, ethAddress)).toString(),
+      ).to.equal(decimalToTokenQuantity(fill.netQuoteQuantity, 18));
+      expect(
+        (
+          await exchange.partiallyFilledOrderQuantityInPips(buyOrderHash)
+        ).toString(),
+      ).to.equal(decimalToPips(fill.grossBaseQuantity));
+      expect(
+        (
+          await exchange.partiallyFilledOrderQuantityInPips(sellOrderHash)
+        ).toString(),
+      ).to.equal(decimalToPips(fill.grossQuoteQuantity));
+    });
+
     it('should revert for order overfill', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
