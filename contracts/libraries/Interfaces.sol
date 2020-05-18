@@ -32,9 +32,10 @@ contract Enums {
 // https://github.com/crytic/slither/issues/487
 contract Structs {
   /**
-   * @dev Argument type for `Exchange.executeTrade`
+   * @dev Argument type for `Exchange.executeTrade` and `Signatures.getOrderWalletHash`
    */
   struct Order {
+    uint8 signatureHashVersion;
     uint128 nonce;
     address walletAddress;
     Enums.OrderType orderType;
@@ -61,7 +62,7 @@ contract Structs {
   }
 
   /**
-   * @dev Argument type for `Exchange.executeTrade` and `Signatures.getOrderWalletHash`
+   * @dev Argument type for `Exchange.executeTrade`
    */
   struct Trade {
     address baseAssetAddress;

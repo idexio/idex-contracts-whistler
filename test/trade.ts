@@ -28,7 +28,10 @@ import {
 const tokenSymbol = 'TKN';
 const marketSymbol = `${tokenSymbol}-${ethSymbol}`;
 
+// TODO Balance changes for wallet, Exchange, and Custodian
+// TODO Order types besides limit
 // TODO Test tokens with decimals other than 18
+// TODO Quote quantity
 contract('Exchange (trades)', (accounts) => {
   const Token = artifacts.require('TestToken');
 

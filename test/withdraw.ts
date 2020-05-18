@@ -15,6 +15,8 @@ import {
   withdraw,
 } from './helpers';
 
+// TODO Balance changes for wallet, Exchange, and Custodian
+// TODO Non-zero gas fees
 contract('Exchange (withdrawals)', (accounts) => {
   const Custodian = artifacts.require('Custodian');
   const Exchange = artifacts.require('Exchange');
@@ -24,8 +26,6 @@ contract('Exchange (withdrawals)', (accounts) => {
 
   const tokenSymbol = 'TKN';
 
-  // TODO Verify balances
-  // TODO Test gas fees
   describe('withdraw', () => {
     it('should work by symbol for ETH', async () => {
       const { exchange } = await deployAndAssociateContracts();

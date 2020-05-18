@@ -78,17 +78,18 @@ export const ethAddress = '0x0000000000000000000000000000000000000000';
 
 export const getOrderHash = (order: Order): string =>
   solidityHashOfParams([
+    ['uint8', 1], // Signature hash version - only version 1 supported
     ['uint128', uuidToUint8Array(order.nonce)],
     ['address', order.wallet],
     ['string', order.market],
     ['uint8', order.type],
     ['uint8', order.side],
-    ['uint8', order.timeInForce || 0],
     ['string', order.quantity || ''],
     ['string', order.quoteOrderQuantity || ''],
     ['string', order.price || ''],
-    ['string', order.customClientOrderId || ''],
     ['string', order.stopPrice || ''],
+    ['string', order.customClientOrderId || ''],
+    ['uint8', order.timeInForce || 0],
     ['uint8', order.selfTradePrevention || 0],
     ['uint64', order.cancelAfter || 0],
   ]);
@@ -123,6 +124,7 @@ export const getTradeArguments = (
 ): ExchangeInstance['executeTrade']['arguments'] => {
   const orderToArgumentStruct = (o: Order) => {
     return {
+      signatureHashVersion: 1,
       nonce: uuidToHexString(o.nonce),
       walletAddress: o.wallet,
       orderType: o.type,

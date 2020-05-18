@@ -24,17 +24,21 @@ library Signatures {
     string memory quoteSymbol,
     string memory clientOrderId
   ) internal pure returns (bytes32) {
+    require(
+      order.signatureHashVersion == 1,
+      'Signature hash version must be 1'
+    );
     return
       keccak256(
         // Placing all the fields in a single `abi.encodePacked` call causes a `stack too deep` error
         abi.encodePacked(
           abi.encodePacked(
+            order.signatureHashVersion,
             order.nonce,
             order.walletAddress,
             getMarketSymbol(baseSymbol, quoteSymbol),
             uint8(order.orderType),
             uint8(order.side),
-            uint8(order.timeInForce),
             // Ledger qtys and prices are in pip, but order was signed by wallet owner with decimal values
             order.quantityInPips > 0 ? pipToDecimal(order.quantityInPips) : ''
           ),
@@ -45,10 +49,11 @@ library Signatures {
             order.limitPriceInPips > 0
               ? pipToDecimal(order.limitPriceInPips)
               : '',
-            clientOrderId,
             order.stopPriceInPips > 0
               ? pipToDecimal(order.stopPriceInPips)
               : '',
+            clientOrderId,
+            uint8(order.timeInForce),
             uint8(order.selfTradePrevention),
             order.cancelAfter
           )
