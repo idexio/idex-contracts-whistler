@@ -36,15 +36,19 @@ library Signatures {
             uint8(order.side),
             uint8(order.timeInForce),
             // Ledger qtys and prices are in pip, but order was signed by wallet owner with decimal values
-            order.quantity > 0 ? pipToDecimal(order.quantity) : ''
+            order.quantityInPips > 0 ? pipToDecimal(order.quantityInPips) : ''
           ),
           abi.encodePacked(
-            order.quoteOrderQuantity > 0
-              ? pipToDecimal(order.quoteOrderQuantity)
+            order.quoteOrderQuantityInPips > 0
+              ? pipToDecimal(order.quoteOrderQuantityInPips)
               : '',
-            order.limitPrice > 0 ? pipToDecimal(order.limitPrice) : '',
+            order.limitPriceInPips > 0
+              ? pipToDecimal(order.limitPriceInPips)
+              : '',
             clientOrderId,
-            order.stopPrice > 0 ? pipToDecimal(order.stopPrice) : '',
+            order.stopPriceInPips > 0
+              ? pipToDecimal(order.stopPriceInPips)
+              : '',
             uint8(order.selfTradePrevention),
             order.cancelAfter
           )
@@ -63,14 +67,14 @@ library Signatures {
             withdrawal.nonce,
             withdrawal.walletAddress,
             withdrawalTokenSymbol,
-            pipToDecimal(withdrawal.quantity),
+            pipToDecimal(withdrawal.quantityInPips),
             withdrawal.autoDispatchEnabled
           )
           : abi.encodePacked(
             withdrawal.nonce,
             withdrawal.walletAddress,
             withdrawal.assetAddress,
-            pipToDecimal(withdrawal.quantity),
+            pipToDecimal(withdrawal.quantityInPips),
             withdrawal.autoDispatchEnabled
           )
       );

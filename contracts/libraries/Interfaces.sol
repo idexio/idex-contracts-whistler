@@ -40,10 +40,10 @@ contract Structs {
     Enums.OrderType orderType;
     Enums.OrderSide side;
     Enums.OrderTimeInForce timeInForce;
-    uint64 quantity;
-    uint64 quoteOrderQuantity;
-    uint64 limitPrice; // decimal pips * 10^8
-    uint64 stopPrice; // decimal pips * 10^8
+    uint64 quantityInPips;
+    uint64 quoteOrderQuantityInPips;
+    uint64 limitPriceInPips; // decimal pips * 10^8
+    uint64 stopPriceInPips; // decimal pips * 10^8
     Enums.OrderSelfTradePrevention selfTradePrevention;
     uint64 cancelAfter;
   }
@@ -66,15 +66,15 @@ contract Structs {
   struct Trade {
     address baseAssetAddress;
     address quoteAssetAddress;
-    uint64 grossBaseQuantity; // pips
-    uint64 grossQuoteQuantity; // pips
-    uint64 netBaseQuantity; // pips
-    uint64 netQuoteQuantity; // pips
+    uint64 grossBaseQuantityInPips;
+    uint64 grossQuoteQuantityInPips;
+    uint64 netBaseQuantityInPips;
+    uint64 netQuoteQuantityInPips;
     address makerFeeAssetAddress;
     address takerFeeAssetAddress;
-    uint64 makerFeeQuantity; // pips
-    uint64 takerFeeQuantity; // pips
-    uint64 price; // decimal pips * 10^8
+    uint64 makerFeeQuantityInPips;
+    uint64 takerFeeQuantityInPips;
+    uint64 priceInPips; // decimal pips * 10^8
     Enums.OrderSide makerSide;
   }
 
@@ -86,8 +86,8 @@ contract Structs {
     uint128 nonce;
     address payable walletAddress;
     address assetAddress; // used in case symbol not specified
-    uint64 quantity; // pips
-    uint64 gasFee; // pips
+    uint64 quantityInPips;
+    uint64 gasFeeInPips;
     bool autoDispatchEnabled; // ignored, auto dispatch is always enabled
   }
 }
@@ -99,7 +99,7 @@ interface ICustodian {
   function withdraw(
     address payable wallet,
     address asset,
-    uint256 quantity
+    uint256 tokenQuantity
   ) external;
 
   function getExchange() external returns (address);

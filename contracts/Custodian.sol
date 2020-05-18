@@ -32,7 +32,7 @@ contract Custodian is ICustodian, Owned {
   event Withdrawn(
     address indexed wallet,
     address indexed asset,
-    uint256 quantity,
+    uint256 tokenQuantity,
     address exchange
   );
 
@@ -66,10 +66,10 @@ contract Custodian is ICustodian, Owned {
   function withdraw(
     address payable wallet,
     address asset,
-    uint256 quantity
+    uint256 tokenQuantity
   ) external override onlyExchange {
-    Transfers.transferTo(wallet, asset, quantity);
-    emit Withdrawn(wallet, asset, quantity, _exchange);
+    Transfers.transferTo(wallet, asset, tokenQuantity);
+    emit Withdrawn(wallet, asset, tokenQuantity, _exchange);
   }
 
   /**

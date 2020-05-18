@@ -108,9 +108,9 @@ contract Exchange is IExchange, Owned {
   /**
    * @dev Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
    */
-  event Withdrawn(address indexed wallet, address asset, uint256 quantity);
+  event Withdrawn(address indexed wallet, address asset, uint256 tokenQuantity);
 
-  // Structs //
+  // Internally used structs //
 
   struct NonceInvalidation {
     bool exists;
@@ -135,8 +135,9 @@ contract Exchange is IExchange, Owned {
   // Mapping of wallet => last invalidated timestamp
   mapping(address => NonceInvalidation) _nonceInvalidations;
   // Mapping of order hash => filled quantity in pips
-  mapping(bytes32 => uint64) _partiallyFilledOrderQuantities;
-  Tokens.Storage internal _tokens;
+  mapping(bytes32 => uint64) _partiallyFilledOrderQuantitiesInPips;
+  // Token registry data
+  Tokens.Storage _tokens;
   mapping(address => WalletExit) _walletExits;
   // Tunable parameters
   uint256 _chainPropagationPeriod;
@@ -173,7 +174,8 @@ contract Exchange is IExchange, Owned {
   /*** Tunable parameters ***/
 
   /**
-   * @dev Sets the address of the `Custodian` contract. This value is immutable once set and cannot be changed again
+   * @dev Sets a new Chain Propagation Period governing the delay between contract nonce
+   * invalidations and exits going into effect
    *
    * @param newChainPropagationPeriod The new Chain Propagation Period expressed as a number of blocks. Must be less
    * than `_maxChainPropagationPeriod`
@@ -229,7 +231,8 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Only partially filled orders will return a non-zero value, filled orders will return 0.
+   * @dev Returns the amount filled so far for a partially filled orders. Only partially filled orders
+   * will return a non-zero value, filled orders will return 0.
    * Invalidating an order nonce will not clear partial fill quantities for earlier orders because
    * the gas cost for this is potentially unbound
    */
@@ -238,7 +241,7 @@ contract Exchange is IExchange, Owned {
     view
     returns (uint64)
   {
-    return _partiallyFilledOrderQuantities[orderHash];
+    return _partiallyFilledOrderQuantitiesInPips[orderHash];
   }
 
   // Depositing //
@@ -254,36 +257,37 @@ contract Exchange is IExchange, Owned {
    * Deposit `IERC20` compliant tokens
    *
    * @param tokenAddress The token contract address
-   * @param quantity The quantity to deposit. The sending wallet must first call the `approve` method on
+   * @param tokenQuantity The quantity to deposit. The sending wallet must first call the `approve` method on
    * the token contract for at least this quantity first
    */
-  function depositToken(address tokenAddress, uint256 quantity) external {
+  function depositToken(address tokenAddress, uint256 tokenQuantity) external {
     require(tokenAddress != address(0x0), 'Use depositEther to deposit Ether');
-    deposit(msg.sender, tokenAddress, quantity);
+    deposit(msg.sender, tokenAddress, tokenQuantity);
   }
 
   /**
    * Deposit `IERC20` compliant tokens
    *
    * @param tokenSymbol The case-sensitive symbol string for the token
-   * @param quantity The quantity to deposit. The sending wallet must first call the `approve` method on
+   * @param tokenQuantity The quantity to deposit. The sending wallet must first call the `approve` method on
    * the token contract for at least this quantity first
    */
-  function depositTokenBySymbol(string calldata tokenSymbol, uint256 quantity)
-    external
-  {
+  function depositTokenBySymbol(
+    string calldata tokenSymbol,
+    uint256 tokenQuantity
+  ) external {
     address tokenAddress = _tokens.getAddressForSymbol(
       tokenSymbol,
       uint64(block.timestamp * 1000)
     );
     require(tokenAddress != address(0x0), 'Use depositEther to deposit Ether');
-    deposit(msg.sender, tokenAddress, quantity);
+    deposit(msg.sender, tokenAddress, tokenQuantity);
   }
 
   function deposit(
     address payable wallet,
     address asset,
-    uint256 quantity
+    uint256 tokenQuantity
   ) private {
     // Calling exitWallet immediately disables deposits, in contrast to withdrawals and trades which
     // respect the `effectiveBlockNumber` via `isWalletExitFinalized`
@@ -297,7 +301,11 @@ contract Exchange is IExchange, Owned {
         'No confirmed token found for address'
       );
     }
-    uint64 quantityInPips = _tokens.transferFromWallet(wallet, asset, quantity);
+    uint64 quantityInPips = _tokens.transferFromWallet(
+      wallet,
+      asset,
+      tokenQuantity
+    );
 
     // Any fractional ETH amount in the deposited quantity that is too small to express in pips
     // accumulates as dust in the `Exchange` contract. This does not affect tokens, since this
@@ -371,7 +379,7 @@ contract Exchange is IExchange, Owned {
     // Validations
     require(!isWalletExitFinalized(withdrawal.walletAddress), 'Wallet exited');
     require(
-      getFeeBasisPoints(withdrawal.gasFee, withdrawal.quantity) <=
+      getFeeBasisPoints(withdrawal.gasFeeInPips, withdrawal.quantityInPips) <=
         _maxWithdrawalFeeBasisPoints,
       'Excessive withdrawal fee'
     );
@@ -394,31 +402,38 @@ contract Exchange is IExchange, Owned {
       )
       : withdrawal.assetAddress;
 
-    // SafeMath reverts if overdrawn
-    uint256 quantityInWei = _tokens.pipsToTokenQuantity(
-      withdrawal.quantity,
+    // SafeMath reverts if balance is overdrawn
+    uint256 grossTokenQuantityInPips = _tokens.pipsToTokenQuantity(
+      withdrawal.quantityInPips,
       assetAddress
     );
+    uint256 feeTokenQuantityInPips = _tokens.pipsToTokenQuantity(
+      withdrawal.gasFeeInPips,
+      assetAddress
+    );
+    uint256 netTokenQuantityInPips = grossTokenQuantityInPips.sub(
+      feeTokenQuantityInPips
+    );
+
     _balances[withdrawal.walletAddress][assetAddress] = _balances[withdrawal
       .walletAddress][assetAddress]
-      .sub(quantityInWei);
-    _balances[_feeWallet][withdrawal
-      .assetAddress] = _balances[_feeWallet][assetAddress].add(
-      _tokens.pipsToTokenQuantity(withdrawal.gasFee, assetAddress)
-    );
+      .sub(grossTokenQuantityInPips);
+    _balances[_feeWallet][assetAddress] = _balances[_feeWallet][assetAddress]
+      .add(feeTokenQuantityInPips);
 
     ICustodian(_custodian).withdraw(
       withdrawal.walletAddress,
       assetAddress,
-      _tokens.pipsToTokenQuantity(
-        withdrawal.quantity.sub(withdrawal.gasFee),
-        assetAddress
-      )
+      netTokenQuantityInPips
     );
 
     _completedWithdrawalHashes[withdrawalHash] = true;
 
-    emit Withdrawn(withdrawal.walletAddress, assetAddress, quantityInWei);
+    emit Withdrawn(
+      withdrawal.walletAddress,
+      assetAddress,
+      grossTokenQuantityInPips
+    );
   }
 
   // Wallet exits //
@@ -529,9 +544,9 @@ contract Exchange is IExchange, Owned {
       sell.walletAddress,
       baseSymbol,
       quoteSymbol,
-      trade.grossBaseQuantity,
-      trade.grossQuoteQuantity,
-      trade.price,
+      trade.grossBaseQuantityInPips,
+      trade.grossQuoteQuantityInPips,
+      trade.priceInPips,
       buyHash,
       sellHash
     );
@@ -549,26 +564,38 @@ contract Exchange is IExchange, Owned {
     _balances[buy.walletAddress][trade.baseAssetAddress] = _balances[buy
       .walletAddress][trade.baseAssetAddress]
       .add(
-      Tokens.pipsToTokenQuantity(trade.netBaseQuantity, baseToken.decimals)
+      Tokens.pipsToTokenQuantity(
+        trade.netBaseQuantityInPips,
+        baseToken.decimals
+      )
     );
     // Buyer gives quote asset including fees
     _balances[buy.walletAddress][trade.quoteAssetAddress] = _balances[buy
       .walletAddress][trade.quoteAssetAddress]
       .sub(
-      Tokens.pipsToTokenQuantity(trade.grossQuoteQuantity, quoteToken.decimals)
+      Tokens.pipsToTokenQuantity(
+        trade.grossQuoteQuantityInPips,
+        quoteToken.decimals
+      )
     );
 
     // Seller gives base asset including fees
     _balances[sell.walletAddress][trade.baseAssetAddress] = _balances[sell
       .walletAddress][trade.baseAssetAddress]
       .sub(
-      Tokens.pipsToTokenQuantity(trade.grossBaseQuantity, baseToken.decimals)
+      Tokens.pipsToTokenQuantity(
+        trade.grossBaseQuantityInPips,
+        baseToken.decimals
+      )
     );
     // Seller receives quote asset minus fees
     _balances[sell.walletAddress][trade.quoteAssetAddress] = _balances[sell
       .walletAddress][trade.quoteAssetAddress]
       .add(
-      Tokens.pipsToTokenQuantity(trade.netQuoteQuantity, quoteToken.decimals)
+      Tokens.pipsToTokenQuantity(
+        trade.netQuoteQuantityInPips,
+        quoteToken.decimals
+      )
     );
 
     // Maker and taker fees to fee wallet
@@ -576,7 +603,7 @@ contract Exchange is IExchange, Owned {
       .makerFeeAssetAddress] = _balances[_feeWallet][trade.makerFeeAssetAddress]
       .add(
       Tokens.pipsToTokenQuantity(
-        trade.makerFeeQuantity,
+        trade.makerFeeQuantityInPips,
         trade.makerFeeAssetAddress == baseToken.tokenAddress
           ? baseToken.decimals
           : quoteToken.decimals
@@ -586,7 +613,7 @@ contract Exchange is IExchange, Owned {
       .takerFeeAssetAddress] = _balances[_feeWallet][trade.takerFeeAssetAddress]
       .add(
       Tokens.pipsToTokenQuantity(
-        trade.takerFeeQuantity,
+        trade.takerFeeQuantityInPips,
         trade.takerFeeAssetAddress == baseToken.tokenAddress
           ? baseToken.decimals
           : quoteToken.decimals
@@ -613,15 +640,18 @@ contract Exchange is IExchange, Owned {
   ) private {
     require(!_completedOrderHashes[orderHash], 'Order double filled');
 
-    uint64 newFilledQuantity = trade.grossBaseQuantity.add(
-      _partiallyFilledOrderQuantities[orderHash]
+    uint64 newFilledQuantityInPips = trade.grossBaseQuantityInPips.add(
+      _partiallyFilledOrderQuantitiesInPips[orderHash]
     );
-    require(newFilledQuantity <= order.quantity, 'Order overfilled');
+    require(
+      newFilledQuantityInPips <= order.quantityInPips,
+      'Order overfilled'
+    );
 
-    if (newFilledQuantity < order.quantity) {
-      _partiallyFilledOrderQuantities[orderHash] = newFilledQuantity;
+    if (newFilledQuantityInPips < order.quantityInPips) {
+      _partiallyFilledOrderQuantitiesInPips[orderHash] = newFilledQuantityInPips;
     } else {
-      delete _partiallyFilledOrderQuantities[orderHash];
+      delete _partiallyFilledOrderQuantitiesInPips[orderHash];
       _completedOrderHashes[orderHash] = true;
     }
   }
@@ -695,44 +725,48 @@ contract Exchange is IExchange, Owned {
     Structs.Trade memory trade
   ) private pure {
     require(
-      trade.grossBaseQuantity > 0,
+      trade.grossBaseQuantityInPips > 0,
       'Base quantity must be greater than zero'
     );
     require(
-      trade.grossQuoteQuantity > 0,
+      trade.grossQuoteQuantityInPips > 0,
       'Quote quantity must be greater than zero'
     );
-    uint64 price = trade.grossQuoteQuantity.mul(10**8).div(
-      trade.grossBaseQuantity
+    uint64 priceInPips = trade.grossQuoteQuantityInPips.mul(10**8).div(
+      trade.grossBaseQuantityInPips
     );
 
     bool exceedsBuyLimit = isLimitOrderType(buy.orderType) &&
-      price > buy.limitPrice;
+      priceInPips > buy.limitPriceInPips;
     require(!exceedsBuyLimit, 'Buy order limit price exceeded');
 
     bool exceedsSellLimit = isLimitOrderType(sell.orderType) &&
-      price < sell.limitPrice;
+      priceInPips < sell.limitPriceInPips;
     require(!exceedsSellLimit, 'Sell order limit price exceeded');
   }
 
   function validateTradeFees(Structs.Trade memory trade) private view {
-    uint64 makerTotalQuantity = trade.makerFeeAssetAddress ==
+    uint64 makerTotalQuantityInPips = trade.makerFeeAssetAddress ==
       trade.baseAssetAddress
-      ? trade.grossBaseQuantity
-      : trade.grossQuoteQuantity;
-    uint64 takerTotalQuantity = trade.takerFeeAssetAddress ==
+      ? trade.grossBaseQuantityInPips
+      : trade.grossQuoteQuantityInPips;
+    uint64 takerTotalQuantityInPips = trade.takerFeeAssetAddress ==
       trade.baseAssetAddress
-      ? trade.grossBaseQuantity
-      : trade.grossQuoteQuantity;
+      ? trade.grossBaseQuantityInPips
+      : trade.grossQuoteQuantityInPips;
 
     require(
-      getFeeBasisPoints(trade.makerFeeQuantity, makerTotalQuantity) <=
-        _maxTradeFeeBasisPoints,
+      getFeeBasisPoints(
+        trade.makerFeeQuantityInPips,
+        makerTotalQuantityInPips
+      ) <= _maxTradeFeeBasisPoints,
       'Excessive maker fee'
     );
     require(
-      getFeeBasisPoints(trade.takerFeeQuantity, takerTotalQuantity) <=
-        _maxTradeFeeBasisPoints,
+      getFeeBasisPoints(
+        trade.takerFeeQuantityInPips,
+        takerTotalQuantityInPips
+      ) <= _maxTradeFeeBasisPoints,
       'Excessive taker fee'
     );
   }
