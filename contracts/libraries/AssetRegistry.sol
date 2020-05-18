@@ -123,36 +123,6 @@ library AssetRegistry {
     return asset;
   }
 
-  function transferFromWallet(
-    Storage storage self,
-    address payable wallet,
-    address assetAddress,
-    uint256 quantityInAssetUnits
-  ) internal returns (Structs.Asset memory asset, uint64 quantityInPips) {
-    asset = loadAssetByAddress(self, assetAddress);
-    quantityInPips = AssetUnitConversions.assetUnitsToPips(
-      quantityInAssetUnits,
-      asset.decimals
-    );
-    require(quantityInPips > 0, 'Quantity is too low');
-
-    // If the asset is ETH then the funds were already sent via msg.value and no further steps are
-    // needed. Otherwise, call the transferFrom function on the asset contract for the pre-approved
-    // amount
-    if (assetAddress != address(0x0)) {
-      // Convert back to asset qty to prevent transferring fractions of pips
-      uint256 assetQuantityInPipPrecision = AssetUnitConversions
-        .pipsToAssetUnits(quantityInPips, asset.decimals);
-      AssetTransfers.transferFrom(
-        wallet,
-        assetAddress,
-        assetQuantityInPipPrecision
-      );
-    }
-
-    return (asset, quantityInPips);
-  }
-
   /**
    * @dev ETH is modeled as an always-confirmed Asset struct for programmatic consistency
    */
@@ -162,7 +132,7 @@ library AssetRegistry {
 
   // See https://solidity.readthedocs.io/en/latest/types.html#bytes-and-strings-as-arrays
   function isStringEqual(string memory a, string memory b)
-    internal
+    private
     pure
     returns (bool)
   {

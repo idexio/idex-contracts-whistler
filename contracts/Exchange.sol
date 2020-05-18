@@ -299,26 +299,46 @@ contract Exchange is IExchange, Owned {
     // respect the `effectiveBlockNumber` via `isWalletExitFinalized`
     require(!_walletExits[wallet].exists, 'Wallet exited');
 
-    (Structs.Asset memory asset, uint64 quantityInPips) = _assetRegistry
-      .transferFromWallet(wallet, assetAddress, quantityInAssetUnits);
+    Structs.Asset memory asset = _assetRegistry.loadAssetByAddress(
+      assetAddress
+    );
+    uint64 quantityInPips = AssetUnitConversions.assetUnitsToPips(
+      quantityInAssetUnits,
+      asset.decimals
+    );
+    require(quantityInPips > 0, 'Quantity is too low');
 
-    // Any fractional ETH amount in the deposited quantity that is too small to express in pips
-    // accumulates as dust in the `Exchange` contract. This does not affect tokens, since this
-    // contract will explicitly call transferFrom with a token amount without fractional pips
+    // Convert from pips back into asset units to remove any fractional amount that is too small
+    // to express in pips. If the asset is ETH, this leftover fractional amount accumulates as dust
+    // in the `Exchange` contract. If the asset is a token the `Exchange` will call `transferFrom`
+    // without this fractional amount and there will be no dust
     uint256 quantityInAssetUnitsWithoutFractionalPips = AssetUnitConversions
       .pipsToAssetUnits(quantityInPips, asset.decimals);
-    uint256 newBalance = _balances[wallet][assetAddress].add(
-      quantityInAssetUnitsWithoutFractionalPips
-    );
-    _balances[wallet][assetAddress] = newBalance;
 
+    // If the asset is ETH then the funds were already assigned to this contract via msg.value. If
+    // the asset is a token, additionally call the transferFrom function on the token contract for
+    // the pre-approved asset quantity
+    if (assetAddress != address(0x0)) {
+      AssetTransfers.transferFrom(
+        wallet,
+        assetAddress,
+        quantityInAssetUnitsWithoutFractionalPips
+      );
+    }
+    // Forward the funds to the `Custodian`
     AssetTransfers.transferTo(
       _custodian,
       assetAddress,
       quantityInAssetUnitsWithoutFractionalPips
     );
 
+    // Update balance with transferred quantity
+    uint256 newBalance = _balances[wallet][assetAddress].add(
+      quantityInAssetUnitsWithoutFractionalPips
+    );
+    _balances[wallet][assetAddress] = newBalance;
     _depositIndex++;
+
     emit Deposited(wallet, assetAddress, quantityInPips, _depositIndex);
   }
 
