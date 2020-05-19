@@ -24,7 +24,6 @@ library AssetRegistry {
       !self.assetsByAddress[tokenAddress].isConfirmed,
       'Registration of this asset is already finalized'
     );
-    require(decimals <= 18, 'Decimals cannot exceed 18');
     self.assetsByAddress[tokenAddress] = Structs.Asset({
       exists: true,
       assetAddress: tokenAddress,

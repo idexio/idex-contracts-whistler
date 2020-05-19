@@ -21,20 +21,6 @@ contract('Exchange (tokens)', (accounts) => {
       await exchange.registerToken(token.address, tokenSymbol, 18);
     });
 
-    it('should revert when decimals exceed 18', async () => {
-      const { exchange } = await deployAndAssociateContracts();
-      const token = await Token.new();
-
-      let error;
-      try {
-        await exchange.registerToken(token.address, tokenSymbol, 19);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/decimals cannot exceed 18/i);
-    });
-
     it('should revert when already finalized', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await Token.new();
