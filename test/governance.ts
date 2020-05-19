@@ -113,6 +113,21 @@ contract('Governance', (accounts) => {
       expect(error.message).to.match(/invalid address/i);
     });
 
+    it('should revert for same Exchange address', async () => {
+      const { exchange, governance } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await governance.initiateExchangeUpgrade(exchange.address);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /must be different from current exchange/i,
+      );
+    });
+
     it('should revert when upgrade already in progress', async () => {
       const { governance } = await deployAndAssociateContracts();
       const newExchange = await Exchange.new();
@@ -174,7 +189,7 @@ contract('Governance', (accounts) => {
       );
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
-      expect(await custodian.getExchange.call()).to.equal(newExchange.address);
+      expect(await custodian.getExchange()).to.equal(newExchange.address);
     });
 
     it('should revert when no upgrade in progress', async () => {
@@ -261,6 +276,21 @@ contract('Governance', (accounts) => {
       expect(error.message).to.match(/invalid address/i);
     });
 
+    it('should revert for same Governance address', async () => {
+      const { governance } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await governance.initiateGovernanceUpgrade(governance.address);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /must be different from current governance/i,
+      );
+    });
+
     it('should revert when upgrade already in progress', async () => {
       const { governance } = await deployAndAssociateContracts();
       const newGovernance = await Governance.new(0);
@@ -326,9 +356,7 @@ contract('Governance', (accounts) => {
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
 
-      expect(await custodian.getGovernance.call()).to.equal(
-        newGovernance.address,
-      );
+      expect(await custodian.getGovernance()).to.equal(newGovernance.address);
     });
 
     it('should revert when no upgrade in progress', async () => {

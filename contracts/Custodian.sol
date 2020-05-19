@@ -68,7 +68,7 @@ contract Custodian is ICustodian, Owned {
   /**
    * @dev Returns address of current Exchange contract
    */
-  function getExchange() external override returns (address) {
+  function getExchange() external override view returns (address) {
     return _exchange;
   }
 
@@ -87,7 +87,7 @@ contract Custodian is ICustodian, Owned {
   /**
    * @dev Returns address of current Governance contract
    */
-  function getGovernance() external override returns (address) {
+  function getGovernance() external override view returns (address) {
     return _governance;
   }
 

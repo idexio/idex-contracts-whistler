@@ -103,11 +103,11 @@ interface ICustodian {
     uint256 tokenQuantity
   ) external;
 
-  function getExchange() external returns (address);
+  function getExchange() external view returns (address);
 
   function setExchange(address exchange) external;
 
-  function getGovernance() external returns (address);
+  function getGovernance() external view returns (address);
 
   function setGovernance(address governance) external;
 }

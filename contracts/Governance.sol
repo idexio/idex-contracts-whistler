@@ -97,6 +97,10 @@ contract Governance is Owned {
   function initiateExchangeUpgrade(address newExchange) external onlyAdmin {
     require(newExchange != address(0x0), 'Invalid address');
     require(
+      newExchange != _custodian.getExchange(),
+      'Must be different from current Exchange'
+    );
+    require(
       !_currentExchangeUpgrade.exists,
       'Exchange upgrade already in progress'
     );
@@ -157,6 +161,10 @@ contract Governance is Owned {
    */
   function initiateGovernanceUpgrade(address newGovernance) external onlyAdmin {
     require(newGovernance != address(0x0), 'Invalid address');
+    require(
+      newGovernance != _custodian.getGovernance(),
+      'Must be different from current Governance'
+    );
     require(
       !_currentGovernanceUpgrade.exists,
       'Governance upgrade already in progress'

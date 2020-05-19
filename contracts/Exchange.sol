@@ -665,21 +665,20 @@ contract Exchange is IExchange, Owned {
       )
     );
 
+    // Assert invariants - balance updates should always be zero-sum
     uint256 baseAssetBalanceInAssetUnitsAfter = _balancesInAssetUnits[sell
       .walletAddress][trade.baseAssetAddress]
       .add(_balancesInAssetUnits[buy.walletAddress][trade.baseAssetAddress])
       .add(_balancesInAssetUnits[_feeWallet][trade.baseAssetAddress]);
-    require(
-      baseAssetBalanceInAssetUnitsBefore == baseAssetBalanceInAssetUnitsAfter,
-      'Base asset balance movement is not zero sum'
+    assert(
+      baseAssetBalanceInAssetUnitsBefore == baseAssetBalanceInAssetUnitsAfter
     );
     uint256 quoteAssetBalanceInAssetUnitsAfter = _balancesInAssetUnits[sell
       .walletAddress][trade.quoteAssetAddress]
       .add(_balancesInAssetUnits[buy.walletAddress][trade.quoteAssetAddress])
       .add(_balancesInAssetUnits[_feeWallet][trade.quoteAssetAddress]);
-    require(
-      quoteAssetBalanceInAssetUnitsBefore == quoteAssetBalanceInAssetUnitsAfter,
-      'Quote asset balance movement is not zero sum'
+    assert(
+      quoteAssetBalanceInAssetUnitsBefore == quoteAssetBalanceInAssetUnitsAfter
     );
   }
 

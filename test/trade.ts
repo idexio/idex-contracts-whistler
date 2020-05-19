@@ -817,14 +817,6 @@ contract('Exchange (trades)', (accounts) => {
       expect(error.message).to.match(/sell order limit price exceeded/i);
     });
 
-    it.skip('should revert when buy order base asset is mismatched with trade', async () => {
-      // TODO Advance EVM block timestamp to test
-    });
-
-    it.skip('should revert when sell order base asset is mismatched with trade', async () => {
-      // TODO Advance EVM block timestamp to test
-    });
-
     it('should revert when base and quote assets are the same', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
@@ -996,17 +988,7 @@ contract('Exchange (trades)', (accounts) => {
   });
 });
 
-const depositAndTrade = async (
-  exchange: ExchangeInstance,
-  token: TestTokenInstance,
-  buyWallet: string,
-  sellWallet: string,
-): Promise<Trade> => {
-  await deposit(exchange, token, buyWallet, sellWallet);
-  return generateAndExecuteTrade(exchange, token, buyWallet, sellWallet);
-};
-
-const deposit = async (
+export const deposit = async (
   exchange: ExchangeInstance,
   token: TestTokenInstance,
   buyWallet: string,
@@ -1034,30 +1016,7 @@ const deposit = async (
   });
 };
 
-const generateAndExecuteTrade = async (
-  exchange: ExchangeInstance,
-  token: TestTokenInstance,
-  buyWallet: string,
-  sellWallet: string,
-): Promise<Trade> => {
-  const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-    token,
-    buyWallet,
-    sellWallet,
-  );
-  await executeTrade(
-    exchange,
-    buyWallet,
-    sellWallet,
-    buyOrder,
-    sellOrder,
-    fill,
-  );
-
-  return fill;
-};
-
-const executeTrade = async (
+export const executeTrade = async (
   exchange: ExchangeInstance,
   buyWallet: string,
   sellWallet: string,
@@ -1082,7 +1041,7 @@ const executeTrade = async (
   );
 };
 
-const generateOrdersAndFill = async (
+export const generateOrdersAndFill = async (
   token: TestTokenInstance,
   buyWallet: string,
   sellWallet: string,
@@ -1132,3 +1091,37 @@ const generateOrdersAndFill = async (
 
   return { buyOrder, sellOrder, fill };
 };
+
+const depositAndTrade = async (
+  exchange: ExchangeInstance,
+  token: TestTokenInstance,
+  buyWallet: string,
+  sellWallet: string,
+): Promise<Trade> => {
+  await deposit(exchange, token, buyWallet, sellWallet);
+  return generateAndExecuteTrade(exchange, token, buyWallet, sellWallet);
+};
+
+const generateAndExecuteTrade = async (
+  exchange: ExchangeInstance,
+  token: TestTokenInstance,
+  buyWallet: string,
+  sellWallet: string,
+): Promise<Trade> => {
+  const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+    token,
+    buyWallet,
+    sellWallet,
+  );
+  await executeTrade(
+    exchange,
+    buyWallet,
+    sellWallet,
+    buyOrder,
+    sellOrder,
+    fill,
+  );
+
+  return fill;
+};
+
