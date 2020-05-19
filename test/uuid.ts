@@ -5,7 +5,7 @@ import { uuidToHexString } from '../lib';
 contract('UUID', (accounts) => {
   const UUIDMock = artifacts.require('UUIDMock');
 
-  describe.only('getTimestampFromUuidV1', () => {
+  describe('getTimestampFromUuidV1', () => {
     it('should work for current timestamp', async () => {
       const uuidMock = await UUIDMock.new();
 
