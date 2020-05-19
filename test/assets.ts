@@ -7,7 +7,6 @@ import { ethAddress } from '../lib';
 import { AssetsMockInstance } from '../types/truffle-contracts/AssetsMock';
 import BigNumber from 'bignumber.js';
 
-// TODO Timestamp-based tests for symbol collision, need to call evm_increaseTime
 contract('Exchange (tokens)', (accounts) => {
   const Token = artifacts.require('TestToken');
   const AssetsMock = artifacts.require('AssetsMock');

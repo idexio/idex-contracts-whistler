@@ -21,6 +21,7 @@ import {
   IExchange,
   Structs
 } from './libraries/Interfaces.sol';
+import { UUID } from './libraries/UUID.sol';
 
 
 contract Exchange is IExchange, Owned {
@@ -355,12 +356,12 @@ contract Exchange is IExchange, Owned {
   /**
    * Invalidate all order nonces with a timestamp lower than the one provided
    *
-   * @param nonce A Version 1 UUID. After calling and observing the Chain Propagation Period, any
-   * order nonces from this wallet with a timestamp component lower than the one provided will be
-   * rejected by `executeTrade`
+   * @param nonce A Version 1 UUID. After calling and once the Chain Propagation Period has elapsed,
+   * `executeTrade` will reject order nonces from this wallet with a timestamp component lower than
+   * the one provided
    */
   function invalidateOrderNonce(uint128 nonce) external {
-    uint64 timestamp = getTimestampFromUuid(nonce);
+    uint64 timestamp = UUID.getTimestampFromUuidV1(nonce);
 
     if (_nonceInvalidations[msg.sender].exists) {
       require(
@@ -373,17 +374,19 @@ contract Exchange is IExchange, Owned {
       );
     }
 
+    // Changing the Chain Propagation Period will not affect the effectiveBlockNumber for this invalidation
+    uint256 effectiveBlockNumber = block.number + _chainPropagationPeriod;
     _nonceInvalidations[msg.sender] = NonceInvalidation(
       true,
       timestamp,
-      block.number + _chainPropagationPeriod
+      effectiveBlockNumber
     );
 
     emit InvalidatedOrderNonce(
       msg.sender,
       nonce,
       timestamp,
-      block.number + _chainPropagationPeriod
+      effectiveBlockNumber
     );
   }
 
@@ -425,7 +428,7 @@ contract Exchange is IExchange, Owned {
       Enums.WithdrawalType.BySymbol
       ? _assetRegistry.loadAssetBySymbol(
         withdrawalAssetSymbol,
-        getTimestampFromUuid(withdrawal.nonce)
+        UUID.getTimestampFromUuidV1(withdrawal.nonce)
       )
       : _assetRegistry.loadAssetByAddress(withdrawal.assetAddress);
 
@@ -771,11 +774,11 @@ contract Exchange is IExchange, Owned {
     // Buy order market pair
     Structs.Asset memory buyBaseAsset = _assetRegistry.loadAssetBySymbol(
       baseSymbol,
-      getTimestampFromUuid(buy.nonce)
+      UUID.getTimestampFromUuidV1(buy.nonce)
     );
     Structs.Asset memory buyQuoteAsset = _assetRegistry.loadAssetBySymbol(
       quoteSymbol,
-      getTimestampFromUuid(buy.nonce)
+      UUID.getTimestampFromUuidV1(buy.nonce)
     );
     require(
       buyBaseAsset.assetAddress == trade.baseAssetAddress &&
@@ -786,11 +789,11 @@ contract Exchange is IExchange, Owned {
     // Sell order market pair
     Structs.Asset memory sellBaseAsset = _assetRegistry.loadAssetBySymbol(
       baseSymbol,
-      getTimestampFromUuid(sell.nonce)
+      UUID.getTimestampFromUuidV1(sell.nonce)
     );
     Structs.Asset memory sellQuoteAsset = _assetRegistry.loadAssetBySymbol(
       quoteSymbol,
-      getTimestampFromUuid(sell.nonce)
+      UUID.getTimestampFromUuidV1(sell.nonce)
     );
     require(
       sellBaseAsset.assetAddress == trade.baseAssetAddress &&
@@ -949,11 +952,13 @@ contract Exchange is IExchange, Owned {
     uint128 sellNonce
   ) private view {
     require(
-      getTimestampFromUuid(buyNonce) > getLastInvalidatedTimestamp(buyWallet),
+      UUID.getTimestampFromUuidV1(buyNonce) >
+        getLastInvalidatedTimestamp(buyWallet),
       'Buy order nonce timestamp too low'
     );
     require(
-      getTimestampFromUuid(sellNonce) > getLastInvalidatedTimestamp(sellWallet),
+      UUID.getTimestampFromUuidV1(sellNonce) >
+        getLastInvalidatedTimestamp(sellWallet),
       'Sell order nonce timestamp too low'
     );
   }
@@ -1088,22 +1093,5 @@ contract Exchange is IExchange, Owned {
     }
 
     return 0;
-  }
-
-  // https://tools.ietf.org/html/rfc4122#section-4.1.2
-  function getTimestampFromUuid(uint128 uuid) private pure returns (uint64) {
-    uint128 version = (uuid >> 76) & 0x0000000000000000000000000000000F;
-    require(version == 1, 'Must be v1 UUID');
-
-    // Time components are in reverse order so shift+mask each to reassemble
-    uint128 timeHigh = (uuid >> 16) & 0x00000000000000000FFF000000000000;
-    uint128 timeMid = (uuid >> 48) & 0x00000000000000000000FFFF00000000;
-    uint128 timeLow = (uuid >> 96) & 0x000000000000000000000000FFFFFFFF;
-    uint128 nsSinceGregorianEpoch = (timeHigh | timeMid | timeLow);
-    // Gregorian offset given in seconds by https://www.wolframalpha.com/input/?i=convert+1582-10-15+UTC+to+unix+time
-    uint64 msSinceUnixEpoch = uint64(nsSinceGregorianEpoch / 10000) -
-      12219292800000;
-
-    return msSinceUnixEpoch;
   }
 }
