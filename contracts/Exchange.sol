@@ -355,8 +355,9 @@ contract Exchange is IExchange, Owned {
   /**
    * Invalidate all order nonces with a timestamp lower than the one provided
    *
-   * @param nonce A Version 1 UUID. After calling, any order nonces from this wallet with a
-   * timestamp component lower than the one provided will be rejected by `executeTrade`
+   * @param nonce A Version 1 UUID. After calling and observing the Chain Propagation Period, any
+   * order nonces from this wallet with a timestamp component lower than the one provided will be
+   * rejected by `executeTrade`
    */
   function invalidateOrderNonce(uint128 nonce) external {
     uint64 timestamp = getTimestampFromUuid(nonce);
@@ -489,11 +490,7 @@ contract Exchange is IExchange, Owned {
    * have already passed since calling `exitWallet`
    */
   function withdrawExit(address assetAddress) external {
-    require(_walletExits[msg.sender].exists, 'Wallet not yet exited');
-    require(
-      isWalletExitFinalized(msg.sender),
-      'Wallet exit block delay not yet elapsed'
-    );
+    require(isWalletExitFinalized(msg.sender), 'Wallet exit not finalized');
 
     uint256 balance = _balancesInAssetUnits[msg.sender][assetAddress];
     require(balance > 0, 'No balance for asset');

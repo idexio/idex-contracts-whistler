@@ -68,7 +68,7 @@ contract('Exchange (exits)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/wallet not yet exited/i);
+      expect(error.message).to.match(/wallet exit not finalized/i);
     });
 
     it('should revert for wallet exit not finalized', async () => {
@@ -83,9 +83,7 @@ contract('Exchange (exits)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(
-        /wallet exit block delay not yet elapsed/i,
-      );
+      expect(error.message).to.match(/wallet exit not finalized/i);
     });
 
     it('should revert for asset with no balance', async () => {
