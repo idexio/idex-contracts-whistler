@@ -100,7 +100,7 @@ interface ICustodian {
   function withdraw(
     address payable wallet,
     address asset,
-    uint256 tokenQuantity
+    uint256 quantityInAssetUnits
   ) external;
 
   function getExchange() external view returns (address);

@@ -85,6 +85,12 @@ library Signatures {
       );
   }
 
+  /**
+   * @dev Combines base and quote asset symbols into the market symbol originally signed by the
+   * wallet. For example if base is 'IDEX' and quote is 'ETH', the resulting market symbol is
+   * 'IDEX-ETH'. This approach is used rather than passing in the market symbol and splitting it
+   * since the latter incurs a higher gas cost
+   */
   function getMarketSymbol(string memory baseSymbol, string memory quoteSymbol)
     private
     pure
@@ -118,8 +124,12 @@ library Signatures {
     return string(marketSymbolBytes);
   }
 
-  // Inspired by https://github.com/provable-things/ethereum-api/blob/831f4123816f7a3e57ebea171a3cdcf3b528e475/oraclizeAPI_0.5.sol#L1045-L1062
+  /**
+   * @dev Converts an integer pip quantity back into the fixed-precision decimal pip string
+   * originally signed by the wallet. For example, 1234567890 becomes '12.34567890'
+   */
   function pipToDecimal(uint256 pips) private pure returns (string memory) {
+    // Inspired by https://github.com/provable-things/ethereum-api/blob/831f4123816f7a3e57ebea171a3cdcf3b528e475/oraclizeAPI_0.5.sol#L1045-L1062
     uint256 copy = pips;
     uint256 length;
     while (copy != 0) {

@@ -14,8 +14,6 @@ library AssetRegistry {
     mapping(string => Structs.Asset[]) assetsBySymbol;
   }
 
-  // Registration //
-
   function registerToken(
     Storage storage self,
     address tokenAddress,

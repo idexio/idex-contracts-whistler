@@ -4,8 +4,16 @@ pragma solidity ^0.6.8;
 
 
 library UUID {
-  // https://tools.ietf.org/html/rfc4122#section-4.1.2
-  function getTimestampFromUuidV1(uint128 uuid) internal pure returns (uint64) {
+  /**
+   * Extracts the timestamp component of a Version 1 UUID. Used to make time-based assertions
+   * against a wallet-privided nonce
+   */
+  function getTimestampFromUuidV1(uint128 uuid)
+    internal
+    pure
+    returns (uint64 msSinceUnixEpoch)
+  {
+    // https://tools.ietf.org/html/rfc4122#section-4.1.2
     uint128 version = (uuid >> 76) & 0x0000000000000000000000000000000F;
     require(version == 1, 'Must be v1 UUID');
 
@@ -15,8 +23,7 @@ library UUID {
     uint128 timeLow = (uuid >> 96) & 0x000000000000000000000000FFFFFFFF;
     uint128 nsSinceGregorianEpoch = (timeHigh | timeMid | timeLow);
     // Gregorian offset given in seconds by https://www.wolframalpha.com/input/?i=convert+1582-10-15+UTC+to+unix+time
-    uint64 msSinceUnixEpoch = uint64(nsSinceGregorianEpoch / 10000) -
-      12219292800000;
+    msSinceUnixEpoch = uint64(nsSinceGregorianEpoch / 10000) - 12219292800000;
 
     return msSinceUnixEpoch;
   }
