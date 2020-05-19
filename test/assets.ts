@@ -5,6 +5,7 @@ import {
 } from './helpers';
 import { ethAddress } from '../lib';
 import { AssetsMockInstance } from '../types/truffle-contracts/AssetsMock';
+import BigNumber from 'bignumber.js';
 
 // TODO Timestamp-based tests for symbol collision, need to call evm_increaseTime
 contract('Exchange (tokens)', (accounts) => {
@@ -216,6 +217,20 @@ contract('Exchange (tokens)', (accounts) => {
     it('should truncate fractions of a pip', async () => {
       expect(await assetUnitsToPips('19', '9')).to.equal('1');
       expect(await assetUnitsToPips('1', '9')).to.equal('0');
+    });
+
+    it('should revert on uint64 overflow', async () => {
+      let error;
+      try {
+        await assetUnitsToPips(
+          new BigNumber(2).exponentiatedBy(128).toFixed(),
+          '8',
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/pip quantity overflows uint64/i);
     });
   });
 

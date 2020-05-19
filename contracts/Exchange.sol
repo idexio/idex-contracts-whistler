@@ -38,10 +38,11 @@ contract Exchange is IExchange, Owned {
    * @dev Emitted when a user deposits ETH with `depositEther` or a token with `depositAsset` or `depositAssetBySymbol`
    */
   event Deposited(
+    uint64 index,
     address indexed wallet,
-    address indexed asset,
-    uint64 quantityInPips,
-    uint64 index
+    address indexed assetAddress,
+    uint256 quantityInAssetUnits,
+    uint256 newBalance
   );
   /**
    * @dev Emitted when an admin changes the Dispatch Wallet tunable parameter with `setDispatcher`
@@ -89,7 +90,7 @@ contract Exchange is IExchange, Owned {
     string indexed quoteSymbol,
     uint64 baseQuantityInPips,
     uint64 quoteQuantityInPips,
-    uint64 tradePrice,
+    uint64 tradePriceInPips,
     bytes32 buyOrderHash,
     bytes32 sellOrderHash
   );
@@ -103,8 +104,9 @@ contract Exchange is IExchange, Owned {
    */
   event WalletExitWithdrawn(
     address indexed wallet,
-    address asset,
-    uint256 quantity
+    address indexed assetAddress,
+    uint256 quantityInAssetUnits,
+    uint256 newWalletBalance
   );
   /**
    * @dev Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
@@ -139,7 +141,7 @@ contract Exchange is IExchange, Owned {
   address payable _custodian;
   uint64 _depositIndex;
   // Mapping of wallet => asset => balance
-  mapping(address => mapping(address => uint256)) _balances;
+  mapping(address => mapping(address => uint256)) _balancesInAssetUnits;
   // Mapping of wallet => last invalidated timestamp
   mapping(address => NonceInvalidation) _nonceInvalidations;
   // Mapping of order hash => filled quantity in pips
@@ -205,7 +207,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Sets the address of the Fee wallet. Structs.Trade and Withdraw fees will accrue in the `_balances`
+   * @dev Sets the address of the Fee wallet. Structs.Trade and Withdraw fees will accrue in the `_balancesInAssetUnits`
    * mappings for this wallet
    *
    * @param newFeeWallet The new Fee wallet. Must be different from the current one
@@ -233,7 +235,7 @@ contract Exchange is IExchange, Owned {
     view
     returns (uint256)
   {
-    return _balances[wallet][asset];
+    return _balancesInAssetUnits[wallet][asset];
   }
 
   /**
@@ -333,13 +335,19 @@ contract Exchange is IExchange, Owned {
     );
 
     // Update balance with transferred quantity
-    uint256 newBalance = _balances[wallet][assetAddress].add(
+    uint256 newBalance = _balancesInAssetUnits[wallet][assetAddress].add(
       quantityInAssetUnitsWithoutFractionalPips
     );
-    _balances[wallet][assetAddress] = newBalance;
+    _balancesInAssetUnits[wallet][assetAddress] = newBalance;
     _depositIndex++;
 
-    emit Deposited(wallet, assetAddress, quantityInPips, _depositIndex);
+    emit Deposited(
+      _depositIndex,
+      wallet,
+      assetAddress,
+      quantityInAssetUnitsWithoutFractionalPips,
+      newBalance
+    );
   }
 
   // Invalidation //
@@ -433,12 +441,13 @@ contract Exchange is IExchange, Owned {
       feeInAssetUnits
     );
 
-    uint256 newWalletBalance = _balances[withdrawal.walletAddress][asset
-      .assetAddress]
+    uint256 newWalletBalance = _balancesInAssetUnits[withdrawal
+      .walletAddress][asset.assetAddress]
       .sub(grossQuantityInAssetUnits);
-    _balances[withdrawal.walletAddress][asset.assetAddress] = newWalletBalance;
-    _balances[_feeWallet][asset.assetAddress] = _balances[_feeWallet][asset
-      .assetAddress]
+    _balancesInAssetUnits[withdrawal.walletAddress][asset
+      .assetAddress] = newWalletBalance;
+    _balancesInAssetUnits[_feeWallet][asset
+      .assetAddress] = _balancesInAssetUnits[_feeWallet][asset.assetAddress]
       .add(feeInAssetUnits);
 
     ICustodian(_custodian).withdraw(
@@ -486,13 +495,13 @@ contract Exchange is IExchange, Owned {
       'Wallet exit block delay not yet elapsed'
     );
 
-    uint256 balance = _balances[msg.sender][assetAddress];
+    uint256 balance = _balancesInAssetUnits[msg.sender][assetAddress];
     require(balance > 0, 'No balance for asset');
-    _balances[msg.sender][assetAddress] = 0;
+    _balancesInAssetUnits[msg.sender][assetAddress] = 0;
 
     ICustodian(_custodian).withdraw(msg.sender, assetAddress, balance);
 
-    emit WalletExitWithdrawn(msg.sender, assetAddress, balance);
+    emit WalletExitWithdrawn(msg.sender, assetAddress, balance, 0);
   }
 
   function isWalletExitFinalized(address wallet) internal view returns (bool) {
@@ -581,37 +590,50 @@ contract Exchange is IExchange, Owned {
     Structs.Order memory sell,
     Structs.Trade memory trade
   ) private {
-    // Buyer receives base asset minus fees
-    _balances[buy.walletAddress][trade.baseAssetAddress] = _balances[buy
+    uint256 baseAssetBalanceInAssetUnitsBefore = _balancesInAssetUnits[sell
       .walletAddress][trade.baseAssetAddress]
-      .add(
-      AssetUnitConversions.pipsToAssetUnits(
-        trade.netBaseQuantityInPips,
-        baseAsset.decimals
-      )
-    );
-    // Buyer gives quote asset including fees
-    _balances[buy.walletAddress][trade.quoteAssetAddress] = _balances[buy
+      .add(_balancesInAssetUnits[buy.walletAddress][trade.baseAssetAddress])
+      .add(_balancesInAssetUnits[_feeWallet][trade.baseAssetAddress]);
+    uint256 quoteAssetBalanceInAssetUnitsBefore = _balancesInAssetUnits[sell
       .walletAddress][trade.quoteAssetAddress]
-      .sub(
-      AssetUnitConversions.pipsToAssetUnits(
-        trade.grossQuoteQuantityInPips,
-        quoteAsset.decimals
-      )
-    );
+      .add(_balancesInAssetUnits[buy.walletAddress][trade.quoteAssetAddress])
+      .add(_balancesInAssetUnits[_feeWallet][trade.quoteAssetAddress]);
 
     // Seller gives base asset including fees
-    _balances[sell.walletAddress][trade.baseAssetAddress] = _balances[sell
-      .walletAddress][trade.baseAssetAddress]
+    _balancesInAssetUnits[sell.walletAddress][trade
+      .baseAssetAddress] = _balancesInAssetUnits[sell.walletAddress][trade
+      .baseAssetAddress]
       .sub(
       AssetUnitConversions.pipsToAssetUnits(
         trade.grossBaseQuantityInPips,
         baseAsset.decimals
       )
     );
+    // Buyer receives base asset minus fees
+    _balancesInAssetUnits[buy.walletAddress][trade
+      .baseAssetAddress] = _balancesInAssetUnits[buy.walletAddress][trade
+      .baseAssetAddress]
+      .add(
+      AssetUnitConversions.pipsToAssetUnits(
+        trade.netBaseQuantityInPips,
+        baseAsset.decimals
+      )
+    );
+
+    // Buyer gives quote asset including fees
+    _balancesInAssetUnits[buy.walletAddress][trade
+      .quoteAssetAddress] = _balancesInAssetUnits[buy.walletAddress][trade
+      .quoteAssetAddress]
+      .sub(
+      AssetUnitConversions.pipsToAssetUnits(
+        trade.grossQuoteQuantityInPips,
+        quoteAsset.decimals
+      )
+    );
     // Seller receives quote asset minus fees
-    _balances[sell.walletAddress][trade.quoteAssetAddress] = _balances[sell
-      .walletAddress][trade.quoteAssetAddress]
+    _balancesInAssetUnits[sell.walletAddress][trade
+      .quoteAssetAddress] = _balancesInAssetUnits[sell.walletAddress][trade
+      .quoteAssetAddress]
       .add(
       AssetUnitConversions.pipsToAssetUnits(
         trade.netQuoteQuantityInPips,
@@ -620,8 +642,9 @@ contract Exchange is IExchange, Owned {
     );
 
     // Maker and taker fees to fee wallet
-    _balances[_feeWallet][trade
-      .makerFeeAssetAddress] = _balances[_feeWallet][trade.makerFeeAssetAddress]
+    _balancesInAssetUnits[_feeWallet][trade
+      .makerFeeAssetAddress] = _balancesInAssetUnits[_feeWallet][trade
+      .makerFeeAssetAddress]
       .add(
       AssetUnitConversions.pipsToAssetUnits(
         trade.makerFeeQuantityInPips,
@@ -630,8 +653,9 @@ contract Exchange is IExchange, Owned {
           : quoteAsset.decimals
       )
     );
-    _balances[_feeWallet][trade
-      .takerFeeAssetAddress] = _balances[_feeWallet][trade.takerFeeAssetAddress]
+    _balancesInAssetUnits[_feeWallet][trade
+      .takerFeeAssetAddress] = _balancesInAssetUnits[_feeWallet][trade
+      .takerFeeAssetAddress]
       .add(
       AssetUnitConversions.pipsToAssetUnits(
         trade.takerFeeQuantityInPips,
@@ -639,6 +663,23 @@ contract Exchange is IExchange, Owned {
           ? baseAsset.decimals
           : quoteAsset.decimals
       )
+    );
+
+    uint256 baseAssetBalanceInAssetUnitsAfter = _balancesInAssetUnits[sell
+      .walletAddress][trade.baseAssetAddress]
+      .add(_balancesInAssetUnits[buy.walletAddress][trade.baseAssetAddress])
+      .add(_balancesInAssetUnits[_feeWallet][trade.baseAssetAddress]);
+    require(
+      baseAssetBalanceInAssetUnitsBefore == baseAssetBalanceInAssetUnitsAfter,
+      'Base asset balance movement is not zero sum'
+    );
+    uint256 quoteAssetBalanceInAssetUnitsAfter = _balancesInAssetUnits[sell
+      .walletAddress][trade.quoteAssetAddress]
+      .add(_balancesInAssetUnits[buy.walletAddress][trade.quoteAssetAddress])
+      .add(_balancesInAssetUnits[_feeWallet][trade.quoteAssetAddress]);
+    require(
+      quoteAssetBalanceInAssetUnitsBefore == quoteAssetBalanceInAssetUnitsAfter,
+      'Quote asset balance movement is not zero sum'
     );
   }
 
@@ -664,6 +705,10 @@ contract Exchange is IExchange, Owned {
     // Market orders can express quantity in quote terms, and can be partially filled by multiple
     // limit maker orders necessitating tracking partially filled amounts in quote terms
     if (order.quoteOrderQuantityInPips > 0) {
+      require(
+        isMarketOrderType(order.orderType),
+        'Order quote quantity only valid for market orders'
+      );
       updateOrderFilledQuantityOnQuoteTerms(order, orderHash, trade);
       // All other orders track partially filled quantities in base terms
     } else {
@@ -807,11 +852,6 @@ contract Exchange is IExchange, Owned {
       trade.baseAssetAddress
       ? trade.grossBaseQuantityInPips
       : trade.grossQuoteQuantityInPips;
-    uint64 takerTotalQuantityInPips = trade.takerFeeAssetAddress ==
-      trade.baseAssetAddress
-      ? trade.grossBaseQuantityInPips
-      : trade.grossQuoteQuantityInPips;
-
     require(
       getFeeBasisPoints(
         trade.makerFeeQuantityInPips,
@@ -819,12 +859,34 @@ contract Exchange is IExchange, Owned {
       ) <= _maxTradeFeeBasisPoints,
       'Excessive maker fee'
     );
+
+    uint64 takerTotalQuantityInPips = trade.takerFeeAssetAddress ==
+      trade.baseAssetAddress
+      ? trade.grossBaseQuantityInPips
+      : trade.grossQuoteQuantityInPips;
     require(
       getFeeBasisPoints(
         trade.takerFeeQuantityInPips,
         takerTotalQuantityInPips
       ) <= _maxTradeFeeBasisPoints,
       'Excessive taker fee'
+    );
+
+    require(
+      trade.netBaseQuantityInPips.add(
+        trade.makerFeeAssetAddress == trade.baseAssetAddress
+          ? trade.makerFeeQuantityInPips
+          : trade.takerFeeQuantityInPips
+      ) == trade.grossBaseQuantityInPips,
+      'Net base plus fee is not equal to gross'
+    );
+    require(
+      trade.netQuoteQuantityInPips.add(
+        trade.makerFeeAssetAddress == trade.quoteAssetAddress
+          ? trade.makerFeeQuantityInPips
+          : trade.takerFeeQuantityInPips
+      ) == trade.grossQuoteQuantityInPips,
+      'Net quote plus fee is not equal to gross'
     );
   }
 
@@ -996,6 +1058,17 @@ contract Exchange is IExchange, Owned {
       orderType == Enums.OrderType.LimitMaker ||
       orderType == Enums.OrderType.StopLossLimit ||
       orderType == Enums.OrderType.TakeProfitLimit;
+  }
+
+  function isMarketOrderType(Enums.OrderType orderType)
+    private
+    pure
+    returns (bool)
+  {
+    return
+      orderType == Enums.OrderType.Market ||
+      orderType == Enums.OrderType.StopLoss ||
+      orderType == Enums.OrderType.TakeProfit;
   }
 
   function getFeeBasisPoints(uint64 fee, uint64 total)

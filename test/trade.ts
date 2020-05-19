@@ -29,9 +29,8 @@ const tokenSymbol = 'TKN';
 const marketSymbol = `${tokenSymbol}-${ethSymbol}`;
 
 // TODO Balance changes for wallet, Exchange, and Custodian
-// TODO Order types besides limit
+// TODO Advanced order types
 // TODO Test tokens with decimals other than 18
-// TODO Quote quantity
 contract('Exchange (trades)', (accounts) => {
   const Token = artifacts.require('TestToken');
 
@@ -233,6 +232,109 @@ contract('Exchange (trades)', (accounts) => {
           await exchange.partiallyFilledOrderQuantityInPips(sellOrderHash)
         ).toString(),
       ).to.equal(decimalToPips(fill.grossQuoteQuantity));
+    });
+
+    it('should revert for limit order with quoteOrderQuantity', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      buyOrder.quoteOrderQuantity = buyOrder.quantity;
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /order quote quantity only valid for market orders/i,
+      );
+    });
+
+    it('should revert when fill base net and fee do not sum to gross', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.takerFeeQuantity = new BigNumber(fill.takerFeeQuantity)
+        .plus(new BigNumber('0.00000001'))
+        .toFixed(8);
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /net base plus fee is not equal to gross/i,
+      );
+    });
+
+    it('should revert when fill quote net and fee do not sum to gross', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      fill.makerFeeQuantity = new BigNumber(fill.makerFeeQuantity)
+        .plus(new BigNumber('0.00000001'))
+        .toFixed(8);
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /net quote plus fee is not equal to gross/i,
+      );
     });
 
     it('should revert for limit order overfill', async () => {

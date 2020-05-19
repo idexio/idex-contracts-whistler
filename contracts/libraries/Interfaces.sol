@@ -8,7 +8,7 @@ pragma experimental ABIEncoderV2;
 // https://github.com/crytic/slither/issues/487
 contract Enums {
   enum OrderSelfTradePrevention {
-    DecreaseAndCancel,
+    DecrementAndCancel,
     CancelOldest,
     CancelNewest,
     CancelBoth

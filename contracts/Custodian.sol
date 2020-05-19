@@ -25,7 +25,7 @@ contract Custodian is ICustodian, Owned {
   event Withdrawn(
     address indexed wallet,
     address indexed asset,
-    uint256 tokenQuantity,
+    uint256 quantityInAssetUnits,
     address exchange
   );
 

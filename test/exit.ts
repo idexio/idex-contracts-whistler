@@ -52,8 +52,10 @@ contract('Exchange (exits)', (accounts) => {
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
       expect(events[0].returnValues.wallet).to.equal(accounts[0]);
-      expect(events[0].returnValues.asset).to.equal(ethAddress);
-      expect(events[0].returnValues.quantity).to.equal(minimumTokenQuantity);
+      expect(events[0].returnValues.assetAddress).to.equal(ethAddress);
+      expect(events[0].returnValues.quantityInAssetUnits).to.equal(
+        minimumTokenQuantity,
+      );
     });
 
     it('should revert for wallet not exited', async () => {
