@@ -2,6 +2,7 @@ import {
   deployAndAssociateContracts,
   deployAndRegisterToken,
   minimumTokenQuantity,
+  ethSymbol,
 } from './helpers';
 import { ethAddress } from '../lib';
 
@@ -44,6 +45,12 @@ contract('Exchange (deposits)', (accounts) => {
       });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+      expect(
+        (await exchange.balanceOf(accounts[0], ethAddress)).toString(),
+      ).to.equal(minimumTokenQuantity);
+      expect(
+        (await exchange.balanceOfBySymbol(accounts[0], ethSymbol)).toString(),
+      ).to.equal(minimumTokenQuantity);
     });
 
     it('should revert below minimum quantity', async () => {

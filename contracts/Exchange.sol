@@ -231,12 +231,26 @@ contract Exchange is IExchange, Owned {
   /**
    * @dev Returns the amount of `asset` currently deposited by `wallet`
    */
-  function balanceOf(address wallet, address asset)
+  function balanceOf(address wallet, address assetAddress)
     external
     view
     returns (uint256)
   {
-    return _balancesInAssetUnits[wallet][asset];
+    return _balancesInAssetUnits[wallet][assetAddress];
+  }
+
+  /**
+   * @dev Returns the amount of `assetSymbol` currently deposited by `wallet`
+   */
+  function balanceOfBySymbol(address wallet, string calldata assetSymbol)
+    external
+    view
+    returns (uint256)
+  {
+    address assetAddress = _assetRegistry
+      .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
+      .assetAddress;
+    return _balancesInAssetUnits[wallet][assetAddress];
   }
 
   /**
