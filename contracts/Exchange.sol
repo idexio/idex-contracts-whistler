@@ -109,7 +109,7 @@ contract Exchange is IExchange, Owned {
     address indexed assetAddress,
     string indexed assetSymbol,
     uint256 quantityInAssetUnits,
-    uint256 newWalletBalance
+    uint256 newExchangeBalance
   );
   /**
    * @dev Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
@@ -119,7 +119,7 @@ contract Exchange is IExchange, Owned {
     address indexed assetAddress,
     string indexed assetSymbol,
     uint256 quantityInAssetUnits,
-    uint256 newWalletBalance
+    uint256 newExchangeBalance
   );
 
   // Internally used structs //
@@ -462,11 +462,11 @@ contract Exchange is IExchange, Owned {
       feeInAssetUnits
     );
 
-    uint256 newWalletBalance = _balancesInAssetUnits[withdrawal
+    uint256 newExchangeBalance = _balancesInAssetUnits[withdrawal
       .walletAddress][asset.assetAddress]
       .sub(grossQuantityInAssetUnits);
     _balancesInAssetUnits[withdrawal.walletAddress][asset
-      .assetAddress] = newWalletBalance;
+      .assetAddress] = newExchangeBalance;
     _balancesInAssetUnits[_feeWallet][asset
       .assetAddress] = _balancesInAssetUnits[_feeWallet][asset.assetAddress]
       .add(feeInAssetUnits);
@@ -484,7 +484,7 @@ contract Exchange is IExchange, Owned {
       asset.assetAddress,
       asset.symbol,
       grossQuantityInAssetUnits,
-      newWalletBalance
+      newExchangeBalance
     );
   }
 
