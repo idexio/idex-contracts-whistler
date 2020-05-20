@@ -56,7 +56,7 @@ library AssetRegistry {
   }
 
   /**
-   * @dev Resolves a asset symbol into corresponding Asset struct
+   * @dev Resolves an asset address into corresponding Asset struct
    *
    * @param assetAddress Ethereum address of asset
    */

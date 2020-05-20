@@ -19,9 +19,9 @@ library AssetUnitConversions {
   {
     // Exponents cannot be negative, so divide or multiply based on exponent signedness
     if (assetDecimals > 8) {
-      return quantityInPips * uint256(10)**(assetDecimals - 8);
+      return uint256(quantityInPips) * uint256(10)**(assetDecimals - 8);
     }
-    return quantityInPips / uint256(10)**(8 - assetDecimals);
+    return uint256(quantityInPips) / uint256(10)**(8 - assetDecimals);
   }
 
   function assetUnitsToPips(uint256 quantityInAssetUnits, uint8 assetDecimals)

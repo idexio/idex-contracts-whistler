@@ -4,17 +4,20 @@ pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
 
-// TODO These enums need to be wrapped in a contract so Slither can parse it
-// https://github.com/crytic/slither/issues/487
 contract Enums {
   enum OrderSelfTradePrevention {
-    DecrementAndCancel,
-    CancelOldest,
-    CancelNewest,
-    CancelBoth
+    dc, // Decrement and cancel
+    co, // Cancel oldest
+    cn, // Cancel newest
+    cb // Cancel both
   }
   enum OrderSide { Buy, Sell }
-  enum OrderTimeInForce { GTC, GTT, IOC, FOK }
+  enum OrderTimeInForce {
+    gtc, // Good until cancelled
+    gtt, // Good until time
+    ioc, // Immediate or cancel
+    fok // Fill or kill
+  }
   enum OrderType {
     Market,
     Limit,
@@ -28,8 +31,6 @@ contract Enums {
 }
 
 
-// TODO These structs need to be wrapped in a contract so Slither can parse it
-// https://github.com/crytic/slither/issues/487
 contract Structs {
   /**
    * @dev Argument type for `Exchange.executeTrade` and `Signatures.getOrderWalletHash`
@@ -40,11 +41,11 @@ contract Structs {
     address walletAddress;
     Enums.OrderType orderType;
     Enums.OrderSide side;
-    Enums.OrderTimeInForce timeInForce;
     uint64 quantityInPips;
     uint64 quoteOrderQuantityInPips;
     uint64 limitPriceInPips; // decimal pips * 10^8
     uint64 stopPriceInPips; // decimal pips * 10^8
+    Enums.OrderTimeInForce timeInForce;
     Enums.OrderSelfTradePrevention selfTradePrevention;
     uint64 cancelAfter;
   }

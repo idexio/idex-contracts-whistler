@@ -67,21 +67,14 @@ library Signatures {
   ) internal pure returns (bytes32) {
     return
       keccak256(
-        withdrawal.withdrawalType == Enums.WithdrawalType.BySymbol
-          ? abi.encodePacked(
-            withdrawal.nonce,
-            withdrawal.walletAddress,
-            withdrawalTokenSymbol,
-            pipToDecimal(withdrawal.quantityInPips),
-            withdrawal.autoDispatchEnabled
-          )
-          : abi.encodePacked(
-            withdrawal.nonce,
-            withdrawal.walletAddress,
-            withdrawal.assetAddress,
-            pipToDecimal(withdrawal.quantityInPips),
-            withdrawal.autoDispatchEnabled
-          )
+        abi.encodePacked(
+          withdrawal.nonce,
+          withdrawal.walletAddress,
+          withdrawalTokenSymbol,
+          withdrawal.assetAddress,
+          pipToDecimal(withdrawal.quantityInPips),
+          withdrawal.autoDispatchEnabled
+        )
       );
   }
 

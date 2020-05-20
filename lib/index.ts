@@ -108,9 +108,8 @@ export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
   return solidityHashOfParams([
     ['uint128', uuidToUint8Array(withdrawal.nonce)],
     ['address', withdrawal.wallet],
-    withdrawal.assetContractAddress
-      ? ['address', withdrawal.assetContractAddress as string]
-      : ['string', withdrawal.asset as string],
+    ['string', withdrawal.asset || ''],
+    ['address', withdrawal.assetContractAddress || ethAddress],
     ['string', withdrawal.quantity],
     ['bool', true], // autoDispatchEnabled
   ]);
@@ -175,9 +174,9 @@ export const getWithdrawArguments = (
 ): ExchangeInstance['withdraw']['arguments'] => {
   return [
     {
-      withdrawalType: withdrawal.assetContractAddress
-        ? WithdrawalType.ByAddress
-        : WithdrawalType.BySymbol,
+      withdrawalType: withdrawal.asset
+        ? WithdrawalType.BySymbol
+        : WithdrawalType.ByAddress,
       nonce: uuidToHexString(withdrawal.nonce),
       walletAddress: withdrawal.wallet,
       assetAddress: withdrawal.assetContractAddress || ethAddress,
