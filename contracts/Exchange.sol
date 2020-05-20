@@ -42,8 +42,9 @@ contract Exchange is IExchange, Owned {
     uint64 index,
     address indexed wallet,
     address indexed assetAddress,
+    string indexed assetSymbol,
     uint256 quantityInAssetUnits,
-    uint256 newBalance
+    uint256 newExchangeBalance
   );
   /**
    * @dev Emitted when an admin changes the Dispatch Wallet tunable parameter with `setDispatcher`
@@ -69,7 +70,7 @@ contract Exchange is IExchange, Owned {
    */
   event RegisteredToken(
     address indexed assetAddress,
-    string symbol,
+    string indexed assetSymbol,
     uint8 decimals
   );
   /**
@@ -78,7 +79,7 @@ contract Exchange is IExchange, Owned {
    */
   event ConfirmedRegisteredToken(
     address indexed assetAddress,
-    string symbol,
+    string indexed assetSymbol,
     uint8 decimals
   );
   /**
@@ -106,6 +107,7 @@ contract Exchange is IExchange, Owned {
   event WalletExitWithdrawn(
     address indexed wallet,
     address indexed assetAddress,
+    string indexed assetSymbol,
     uint256 quantityInAssetUnits,
     uint256 newWalletBalance
   );
@@ -114,7 +116,8 @@ contract Exchange is IExchange, Owned {
    */
   event Withdrawn(
     address indexed wallet,
-    address assetAddress,
+    address indexed assetAddress,
+    string indexed assetSymbol,
     uint256 quantityInAssetUnits,
     uint256 newWalletBalance
   );
@@ -350,18 +353,18 @@ contract Exchange is IExchange, Owned {
     );
 
     // Update balance with transferred quantity
-    uint256 newBalance = _balancesInAssetUnits[wallet][assetAddress].add(
-      quantityInAssetUnitsWithoutFractionalPips
-    );
-    _balancesInAssetUnits[wallet][assetAddress] = newBalance;
+    uint256 newExchangeBalance = _balancesInAssetUnits[wallet][assetAddress]
+      .add(quantityInAssetUnitsWithoutFractionalPips);
+    _balancesInAssetUnits[wallet][assetAddress] = newExchangeBalance;
     _depositIndex++;
 
     emit Deposited(
       _depositIndex,
       wallet,
       assetAddress,
+      asset.symbol,
       quantityInAssetUnitsWithoutFractionalPips,
-      newBalance
+      newExchangeBalance
     );
   }
 
@@ -479,6 +482,7 @@ contract Exchange is IExchange, Owned {
     emit Withdrawn(
       withdrawal.walletAddress,
       asset.assetAddress,
+      asset.symbol,
       grossQuantityInAssetUnits,
       newWalletBalance
     );
@@ -515,7 +519,10 @@ contract Exchange is IExchange, Owned {
 
     ICustodian(_custodian).withdraw(msg.sender, assetAddress, balance);
 
-    emit WalletExitWithdrawn(msg.sender, assetAddress, balance, 0);
+    string memory assetSymbol = _assetRegistry
+      .loadAssetByAddress(assetAddress)
+      .symbol;
+    emit WalletExitWithdrawn(msg.sender, assetAddress, assetSymbol, balance, 0);
   }
 
   function isWalletExitFinalized(address wallet) internal view returns (bool) {
@@ -715,57 +722,40 @@ contract Exchange is IExchange, Owned {
   ) private {
     require(!_completedOrderHashes[orderHash], 'Order double filled');
 
+    // Total asset quantity the order was placed for
+    uint64 orderQuantityInPips;
+    // Total quantity of above filled as a result of all trade executions, including this one
+    uint64 newFilledQuantityInPips;
+
     // Market orders can express quantity in quote terms, and can be partially filled by multiple
-    // limit maker orders necessitating tracking partially filled amounts in quote terms
+    // limit maker orders necessitating tracking partially filled amounts in quote terms to
+    // determine completion
     if (order.quoteOrderQuantityInPips > 0) {
       require(
         isMarketOrderType(order.orderType),
         'Order quote quantity only valid for market orders'
       );
-      updateOrderFilledQuantityOnQuoteTerms(order, orderHash, trade);
+
+      orderQuantityInPips = order.quoteOrderQuantityInPips;
+      newFilledQuantityInPips = trade.grossQuoteQuantityInPips.add(
+        _partiallyFilledOrderQuantitiesInPips[orderHash]
+      );
+    } else {
       // All other orders track partially filled quantities in base terms
-    } else {
-      updateOrderFilledQuantityOnBaseTerms(order, orderHash, trade);
+      orderQuantityInPips = order.quantityInPips;
+      newFilledQuantityInPips = trade.grossBaseQuantityInPips.add(
+        _partiallyFilledOrderQuantitiesInPips[orderHash]
+      );
     }
-  }
 
-  function updateOrderFilledQuantityOnBaseTerms(
-    Structs.Order memory order,
-    bytes32 orderHash,
-    Structs.Trade memory trade
-  ) private {
-    uint64 newFilledQuantityInPips = trade.grossBaseQuantityInPips.add(
-      _partiallyFilledOrderQuantitiesInPips[orderHash]
-    );
-    require(
-      newFilledQuantityInPips <= order.quantityInPips,
-      'Order overfilled'
-    );
+    require(newFilledQuantityInPips <= orderQuantityInPips, 'Order overfilled');
 
-    if (newFilledQuantityInPips < order.quantityInPips) {
+    if (newFilledQuantityInPips < orderQuantityInPips) {
+      // If the order was partially filled, track the new filled quantity
       _partiallyFilledOrderQuantitiesInPips[orderHash] = newFilledQuantityInPips;
     } else {
-      delete _partiallyFilledOrderQuantitiesInPips[orderHash];
-      _completedOrderHashes[orderHash] = true;
-    }
-  }
-
-  function updateOrderFilledQuantityOnQuoteTerms(
-    Structs.Order memory order,
-    bytes32 orderHash,
-    Structs.Trade memory trade
-  ) private {
-    uint64 newFilledQuantityInPips = trade.grossQuoteQuantityInPips.add(
-      _partiallyFilledOrderQuantitiesInPips[orderHash]
-    );
-    require(
-      newFilledQuantityInPips <= order.quoteOrderQuantityInPips,
-      'Order overfilled'
-    );
-
-    if (newFilledQuantityInPips < order.quoteOrderQuantityInPips) {
-      _partiallyFilledOrderQuantitiesInPips[orderHash] = newFilledQuantityInPips;
-    } else {
+      // If the order was completed, delete any partial fill tracking and instead track its completion
+      // to prevent future double fills
       delete _partiallyFilledOrderQuantitiesInPips[orderHash];
       _completedOrderHashes[orderHash] = true;
     }
