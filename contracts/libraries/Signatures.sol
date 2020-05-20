@@ -70,10 +70,8 @@ library Signatures {
         abi.encodePacked(
           withdrawal.nonce,
           withdrawal.walletAddress,
-          // Ternary branches must resolve to the same type, so wrap in idempotent encodePacked
-          withdrawal.withdrawalType == Enums.WithdrawalType.BySymbol
-            ? abi.encodePacked(withdrawalTokenSymbol)
-            : abi.encodePacked(withdrawal.assetAddress),
+          withdrawalTokenSymbol,
+          withdrawal.assetAddress,
           pipToDecimal(withdrawal.quantityInPips),
           withdrawal.autoDispatchEnabled
         )
