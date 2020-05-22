@@ -146,7 +146,10 @@ contract('Governance', (accounts) => {
 
   describe('cancelExchangeUpgrade', () => {
     it('should work when in progress', async () => {
-      const { governance } = await deployAndAssociateContracts();
+      const {
+        exchange: oldExchange,
+        governance,
+      } = await deployAndAssociateContracts();
       const newExchange = await Exchange.new();
 
       await governance.initiateExchangeUpgrade(newExchange.address);
@@ -157,6 +160,8 @@ contract('Governance', (accounts) => {
       });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+      expect(events[0].returnValues.oldExchange).to.equal(oldExchange.address);
+      expect(events[0].returnValues.newExchange).to.equal(newExchange.address);
     });
 
     it('should revert when no upgrade in progress', async () => {
@@ -323,6 +328,10 @@ contract('Governance', (accounts) => {
       );
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+      expect(events[0].returnValues.oldGovernance).to.equal(governance.address);
+      expect(events[0].returnValues.newGovernance).to.equal(
+        newGovernance.address,
+      );
     });
 
     it('should revert when no upgrade in progress', async () => {

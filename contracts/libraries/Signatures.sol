@@ -135,6 +135,7 @@ library Signatures {
       length = 9; // a zero before the decimal point plus 8 decimals
     }
     length++; // for the decimal point
+
     bytes memory decimal = new bytes(length);
     for (uint256 i = length; i > 0; i--) {
       if (length - i == 8) {

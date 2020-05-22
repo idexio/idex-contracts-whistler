@@ -5,13 +5,13 @@ import { uuidToHexString } from '../lib';
 contract('UUID', (accounts) => {
   const UUIDMock = artifacts.require('UUIDMock');
 
-  describe('getTimestampFromUuidV1', () => {
+  describe('getTimestampInMsFromUuidV1', () => {
     it('should work for current timestamp', async () => {
       const uuidMock = await UUIDMock.new();
 
       const inputTimestamp = new Date().getTime();
       const outputTimestamp = (
-        await uuidMock.getTimestampFromUuidV1(
+        await uuidMock.getTimestampInMsFromUuidV1(
           uuidToHexString(uuidv1({ msecs: inputTimestamp })),
         )
       ).toNumber();
@@ -24,7 +24,7 @@ contract('UUID', (accounts) => {
 
       const inputTimestamp = 0;
       const outputTimestamp = (
-        await uuidMock.getTimestampFromUuidV1(
+        await uuidMock.getTimestampInMsFromUuidV1(
           uuidToHexString(uuidv1({ msecs: inputTimestamp })),
         )
       ).toNumber();
@@ -37,7 +37,7 @@ contract('UUID', (accounts) => {
 
       let error;
       try {
-        await uuidMock.getTimestampFromUuidV1(uuidToHexString(uuidv4()));
+        await uuidMock.getTimestampInMsFromUuidV1(uuidToHexString(uuidv4()));
       } catch (e) {
         error = e;
       }

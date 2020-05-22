@@ -220,8 +220,20 @@ export const decimalToPips = (decimal: string): string =>
  * Convert pips to native token quantity, taking the nunmber of decimals into account
  */
 export const pipsToAssetUnits = (pips: string, decimals: number): string =>
-  new BigNumber(pips.toString())
+  new BigNumber(pips)
     .shiftedBy(decimals - 8) // This is still correct when decimals < 8
+    .integerValue(BigNumber.ROUND_DOWN)
+    .toString();
+
+/**
+ * Convert pips to native token quantity, taking the nunmber of decimals into account
+ */
+export const assetUnitsToPips = (
+  assetUnits: string,
+  decimals: number,
+): string =>
+  new BigNumber(assetUnits)
+    .shiftedBy(8 - decimals) // This is still correct when decimals > 8
     .integerValue(BigNumber.ROUND_DOWN)
     .toString();
 

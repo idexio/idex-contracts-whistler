@@ -62,7 +62,7 @@ contract Exchange is IExchange, Owned {
   event OrderNonceInvalidated(
     address indexed wallet,
     uint128 nonce,
-    uint128 timestamp,
+    uint128 timestampInMs,
     uint256 effectiveBlockNumber
   );
   /**
@@ -109,7 +109,7 @@ contract Exchange is IExchange, Owned {
     address indexed assetAddress,
     string indexed assetSymbol,
     uint256 quantityInPips,
-    uint256 newExchangeBalance
+    uint256 newExchangeBalanceInPips
   );
   /**
    * @dev Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
@@ -119,14 +119,14 @@ contract Exchange is IExchange, Owned {
     address indexed assetAddress,
     string indexed assetSymbol,
     uint256 quantityInPips,
-    uint256 newExchangeBalance
+    uint256 newExchangeBalanceInPips
   );
 
   // Internally used structs //
 
   struct NonceInvalidation {
     bool exists;
-    uint64 timestamp;
+    uint64 timestampInMs;
     uint256 effectiveBlockNumber;
   }
   struct WalletExit {
@@ -146,7 +146,7 @@ contract Exchange is IExchange, Owned {
   uint64 _depositIndex;
   // Mapping of wallet => asset => balance
   mapping(address => mapping(address => uint64)) _balancesInPips;
-  // Mapping of wallet => last invalidated timestamp
+  // Mapping of wallet => last invalidated timestampInMs
   mapping(address => NonceInvalidation) _nonceInvalidations;
   // Mapping of order hash => filled quantity in pips
   mapping(bytes32 => uint64) _partiallyFilledOrderQuantitiesInPips;
@@ -239,7 +239,7 @@ contract Exchange is IExchange, Owned {
   /**
    * @dev Returns the quantity of `assetAddress` currently deposited by `wallet` in asset units
    */
-  function balanceOf(address wallet, address assetAddress)
+  function balanceOfInAssetUnits(address wallet, address assetAddress)
     external
     view
     returns (uint256)
@@ -257,11 +257,10 @@ contract Exchange is IExchange, Owned {
   /**
    * @dev Returns the quantity of `assetSymbol` currently deposited by `wallet` in asset units
    */
-  function balanceOfBySymbol(address wallet, string calldata assetSymbol)
-    external
-    view
-    returns (uint256)
-  {
+  function balanceOfBySymbolInAssetUnits(
+    address wallet,
+    string calldata assetSymbol
+  ) external view returns (uint256) {
     Structs.Asset memory asset = _assetRegistry.loadAssetBySymbol(
       assetSymbol,
       uint64(block.timestamp * 1000)
@@ -416,18 +415,25 @@ contract Exchange is IExchange, Owned {
   // Invalidation //
 
   /**
-   * Invalidate all order nonces with a timestamp lower than the one provided
+   * Invalidate all order nonces with a timestampInMs lower than the one provided
    *
    * @param nonce A Version 1 UUID. After calling and once the Chain Propagation Period has elapsed,
-   * `executeTrade` will reject order nonces from this wallet with a timestamp component lower than
+   * `executeTrade` will reject order nonces from this wallet with a timestampInMs component lower than
    * the one provided
    */
   function invalidateOrderNonce(uint128 nonce) external {
-    uint64 timestamp = UUID.getTimestampFromUuidV1(nonce);
+    uint64 timestampInMs = UUID.getTimestampInMsFromUuidV1(nonce);
+    // Enforce a maximum skew for invalidating nonce timestamps in the future so the user doesn't
+    // lock their wallet from trades indefinitely
+    uint64 oneDayFromNowMs = (uint64(block.timestamp) + 24 * 60 * 60) * 1000;
+    require(
+      timestampInMs < oneDayFromNowMs,
+      'Nonce timestamp too far in future'
+    );
 
     if (_nonceInvalidations[msg.sender].exists) {
       require(
-        _nonceInvalidations[msg.sender].timestamp < timestamp,
+        _nonceInvalidations[msg.sender].timestampInMs < timestampInMs,
         'Nonce timestamp already invalidated'
       );
       require(
@@ -440,14 +446,14 @@ contract Exchange is IExchange, Owned {
     uint256 effectiveBlockNumber = block.number + _chainPropagationPeriod;
     _nonceInvalidations[msg.sender] = NonceInvalidation(
       true,
-      timestamp,
+      timestampInMs,
       effectiveBlockNumber
     );
 
     emit OrderNonceInvalidated(
       msg.sender,
       nonce,
-      timestamp,
+      timestampInMs,
       effectiveBlockNumber
     );
   }
@@ -482,7 +488,7 @@ contract Exchange is IExchange, Owned {
       Enums.WithdrawalType.BySymbol
       ? _assetRegistry.loadAssetBySymbol(
         withdrawal.assetSymbol,
-        UUID.getTimestampFromUuidV1(withdrawal.nonce)
+        UUID.getTimestampInMsFromUuidV1(withdrawal.nonce)
       )
       : _assetRegistry.loadAssetByAddress(withdrawal.assetAddress);
 
@@ -597,6 +603,10 @@ contract Exchange is IExchange, Owned {
   ) public override onlyDispatcher {
     require(!isWalletExitFinalized(buy.walletAddress), 'Buy wallet exited');
     require(!isWalletExitFinalized(sell.walletAddress), 'Sell wallet exited');
+    require(
+      buy.walletAddress != sell.walletAddress,
+      'Self-trading not allowed'
+    );
 
     validateAssetPair(buy, sell, trade);
     validateLimitPrices(buy, sell, trade);
@@ -757,11 +767,11 @@ contract Exchange is IExchange, Owned {
     // Buy order market pair
     Structs.Asset memory buyBaseAsset = _assetRegistry.loadAssetBySymbol(
       trade.baseAssetSymbol,
-      UUID.getTimestampFromUuidV1(buy.nonce)
+      UUID.getTimestampInMsFromUuidV1(buy.nonce)
     );
     Structs.Asset memory buyQuoteAsset = _assetRegistry.loadAssetBySymbol(
       trade.quoteAssetSymbol,
-      UUID.getTimestampFromUuidV1(buy.nonce)
+      UUID.getTimestampInMsFromUuidV1(buy.nonce)
     );
     require(
       buyBaseAsset.assetAddress == trade.baseAssetAddress &&
@@ -772,11 +782,11 @@ contract Exchange is IExchange, Owned {
     // Sell order market pair
     Structs.Asset memory sellBaseAsset = _assetRegistry.loadAssetBySymbol(
       trade.baseAssetSymbol,
-      UUID.getTimestampFromUuidV1(sell.nonce)
+      UUID.getTimestampInMsFromUuidV1(sell.nonce)
     );
     Structs.Asset memory sellQuoteAsset = _assetRegistry.loadAssetBySymbol(
       trade.quoteAssetSymbol,
-      UUID.getTimestampFromUuidV1(sell.nonce)
+      UUID.getTimestampInMsFromUuidV1(sell.nonce)
     );
     require(
       sellBaseAsset.assetAddress == trade.baseAssetAddress &&
@@ -910,12 +920,12 @@ contract Exchange is IExchange, Owned {
     Structs.Order memory sell
   ) private view {
     require(
-      UUID.getTimestampFromUuidV1(buy.nonce) >
+      UUID.getTimestampInMsFromUuidV1(buy.nonce) >
         getLastInvalidatedTimestamp(buy.walletAddress),
       'Buy order nonce timestamp too low'
     );
     require(
-      UUID.getTimestampFromUuidV1(sell.nonce) >
+      UUID.getTimestampInMsFromUuidV1(sell.nonce) >
         getLastInvalidatedTimestamp(sell.walletAddress),
       'Sell order nonce timestamp too low'
     );
@@ -943,7 +953,8 @@ contract Exchange is IExchange, Owned {
   // Asset registry //
 
   /**
-   * @dev Initiate registration process for a token asset
+   * @dev Initiate registration process for a token asset. Only ERC-20 tokens can be added - ETH is
+   * hardcoded in the registry
    */
   function registerToken(
     address tokenAddress,
@@ -967,12 +978,12 @@ contract Exchange is IExchange, Owned {
     emit ConfirmedTokenRegistered(tokenAddress, symbol, decimals);
   }
 
-  function loadAssetBySymbol(string calldata assetSymbol, uint64 timestamp)
+  function loadAssetBySymbol(string calldata assetSymbol, uint64 timestampInMs)
     external
     view
     returns (Structs.Asset memory)
   {
-    return _assetRegistry.loadAssetBySymbol(assetSymbol, timestamp);
+    return _assetRegistry.loadAssetBySymbol(assetSymbol, timestampInMs);
   }
 
   // Dispatcher whitelisting //
@@ -1044,7 +1055,7 @@ contract Exchange is IExchange, Owned {
       _nonceInvalidations[walletAddress].exists &&
       _nonceInvalidations[walletAddress].effectiveBlockNumber <= block.number
     ) {
-      return _nonceInvalidations[walletAddress].timestamp;
+      return _nonceInvalidations[walletAddress].timestampInMs;
     }
 
     return 0;

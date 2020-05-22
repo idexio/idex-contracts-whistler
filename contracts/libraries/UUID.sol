@@ -8,7 +8,7 @@ library UUID {
    * Extracts the timestamp component of a Version 1 UUID. Used to make time-based assertions
    * against a wallet-privided nonce
    */
-  function getTimestampFromUuidV1(uint128 uuid)
+  function getTimestampInMsFromUuidV1(uint128 uuid)
     internal
     pure
     returns (uint64 msSinceUnixEpoch)

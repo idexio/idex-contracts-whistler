@@ -56,10 +56,14 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrderHash, sellOrderHash } = events[0].returnValues;
       expect(
-        (await exchange.balanceOf(buyWallet, token.address)).toString(),
+        (
+          await exchange.balanceOfInAssetUnits(buyWallet, token.address)
+        ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
       expect(
-        (await exchange.balanceOf(sellWallet, ethAddress)).toString(),
+        (
+          await exchange.balanceOfInAssetUnits(sellWallet, ethAddress)
+        ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
       expect(
         (
@@ -105,10 +109,14 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrderHash, sellOrderHash } = events[0].returnValues;
       expect(
-        (await exchange.balanceOf(buyWallet, token.address)).toString(),
+        (
+          await exchange.balanceOfInAssetUnits(buyWallet, token.address)
+        ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
       expect(
-        (await exchange.balanceOf(sellWallet, ethAddress)).toString(),
+        (
+          await exchange.balanceOfInAssetUnits(sellWallet, ethAddress)
+        ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
       expect(
         (
@@ -160,10 +168,14 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrderHash, sellOrderHash } = events[0].returnValues;
       expect(
-        (await exchange.balanceOf(buyWallet, token.address)).toString(),
+        (
+          await exchange.balanceOfInAssetUnits(buyWallet, token.address)
+        ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
       expect(
-        (await exchange.balanceOf(sellWallet, ethAddress)).toString(),
+        (
+          await exchange.balanceOfInAssetUnits(sellWallet, ethAddress)
+        ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
       expect(
         (
@@ -217,10 +229,14 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrderHash, sellOrderHash } = events[0].returnValues;
       expect(
-        (await exchange.balanceOf(buyWallet, token.address)).toString(),
+        (
+          await exchange.balanceOfInAssetUnits(buyWallet, token.address)
+        ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
       expect(
-        (await exchange.balanceOf(sellWallet, ethAddress)).toString(),
+        (
+          await exchange.balanceOfInAssetUnits(sellWallet, ethAddress)
+        ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
       expect(
         (
@@ -232,6 +248,37 @@ contract('Exchange (trades)', (accounts) => {
           await exchange.partiallyFilledOrderQuantityInPips(sellOrderHash)
         ).toString(),
       ).to.equal(decimalToPips(fill.grossQuoteQuantity));
+    });
+
+    it('should revert for self-trade', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      sellOrder.wallet = buyOrder.wallet;
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/self-trading not allowed/i);
     });
 
     it('should revert for limit order with quoteOrderQuantity', async () => {

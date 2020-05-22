@@ -30,7 +30,7 @@ library AssetRegistry {
       symbol: symbol,
       decimals: decimals,
       isConfirmed: false,
-      confirmedAt: 0
+      confirmedTimestampInMs: 0
     });
   }
 
@@ -50,7 +50,7 @@ library AssetRegistry {
     require(asset.decimals == decimals, 'Decimals do not match');
 
     asset.isConfirmed = true;
-    asset.confirmedAt = uint64(block.timestamp * 1000); // Block timestamp is seconds, store ms
+    asset.confirmedTimestampInMs = uint64(block.timestamp * 1000); // Block timestampInMs is seconds, store ms
     self.assetsByAddress[tokenAddress] = asset;
     self.assetsBySymbol[symbol].push(asset);
   }
@@ -82,14 +82,14 @@ library AssetRegistry {
    * @dev Resolves a asset symbol into corresponding Asset struct
    *
    * @param symbol Asset symbol, e.g. 'IDEX'
-   * @param timestamp Milliseconds since Unix epoch, usually parsed from a UUID v1 order nonce.
-   * Constrains symbol resolution to the asset most recently confirmed prior to timestamp. Reverts
+   * @param timestampInMs Milliseconds since Unix epoch, usually parsed from a UUID v1 order nonce.
+   * Constrains symbol resolution to the asset most recently confirmed prior to timestampInMs. Reverts
    * if no such asset exists
    */
   function loadAssetBySymbol(
     Storage storage self,
     string memory symbol,
-    uint64 timestamp
+    uint64 timestampInMs
   ) internal view returns (Structs.Asset memory) {
     if (isStringEqual('ETH', symbol)) {
       return getEthAsset();
@@ -98,7 +98,9 @@ library AssetRegistry {
     Structs.Asset memory asset;
     if (self.assetsBySymbol[symbol].length > 0) {
       for (uint8 i = 0; i < self.assetsBySymbol[symbol].length; i++) {
-        if (self.assetsBySymbol[symbol][i].confirmedAt <= timestamp) {
+        if (
+          self.assetsBySymbol[symbol][i].confirmedTimestampInMs <= timestampInMs
+        ) {
           asset = self.assetsBySymbol[symbol][i];
         }
       }

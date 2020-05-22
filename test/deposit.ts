@@ -4,7 +4,7 @@ import {
   minimumTokenQuantity,
   ethSymbol,
 } from './helpers';
-import { ethAddress } from '../lib';
+import { assetUnitsToPips, ethAddress } from '../lib';
 
 contract('Exchange (deposits)', (accounts) => {
   const Exchange = artifacts.require('Exchange');
@@ -46,11 +46,23 @@ contract('Exchange (deposits)', (accounts) => {
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
       expect(
-        (await exchange.balanceOf(accounts[0], ethAddress)).toString(),
+        (
+          await exchange.balanceOfInAssetUnits(accounts[0], ethAddress)
+        ).toString(),
       ).to.equal(minimumTokenQuantity);
       expect(
-        (await exchange.balanceOfBySymbol(accounts[0], ethSymbol)).toString(),
+        (await exchange.balanceOfInPips(accounts[0], ethAddress)).toString(),
+      ).to.equal(assetUnitsToPips(minimumTokenQuantity, 18));
+      expect(
+        (
+          await exchange.balanceOfBySymbolInAssetUnits(accounts[0], ethSymbol)
+        ).toString(),
       ).to.equal(minimumTokenQuantity);
+      expect(
+        (
+          await exchange.balanceOfBySymbolInPips(accounts[0], ethSymbol)
+        ).toString(),
+      ).to.equal(assetUnitsToPips(minimumTokenQuantity, 18));
     });
 
     it('should revert below minimum quantity', async () => {

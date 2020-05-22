@@ -62,7 +62,7 @@ contract Structs {
     string symbol;
     uint8 decimals;
     bool isConfirmed;
-    uint64 confirmedAt; // ms since Unix epoch
+    uint64 confirmedTimestampInMs; // ms since Unix epoch
   }
 
   /**
@@ -93,10 +93,10 @@ contract Structs {
     uint128 nonce;
     address payable walletAddress;
     string assetSymbol;
-    address assetAddress; // used in case symbol not specified
+    address assetAddress; // Used when assetSymbol not specified
     uint64 quantityInPips;
     uint64 gasFeeInPips;
-    bool autoDispatchEnabled; // ignored, auto dispatch is always enabled
+    bool autoDispatchEnabled; // Not currently used but reserved for future use. Must be true
     bytes walletSignature;
   }
 }
