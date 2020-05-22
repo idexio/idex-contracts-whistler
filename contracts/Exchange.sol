@@ -155,7 +155,9 @@ contract Exchange is IExchange, Owned {
   uint256 _chainPropagationPeriod;
   address _dispatcherWallet;
   address _feeWallet;
-  // Fixed max fee values
+
+  // Immutable constants //
+
   uint256 immutable _maxChainPropagationPeriod;
   uint64 immutable _maxTradeFeeBasisPoints;
   uint64 immutable _maxWithdrawalFeeBasisPoints;
@@ -640,6 +642,8 @@ contract Exchange is IExchange, Owned {
     Structs.Order memory sell,
     Structs.Trade memory trade
   ) private {
+    // Capture balances before and after updates to assert zero-sum
+    /*
     uint64 baseAssetBalanceInPipsBefore = _balancesInPips[sell
       .walletAddress][trade.baseAssetAddress]
       .add(_balancesInPips[buy.walletAddress][trade.baseAssetAddress])
@@ -648,6 +652,7 @@ contract Exchange is IExchange, Owned {
       .walletAddress][trade.quoteAssetAddress]
       .add(_balancesInPips[buy.walletAddress][trade.quoteAssetAddress])
       .add(_balancesInPips[_feeWallet][trade.quoteAssetAddress]);
+      */
 
     // Seller gives base asset including fees
     _balancesInPips[sell.walletAddress][trade
@@ -681,7 +686,9 @@ contract Exchange is IExchange, Owned {
       .takerFeeAssetAddress]
       .add(trade.takerFeeQuantityInPips);
 
-    // Assert invariants - balance updates should always be zero-sum
+    // Assert invariants - balance updates should always be zero-sum. There is no known case in
+    // which these do not hold
+    /*
     uint256 baseAssetBalanceInPipsAfter = _balancesInPips[sell
       .walletAddress][trade.baseAssetAddress]
       .add(_balancesInPips[buy.walletAddress][trade.baseAssetAddress])
@@ -692,6 +699,7 @@ contract Exchange is IExchange, Owned {
       .add(_balancesInPips[buy.walletAddress][trade.quoteAssetAddress])
       .add(_balancesInPips[_feeWallet][trade.quoteAssetAddress]);
     assert(quoteAssetBalanceInPipsBefore == quoteAssetBalanceInPipsAfter);
+    */
   }
 
   function updateOrderFilledQuantities(
