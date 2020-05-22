@@ -43,8 +43,8 @@ contract Exchange is IExchange, Owned {
     address indexed wallet,
     address indexed assetAddress,
     string indexed assetSymbol,
-    uint256 quantityInAssetUnits,
-    uint256 newExchangeBalance
+    uint256 quantityInPips,
+    uint256 newExchangeBalanceInPips
   );
   /**
    * @dev Emitted when an admin changes the Dispatch Wallet tunable parameter with `setDispatcher`
@@ -145,7 +145,7 @@ contract Exchange is IExchange, Owned {
   address payable _custodian;
   uint64 _depositIndex;
   // Mapping of wallet => asset => balance
-  mapping(address => mapping(address => uint256)) _balancesInAssetUnits;
+  mapping(address => mapping(address => uint64)) _balancesInPips;
   // Mapping of wallet => last invalidated timestamp
   mapping(address => NonceInvalidation) _nonceInvalidations;
   // Mapping of order hash => filled quantity in pips
@@ -211,7 +211,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Sets the address of the Fee wallet. Structs.Trade and Withdraw fees will accrue in the `_balancesInAssetUnits`
+   * @dev Sets the address of the Fee wallet. Structs.Trade and Withdraw fees will accrue in the `_balancesInPips`
    * mappings for this wallet
    *
    * @param newFeeWallet The new Fee wallet. Must be different from the current one
@@ -239,7 +239,14 @@ contract Exchange is IExchange, Owned {
     view
     returns (uint256)
   {
-    return _balancesInAssetUnits[wallet][assetAddress];
+    Structs.Asset memory asset = _assetRegistry.loadAssetByAddress(
+      assetAddress
+    );
+    return
+      AssetUnitConversions.pipsToAssetUnits(
+        _balancesInPips[wallet][assetAddress],
+        asset.decimals
+      );
   }
 
   /**
@@ -250,10 +257,40 @@ contract Exchange is IExchange, Owned {
     view
     returns (uint256)
   {
+    Structs.Asset memory asset = _assetRegistry.loadAssetBySymbol(
+      assetSymbol,
+      uint64(block.timestamp * 1000)
+    );
+    return
+      AssetUnitConversions.pipsToAssetUnits(
+        _balancesInPips[wallet][asset.assetAddress],
+        asset.decimals
+      );
+  }
+
+  /**
+   * @dev Returns the amount of `asset` currently deposited by `wallet`
+   */
+  function balanceOfInPips(address wallet, address assetAddress)
+    external
+    view
+    returns (uint256)
+  {
+    return _balancesInPips[wallet][assetAddress];
+  }
+
+  /**
+   * @dev Returns the amount of `assetSymbol` currently deposited by `wallet`
+   */
+  function balanceOfBySymbolInPips(address wallet, string calldata assetSymbol)
+    external
+    view
+    returns (uint256)
+  {
     address assetAddress = _assetRegistry
       .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
       .assetAddress;
-    return _balancesInAssetUnits[wallet][assetAddress];
+    return _balancesInPips[wallet][assetAddress];
   }
 
   /**
@@ -283,12 +320,14 @@ contract Exchange is IExchange, Owned {
    * Deposit `IERC20` compliant tokens
    *
    * @param assetAddress The token contract address
-   * @param tokenQuantity The quantity to deposit. The sending wallet must first call the `approve` method on
+   * @param quantityInAssetUnits The quantity to deposit. The sending wallet must first call the `approve` method on
    * the token contract for at least this quantity first
    */
-  function depositToken(address assetAddress, uint256 tokenQuantity) external {
+  function depositToken(address assetAddress, uint256 quantityInAssetUnits)
+    external
+  {
     require(assetAddress != address(0x0), 'Use depositEther to deposit Ether');
-    deposit(msg.sender, assetAddress, tokenQuantity);
+    deposit(msg.sender, assetAddress, quantityInAssetUnits);
   }
 
   /**
@@ -353,9 +392,10 @@ contract Exchange is IExchange, Owned {
     );
 
     // Update balance with transferred quantity
-    uint256 newExchangeBalance = _balancesInAssetUnits[wallet][assetAddress]
-      .add(quantityInAssetUnitsWithoutFractionalPips);
-    _balancesInAssetUnits[wallet][assetAddress] = newExchangeBalance;
+    uint64 newExchangeBalanceInPips = _balancesInPips[wallet][assetAddress].add(
+      quantityInPips
+    );
+    _balancesInPips[wallet][assetAddress] = newExchangeBalanceInPips;
     _depositIndex++;
 
     emit Deposited(
@@ -363,8 +403,8 @@ contract Exchange is IExchange, Owned {
       wallet,
       assetAddress,
       asset.symbol,
-      quantityInAssetUnitsWithoutFractionalPips,
-      newExchangeBalance
+      quantityInPips,
+      newExchangeBalanceInPips
     );
   }
 
@@ -450,26 +490,21 @@ contract Exchange is IExchange, Owned {
       : _assetRegistry.loadAssetByAddress(withdrawal.assetAddress);
 
     // SafeMath reverts if balance is overdrawn
-    uint256 grossQuantityInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
-      withdrawal.quantityInPips,
-      asset.decimals
+    uint64 netAssetQuantityInPips = withdrawal.quantityInPips.sub(
+      withdrawal.gasFeeInPips
     );
-    uint256 feeInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
-      withdrawal.gasFeeInPips,
-      asset.decimals
-    );
-    uint256 netAssetQuantityInAssetUnits = grossQuantityInAssetUnits.sub(
-      feeInAssetUnits
-    );
-
-    uint256 newExchangeBalance = _balancesInAssetUnits[withdrawal
+    uint256 netAssetQuantityInAssetUnits = AssetUnitConversions
+      .pipsToAssetUnits(netAssetQuantityInPips, asset.decimals);
+    uint64 newExchangeBalanceInPips = _balancesInPips[withdrawal
       .walletAddress][asset.assetAddress]
-      .sub(grossQuantityInAssetUnits);
-    _balancesInAssetUnits[withdrawal.walletAddress][asset
-      .assetAddress] = newExchangeBalance;
-    _balancesInAssetUnits[_feeWallet][asset
-      .assetAddress] = _balancesInAssetUnits[_feeWallet][asset.assetAddress]
-      .add(feeInAssetUnits);
+      .sub(withdrawal.quantityInPips);
+
+    _balancesInPips[withdrawal.walletAddress][asset
+      .assetAddress] = newExchangeBalanceInPips;
+    _balancesInPips[_feeWallet][asset
+      .assetAddress] = _balancesInPips[_feeWallet][asset.assetAddress].add(
+      withdrawal.gasFeeInPips
+    );
 
     ICustodian(_custodian).withdraw(
       withdrawal.walletAddress,
@@ -483,8 +518,8 @@ contract Exchange is IExchange, Owned {
       withdrawal.walletAddress,
       asset.assetAddress,
       asset.symbol,
-      grossQuantityInAssetUnits,
-      newExchangeBalance
+      withdrawal.quantityInPips,
+      newExchangeBalanceInPips
     );
   }
 
@@ -513,16 +548,30 @@ contract Exchange is IExchange, Owned {
   function withdrawExit(address assetAddress) external {
     require(isWalletExitFinalized(msg.sender), 'Wallet exit not finalized');
 
-    uint256 balance = _balancesInAssetUnits[msg.sender][assetAddress];
-    require(balance > 0, 'No balance for asset');
-    _balancesInAssetUnits[msg.sender][assetAddress] = 0;
+    Structs.Asset memory asset = _assetRegistry.loadAssetByAddress(
+      assetAddress
+    );
+    uint64 balanceInPips = _balancesInPips[msg.sender][assetAddress];
+    uint256 balanceInAssetUnits = AssetUnitConversions.pipsToAssetUnits(
+      balanceInPips,
+      asset.decimals
+    );
 
-    ICustodian(_custodian).withdraw(msg.sender, assetAddress, balance);
+    require(balanceInAssetUnits > 0, 'No balance for asset');
+    _balancesInPips[msg.sender][assetAddress] = 0;
+    ICustodian(_custodian).withdraw(
+      msg.sender,
+      assetAddress,
+      balanceInAssetUnits
+    );
 
-    string memory assetSymbol = _assetRegistry
-      .loadAssetByAddress(assetAddress)
-      .symbol;
-    emit WalletExitWithdrawn(msg.sender, assetAddress, assetSymbol, balance, 0);
+    emit WalletExitWithdrawn(
+      msg.sender,
+      assetAddress,
+      asset.symbol,
+      balanceInAssetUnits,
+      0
+    );
   }
 
   function isWalletExitFinalized(address wallet) internal view returns (bool) {
@@ -564,10 +613,7 @@ contract Exchange is IExchange, Owned {
     require(!isWalletExitFinalized(buy.walletAddress), 'Buy wallet exited');
     require(!isWalletExitFinalized(sell.walletAddress), 'Sell wallet exited');
 
-    (
-      Structs.Asset memory baseAsset,
-      Structs.Asset memory quoteAsset
-    ) = validateAssetPair(baseSymbol, quoteSymbol, buy, sell, trade);
+    validateAssetPair(baseSymbol, quoteSymbol, buy, sell, trade);
     validateLimitPrices(buy, sell, trade);
     validateOrderNonces(
       buy.walletAddress,
@@ -588,7 +634,7 @@ contract Exchange is IExchange, Owned {
     validateTradeFees(trade);
 
     updateOrderFilledQuantities(buy, buyHash, sell, sellHash, trade);
-    updateBalancesForTrade(baseAsset, quoteAsset, buy, sell, trade);
+    updateBalancesForTrade(buy, sell, trade);
 
     emit ExecutedTrade(
       buy.walletAddress,
@@ -605,102 +651,62 @@ contract Exchange is IExchange, Owned {
 
   // Updates buyer, seller, and fee wallet balances for both assets in trade pair according to trade parameters
   function updateBalancesForTrade(
-    Structs.Asset memory baseAsset,
-    Structs.Asset memory quoteAsset,
     Structs.Order memory buy,
     Structs.Order memory sell,
     Structs.Trade memory trade
   ) private {
-    uint256 baseAssetBalanceInAssetUnitsBefore = _balancesInAssetUnits[sell
+    uint64 baseAssetBalanceInPipsBefore = _balancesInPips[sell
       .walletAddress][trade.baseAssetAddress]
-      .add(_balancesInAssetUnits[buy.walletAddress][trade.baseAssetAddress])
-      .add(_balancesInAssetUnits[_feeWallet][trade.baseAssetAddress]);
-    uint256 quoteAssetBalanceInAssetUnitsBefore = _balancesInAssetUnits[sell
+      .add(_balancesInPips[buy.walletAddress][trade.baseAssetAddress])
+      .add(_balancesInPips[_feeWallet][trade.baseAssetAddress]);
+    uint64 quoteAssetBalanceInPipsBefore = _balancesInPips[sell
       .walletAddress][trade.quoteAssetAddress]
-      .add(_balancesInAssetUnits[buy.walletAddress][trade.quoteAssetAddress])
-      .add(_balancesInAssetUnits[_feeWallet][trade.quoteAssetAddress]);
+      .add(_balancesInPips[buy.walletAddress][trade.quoteAssetAddress])
+      .add(_balancesInPips[_feeWallet][trade.quoteAssetAddress]);
 
     // Seller gives base asset including fees
-    _balancesInAssetUnits[sell.walletAddress][trade
-      .baseAssetAddress] = _balancesInAssetUnits[sell.walletAddress][trade
+    _balancesInPips[sell.walletAddress][trade
+      .baseAssetAddress] = _balancesInPips[sell.walletAddress][trade
       .baseAssetAddress]
-      .sub(
-      AssetUnitConversions.pipsToAssetUnits(
-        trade.grossBaseQuantityInPips,
-        baseAsset.decimals
-      )
-    );
+      .sub(trade.grossBaseQuantityInPips);
     // Buyer receives base asset minus fees
-    _balancesInAssetUnits[buy.walletAddress][trade
-      .baseAssetAddress] = _balancesInAssetUnits[buy.walletAddress][trade
+    _balancesInPips[buy.walletAddress][trade
+      .baseAssetAddress] = _balancesInPips[buy.walletAddress][trade
       .baseAssetAddress]
-      .add(
-      AssetUnitConversions.pipsToAssetUnits(
-        trade.netBaseQuantityInPips,
-        baseAsset.decimals
-      )
-    );
+      .add(trade.netBaseQuantityInPips);
 
     // Buyer gives quote asset including fees
-    _balancesInAssetUnits[buy.walletAddress][trade
-      .quoteAssetAddress] = _balancesInAssetUnits[buy.walletAddress][trade
+    _balancesInPips[buy.walletAddress][trade
+      .quoteAssetAddress] = _balancesInPips[buy.walletAddress][trade
       .quoteAssetAddress]
-      .sub(
-      AssetUnitConversions.pipsToAssetUnits(
-        trade.grossQuoteQuantityInPips,
-        quoteAsset.decimals
-      )
-    );
+      .sub(trade.grossQuoteQuantityInPips);
     // Seller receives quote asset minus fees
-    _balancesInAssetUnits[sell.walletAddress][trade
-      .quoteAssetAddress] = _balancesInAssetUnits[sell.walletAddress][trade
+    _balancesInPips[sell.walletAddress][trade
+      .quoteAssetAddress] = _balancesInPips[sell.walletAddress][trade
       .quoteAssetAddress]
-      .add(
-      AssetUnitConversions.pipsToAssetUnits(
-        trade.netQuoteQuantityInPips,
-        quoteAsset.decimals
-      )
-    );
+      .add(trade.netQuoteQuantityInPips);
 
     // Maker and taker fees to fee wallet
-    _balancesInAssetUnits[_feeWallet][trade
-      .makerFeeAssetAddress] = _balancesInAssetUnits[_feeWallet][trade
+    _balancesInPips[_feeWallet][trade
+      .makerFeeAssetAddress] = _balancesInPips[_feeWallet][trade
       .makerFeeAssetAddress]
-      .add(
-      AssetUnitConversions.pipsToAssetUnits(
-        trade.makerFeeQuantityInPips,
-        trade.makerFeeAssetAddress == baseAsset.assetAddress
-          ? baseAsset.decimals
-          : quoteAsset.decimals
-      )
-    );
-    _balancesInAssetUnits[_feeWallet][trade
-      .takerFeeAssetAddress] = _balancesInAssetUnits[_feeWallet][trade
+      .add(trade.makerFeeQuantityInPips);
+    _balancesInPips[_feeWallet][trade
+      .takerFeeAssetAddress] = _balancesInPips[_feeWallet][trade
       .takerFeeAssetAddress]
-      .add(
-      AssetUnitConversions.pipsToAssetUnits(
-        trade.takerFeeQuantityInPips,
-        trade.takerFeeAssetAddress == baseAsset.assetAddress
-          ? baseAsset.decimals
-          : quoteAsset.decimals
-      )
-    );
+      .add(trade.takerFeeQuantityInPips);
 
     // Assert invariants - balance updates should always be zero-sum
-    uint256 baseAssetBalanceInAssetUnitsAfter = _balancesInAssetUnits[sell
+    uint256 baseAssetBalanceInPipsAfter = _balancesInPips[sell
       .walletAddress][trade.baseAssetAddress]
-      .add(_balancesInAssetUnits[buy.walletAddress][trade.baseAssetAddress])
-      .add(_balancesInAssetUnits[_feeWallet][trade.baseAssetAddress]);
-    assert(
-      baseAssetBalanceInAssetUnitsBefore == baseAssetBalanceInAssetUnitsAfter
-    );
-    uint256 quoteAssetBalanceInAssetUnitsAfter = _balancesInAssetUnits[sell
+      .add(_balancesInPips[buy.walletAddress][trade.baseAssetAddress])
+      .add(_balancesInPips[_feeWallet][trade.baseAssetAddress]);
+    assert(baseAssetBalanceInPipsBefore == baseAssetBalanceInPipsAfter);
+    uint256 quoteAssetBalanceInPipsAfter = _balancesInPips[sell
       .walletAddress][trade.quoteAssetAddress]
-      .add(_balancesInAssetUnits[buy.walletAddress][trade.quoteAssetAddress])
-      .add(_balancesInAssetUnits[_feeWallet][trade.quoteAssetAddress]);
-    assert(
-      quoteAssetBalanceInAssetUnitsBefore == quoteAssetBalanceInAssetUnitsAfter
-    );
+      .add(_balancesInPips[buy.walletAddress][trade.quoteAssetAddress])
+      .add(_balancesInPips[_feeWallet][trade.quoteAssetAddress]);
+    assert(quoteAssetBalanceInPipsBefore == quoteAssetBalanceInPipsAfter);
   }
 
   function updateOrderFilledQuantities(
@@ -769,7 +775,7 @@ contract Exchange is IExchange, Owned {
     Structs.Order memory buy,
     Structs.Order memory sell,
     Structs.Trade memory trade
-  ) private view returns (Structs.Asset memory, Structs.Asset memory) {
+  ) private view {
     require(
       trade.baseAssetAddress != trade.quoteAssetAddress,
       'Base and quote assets must be different'
@@ -820,8 +826,6 @@ contract Exchange is IExchange, Owned {
       trade.makerFeeAssetAddress != trade.takerFeeAssetAddress,
       'Maker and taker fee assets must be different'
     );
-
-    return (buyBaseAsset, buyQuoteAsset);
   }
 
   function validateLimitPrices(
