@@ -88,7 +88,7 @@ contract('Exchange (withdrawals)', (accounts) => {
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
       await exchange.setDispatcher(accounts[0]);
       await token.approve(exchange.address, minimumTokenQuantity);
-      await exchange.depositToken(token.address, minimumTokenQuantity);
+      await exchange.depositTokenByAddress(token.address, minimumTokenQuantity);
 
       await withdraw(
         web3,
@@ -143,7 +143,7 @@ contract('Exchange (withdrawals)', (accounts) => {
       await exchange.registerToken(token.address, tokenSymbol, 18);
       await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
       await token.approve(exchange.address, minimumTokenQuantity);
-      await exchange.depositToken(token.address, minimumTokenQuantity);
+      await exchange.depositTokenByAddress(token.address, minimumTokenQuantity);
       await token.setShouldSkim(true);
 
       let error;

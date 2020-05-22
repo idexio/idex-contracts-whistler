@@ -47,20 +47,25 @@ contract('Exchange (deposits)', (accounts) => {
       expect(events.length).to.equal(1);
       expect(
         (
-          await exchange.balanceOfInAssetUnits(accounts[0], ethAddress)
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            accounts[0],
+            ethAddress,
+          )
         ).toString(),
       ).to.equal(minimumTokenQuantity);
       expect(
-        (await exchange.balanceOfInPips(accounts[0], ethAddress)).toString(),
+        (
+          await exchange.loadBalanceInPipsByAddress(accounts[0], ethAddress)
+        ).toString(),
       ).to.equal(assetUnitsToPips(minimumTokenQuantity, 18));
       expect(
         (
-          await exchange.balanceOfBySymbolInAssetUnits(accounts[0], ethSymbol)
+          await exchange.loadBalanceInAssetUnitsBySymbol(accounts[0], ethSymbol)
         ).toString(),
       ).to.equal(minimumTokenQuantity);
       expect(
         (
-          await exchange.balanceOfBySymbolInPips(accounts[0], ethSymbol)
+          await exchange.loadBalanceInPipsBySymbol(accounts[0], ethSymbol)
         ).toString(),
       ).to.equal(assetUnitsToPips(minimumTokenQuantity, 18));
     });
@@ -162,13 +167,13 @@ contract('Exchange (deposits)', (accounts) => {
     });
   });
 
-  describe('depositToken', () => {
+  describe('depositTokenByAddress', () => {
     it('should work for minimum quantity', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
 
       await token.approve(exchange.address, minimumTokenQuantity);
-      await exchange.depositToken(token.address, minimumTokenQuantity);
+      await exchange.depositTokenByAddress(token.address, minimumTokenQuantity);
 
       const events = await exchange.getPastEvents('Deposited', {
         fromBlock: 0,
@@ -184,7 +189,7 @@ contract('Exchange (deposits)', (accounts) => {
       let error;
       try {
         await token.approve(exchange.address, minimumTokenQuantity);
-        await exchange.depositToken(ethAddress, minimumTokenQuantity);
+        await exchange.depositTokenByAddress(ethAddress, minimumTokenQuantity);
       } catch (e) {
         error = e;
       }
@@ -199,9 +204,13 @@ contract('Exchange (deposits)', (accounts) => {
 
       let error;
       try {
-        await exchange.depositToken(token.address, minimumTokenQuantity, {
-          from: wallet,
-        });
+        await exchange.depositTokenByAddress(
+          token.address,
+          minimumTokenQuantity,
+          {
+            from: wallet,
+          },
+        );
       } catch (e) {
         error = e;
       }
@@ -219,7 +228,10 @@ contract('Exchange (deposits)', (accounts) => {
 
       let error;
       try {
-        await exchange.depositToken(token.address, minimumTokenQuantity);
+        await exchange.depositTokenByAddress(
+          token.address,
+          minimumTokenQuantity,
+        );
       } catch (e) {
         error = e;
       }
