@@ -5,7 +5,7 @@ import type { TestTokenInstance } from '../types/truffle-contracts/TestToken';
 import type { Withdrawal } from '../lib';
 
 import {
-  decimalToTokenQuantity,
+  decimalToAssetUnits,
   getWithdrawArguments,
   getWithdrawalHash,
 } from '../lib';
@@ -15,7 +15,7 @@ export const ethSymbol = 'ETH';
 
 // TODO Test tokens with decimals other than 18
 export const minimumDecimalQuantity = '0.00000001';
-export const minimumTokenQuantity = decimalToTokenQuantity(
+export const minimumTokenQuantity = decimalToAssetUnits(
   minimumDecimalQuantity,
   18,
 );

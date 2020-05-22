@@ -108,7 +108,7 @@ contract Exchange is IExchange, Owned {
     address indexed wallet,
     address indexed assetAddress,
     string indexed assetSymbol,
-    uint256 quantityInAssetUnits,
+    uint256 quantityInPips,
     uint256 newExchangeBalance
   );
   /**
@@ -118,7 +118,7 @@ contract Exchange is IExchange, Owned {
     address indexed wallet,
     address indexed assetAddress,
     string indexed assetSymbol,
-    uint256 quantityInAssetUnits,
+    uint256 quantityInPips,
     uint256 newExchangeBalance
   );
 
@@ -232,7 +232,7 @@ contract Exchange is IExchange, Owned {
   // Accessors //
 
   /**
-   * @dev Returns the amount of `asset` currently deposited by `wallet`
+   * @dev Returns the quantity of `assetAddress` currently deposited by `wallet` in asset units
    */
   function balanceOf(address wallet, address assetAddress)
     external
@@ -250,7 +250,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Returns the amount of `assetSymbol` currently deposited by `wallet`
+   * @dev Returns the quantity of `assetSymbol` currently deposited by `wallet` in asset units
    */
   function balanceOfBySymbol(address wallet, string calldata assetSymbol)
     external
@@ -269,7 +269,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Returns the amount of `asset` currently deposited by `wallet`
+   * @dev Returns the amount of `asset` currently deposited by `wallet` in pips
    */
   function balanceOfInPips(address wallet, address assetAddress)
     external
@@ -280,7 +280,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Returns the amount of `assetSymbol` currently deposited by `wallet`
+   * @dev Returns the amount of `assetSymbol` currently deposited by `wallet` in pips
    */
   function balanceOfBySymbolInPips(address wallet, string calldata assetSymbol)
     external
@@ -569,7 +569,7 @@ contract Exchange is IExchange, Owned {
       msg.sender,
       assetAddress,
       asset.symbol,
-      balanceInAssetUnits,
+      balanceInPips,
       0
     );
   }
