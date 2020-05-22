@@ -57,22 +57,15 @@ allows testing on real workloads and tuning system parameters prior to switching
 - Release 3 (Blackcomb): The Blackcomb release switches settlement and balance tracking from the Whistler contracts to
 the O2R layer-2 system.
   
-This RFP documentation covers a security audit for the Whistler smart contracts only, with O2R contract audits to follow.
+This documentation covers a security audit for the Whistler smart contracts only, with O2R contract audits to follow.
 
 ## Contract Structure
 
 The Whistler on-chain infrastructure includes three main contracts and a host of supporting libraries.
 
 - Custodian: custodies user funds with minimal additional logic.
-  
 - Governance: implements [upgrade logic](#upgradability) while enforcing [governance constraints](#controls-and-governance).
-  
 - Exchange: implements the majority of exchange functionality, including wallet asset balance tracking.
-  
-- Tokens (library, but deployed as part of the Exchange contract for gas savings): implements
-[token registration](#token-symbol-registry), symbol and [precision tracking](#precision-and-pips).
-
-Whistler’s contracts are all the contracts under exchange-sdk/contracts that are not in the blackcomb directory.
 
 ## User Interaction Lifecycle
 
@@ -82,10 +75,10 @@ smart contracts before trading. The interaction lifecycle spans three steps.
 ### Deposit
 
 Users must deposit funds into the Whistler contracts before they are available for trading on IDEX. Depositing ETH
-requires calling depositEther on the Exchange contract; depositing tokens requires an approve call on the token itself
-before calling depositToken on the Exchange contract.
+requires calling `depositEther` on the Exchange contract; depositing tokens requires an `approve` call on the token itself
+before calling `depositToken` on the Exchange contract.
 
-- The depositEther and depositToken are functions on the Exchange contract, but the funds are ultimately held in the
+- The `depositEther` and `depositToken` are functions on the Exchange contract, but the funds are ultimately held in the
 Custody contract. As part of the deposit process, tokens are transferred first to the Exchange contract, which tracks
 wallet asset balances, and then transferred again to the Custody contract. Separate exchange logic and fund custody
 supports IDEX 2.0’s [upgrade design](#upgradability).
@@ -101,7 +94,7 @@ any dust.
 
 In Whistler, all order management and trade matching happens off-chain while trades are ultimately settled on-chain. A
 trade is considered settled when the Exchange contract’s wallet asset balances reflect the new values agreed to in the
-trade. Exchange’s trade function is responsible for settling trades.
+trade. Exchange’s `executeTrade` function is responsible for settling trades.
 
 - Unlike deposits, trade settlement can only be initiated via a whitelisted Dispatch wallet controlled by IDEX. Users do
 not settle trades directly; only IDEX can submit trades for settlement. Because IDEX alone controls dispatch, IDEX’s
@@ -113,9 +106,7 @@ infrastructure is compromised, the validations ensure that funds can only move i
 depositing wallet.
   
 - Due to business requirements, orders are specified by symbol, eg “UBT-ETH” rather than by token contract addresses.
-A number of validations result from the [token symbol registration system](#token-symbol-registry). Note the parameters
-to the trade function include the symbol strings separately. This is a gas optimization to order signature verification
-as string concat is cheaper than split.
+A number of validations result from the [token symbol registration system](#token-symbol-registry). Note the `trade` parameter to the `executeTrade` function includes the symbol strings separately. This is a gas optimization to order signature verification as string concat is cheaper than split.
   
 - Due to business requirements, order quantity and price are specified as strings in
 [PIP precision](#precision-and-pips), hence the need for order signature validation to convert the provided values
@@ -130,7 +121,7 @@ are charged different fees. Fees are deducted from the quantity of asset each pa
 ### Withdraw
 
 Similar to trade settlement, withdrawals are initiated by users via IDEX’s off-chain components, but calls to the
-Exchange contract’s withdraw function are restricted to whitelisted Dispatch wallets. withdraw calls are limited to the
+Exchange contract’s `withdraw` function are restricted to whitelisted Dispatch wallets. `withdraw` calls are limited to the
 Dispatch wallet in order to guarantee the balance update sequence and thus support trading ahead of settlement. There
 is also a [wallet exit](#wallet-exits)
 mechanism to prevent withdrawal censorship by IDEX.
@@ -140,11 +131,11 @@ approach as dictated by business rules and requires a lookup of the token contra
 [token symbol registry](#token-symbol-registry). Withdrawal by token contract asset exists to cover the case where an
 asset has been relisted under the same symbol, for example in the case of a token swap.
   
-- IDEX collects fees on withdrawals in order to cover the gas costs of the withdraw function call. Because only an
-IDEX-controlled Dispatch wallet can make the withdraw call, IDEX is the immediate gas payer for user withdrawals.
+- IDEX collects fees on withdrawals in order to cover the gas costs of the `withdraw` function call. Because only an
+IDEX-controlled Dispatch wallet can make the `withdraw` call, IDEX is the immediate gas payer for user withdrawals.
 IDEX passes along the estimated gas costs to users by collecting a fee out of the withdrawn amount.
   
-- Despite the withdraw function being part of the Exchange contract, funds are returned to the user’s wallet from the
+- Despite the `withdraw` function being part of the Exchange contract, funds are returned to the user’s wallet from the
 Custody contract.
   
 ## Upgradability
@@ -174,12 +165,12 @@ The Whistler controls and governance design is captured in its own [spec](./GOVE
 ### Token Symbol Registry
 
 Business rules require orders to be specified in asset symbol terms rather than token contract address terms. For
-example, an order specifies the market as `“UBT-ETH”` rather than `{ "base": "0xb705268213d593b8fd88d3fdeff93aff5cbdcfae",
+example, an order specifies the market as `"UBT-ETH"` rather than `{ "base": "0xb705268213d593b8fd88d3fdeff93aff5cbdcfae",
 "quote": "0x0" }`. Deposits, withdrawals and asset balance tracking, however, must be implemented in token contract
 address terms. In order to support both usage modes, Whistler includes a token registry that maps symbols to token contract
 addresses along with additional token metadata, such as precision. Only registered tokens are accepted for deposit.
 
-- Token registration is a two-transaction process, requiring separate calls to registerToken and confirmTokenRegistration.
+- Token registration is a two-transaction process, requiring separate calls to `registerToken` and `confirmTokenRegistration`.
 Two steps reduce the likelihood of data entry errors when registering a new token.
   
 - Occasionally projects upgrade their token address via a token swap but need to retain the same trading symbol. To
@@ -189,11 +180,11 @@ token contract address, as validated against the order or withdrawal [nonce](#no
 business process rules ensure orders are not accepted during new token registration of the same symbol to prevent race
 conditions.
   
-### Precision and PIPs
+### Precision and Pips
 
 In its off-chain components, IDEX 2.0 normalizes all assets to a maximum of 8 decimals of precision, with 1e-8 referred
-to as a PIP. Because deposit and withdrawals must account for the true token precision, however, the token registry
-includes token decimals as well as functions to convert tokenQuantityToPips and pipsToTokenQuantity.
+to as a "pip". Because deposit and withdrawals must account for the true token precision, however, the token registry
+includes token decimals as well as functions to convert `pipsToAssetUnits` and `assetUnitsToPips`. All wallet asset balances are tracked in pips.
 
 ### Nonces and Invalidation
 
@@ -206,13 +197,13 @@ orders by compromising the off-chain order book. Because the orders themselves i
 placing wallet, the Whistler contract cannot distinguish between active orders placed by users and those the user has
 since cancelled.
 
-Nonce invalidation via invalidateOrderNonce allows users to invalidate all orders prior to a specified nonce, making it
-impossible to submit those orders in a subsequent cancelled-order submission attack. The controls and governance spec
+Nonce invalidation via `invalidateOrderNonce` allows users to invalidate all orders prior to a specified nonce, making it
+impossible to submit those orders in a subsequent cancelled-order submission attack. The [controls and governance](#controls-and-governance) spec
 covers the exact mechanics and parameters of the mechanism.
 
 ### Wallet Exits
 
 Whistler includes a wallet exit mechanism, which allows users to withdraw funds in the case IDEX is offline or
-maliciously censoring withdrawals. Calling exitWallet initiates the exit process, which also permanently blacklists
+maliciously censoring withdrawals. Calling `exitWallet` initiates the exit process, which also permanently blacklists
 the wallet from subsequent deposits, trades, or normal withdrawals. Wallet exits are a two-step process as defined in
 [controls](#controls-and-governance).
