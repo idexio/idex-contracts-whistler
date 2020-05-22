@@ -21,8 +21,7 @@ library Signatures {
   function getOrderWalletHash(
     Structs.Order memory order,
     string memory baseSymbol,
-    string memory quoteSymbol,
-    string memory clientOrderId
+    string memory quoteSymbol
   ) internal pure returns (bytes32) {
     require(
       order.signatureHashVersion == 1,
@@ -52,7 +51,7 @@ library Signatures {
             order.stopPriceInPips > 0
               ? pipToDecimal(order.stopPriceInPips)
               : '',
-            clientOrderId,
+            order.clientOrderId,
             uint8(order.timeInForce),
             uint8(order.selfTradePrevention),
             order.cancelAfter

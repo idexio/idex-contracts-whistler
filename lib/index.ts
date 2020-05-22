@@ -42,8 +42,8 @@ export interface Order {
   quantity?: string;
   quoteOrderQuantity?: string;
   price: string;
-  customClientOrderId?: string;
   stopPrice?: string;
+  clientOrderId?: string;
   selfTradePrevention?: OrderSelfTradePrevention;
   cancelAfter?: number;
 }
@@ -89,7 +89,7 @@ export const getOrderHash = (order: Order): string =>
     ['string', order.quoteOrderQuantity || ''],
     ['string', order.price || ''],
     ['string', order.stopPrice || ''],
-    ['string', order.customClientOrderId || ''],
+    ['string', order.clientOrderId || ''],
     ['uint8', order.timeInForce || 0],
     ['uint8', order.selfTradePrevention || 0],
     ['uint64', order.cancelAfter || 0],
@@ -123,24 +123,28 @@ export const getTradeArguments = (
   sellWalletSignature: string,
   trade: Trade,
 ): ExchangeInstance['executeTrade']['arguments'] => {
-  const orderToArgumentStruct = (o: Order) => {
+  const orderToArgumentStruct = (o: Order, walletSignature: string) => {
     return {
       signatureHashVersion: o.signatureHashVersion,
       nonce: uuidToHexString(o.nonce),
       walletAddress: o.wallet,
       orderType: o.type,
       side: o.side,
-      timeInForce: o.timeInForce || 0,
       quantityInPips: decimalToPips(o.quantity || '0'),
       quoteOrderQuantityInPips: decimalToPips(o.quoteOrderQuantity || '0'),
       limitPriceInPips: decimalToPips(o.price || '0'),
       stopPriceInPips: decimalToPips(o.stopPrice || '0'),
+      clientOrderId: o.clientOrderId || '',
+      timeInForce: o.timeInForce || 0,
       selfTradePrevention: o.selfTradePrevention || 0,
       cancelAfter: o.cancelAfter || 0,
+      walletSignature,
     };
   };
   const tradeToArgumentStruct = (t: Trade) => {
     return {
+      baseAssetSymbol: buyOrder.market.split('-')[0],
+      quoteAssetSymbol: buyOrder.market.split('-')[1],
       baseAssetAddress: t.baseAssetAddress,
       quoteAssetAddress: t.quoteAssetAddress,
       grossBaseQuantityInPips: decimalToPips(t.grossBaseQuantity),
@@ -156,14 +160,8 @@ export const getTradeArguments = (
     };
   };
   return [
-    buyOrder.market.split('-')[0],
-    buyOrder.market.split('-')[1],
-    orderToArgumentStruct(buyOrder),
-    buyOrder.customClientOrderId || '',
-    buyWalletSignature,
-    orderToArgumentStruct(sellOrder),
-    sellOrder.customClientOrderId || '',
-    sellWalletSignature,
+    orderToArgumentStruct(buyOrder, buyWalletSignature),
+    orderToArgumentStruct(sellOrder, sellWalletSignature),
     tradeToArgumentStruct(trade),
   ] as const;
 };

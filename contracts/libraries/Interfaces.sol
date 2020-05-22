@@ -45,9 +45,12 @@ contract Structs {
     uint64 quoteOrderQuantityInPips;
     uint64 limitPriceInPips; // decimal pips * 10^8
     uint64 stopPriceInPips; // decimal pips * 10^8
+    string clientOrderId;
     Enums.OrderTimeInForce timeInForce;
     Enums.OrderSelfTradePrevention selfTradePrevention;
     uint64 cancelAfter;
+    // The ECDSA signature of the buy order hash as produced by Signatures.getOrderWalletHash
+    bytes walletSignature;
   }
 
   /**
@@ -66,6 +69,8 @@ contract Structs {
    * @dev Argument type for `Exchange.executeTrade`
    */
   struct Trade {
+    string baseAssetSymbol;
+    string quoteAssetSymbol;
     address baseAssetAddress;
     address quoteAssetAddress;
     uint64 grossBaseQuantityInPips;
@@ -118,14 +123,8 @@ interface ICustodian {
 
 interface IExchange {
   function executeTrade(
-    string calldata baseSymbol,
-    string calldata quoteSymbol,
     Structs.Order calldata buy,
-    string calldata buyClientOrderId,
-    bytes calldata buyWalletSignature,
     Structs.Order calldata sell,
-    string calldata sellClientOrderId,
-    bytes calldata sellWalletSignature,
     Structs.Trade calldata trade
   ) external;
 

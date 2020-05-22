@@ -88,8 +88,8 @@ contract Exchange is IExchange, Owned {
   event TradeExecuted(
     address buyWallet,
     address sellWallet,
-    string indexed baseSymbol,
-    string indexed quoteSymbol,
+    string indexed baseAssetSymbol,
+    string indexed quoteAssetSymbol,
     uint64 baseQuantityInPips,
     uint64 quoteQuantityInPips,
     uint64 tradePriceInPips,
@@ -586,47 +586,25 @@ contract Exchange is IExchange, Owned {
    * market symbol into its two constituent asset symbols
    * @dev Stack level too deep if declared external
    *
-   * @param baseSymbol The case-sensitive symbol for the trade market base asset
-   * @param quoteSymbol The case-sensitive symbol for the trade market quote asset
-   * @param buy An `Structs.Order` struct encoding the parameters of the buy-side order (giving quote, receiving base)
-   * @param buyClientOrderId An optional custom client ID for the buy order
-   * @param buyWalletSignature The ECDSA signature of the buy order hash as produced by `Signatures.getOrderWalletHash`
+   * @param buy An `Structs.Order` struct encoding the parameters of the buy-side o
    * @param sell An `Structs.Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
-   * @param sellClientOrderId An optional custom client ID for the sell order
-   * @param sellWalletSignature The ECDSA signature of the sell order hash as produced by `Signatures.getOrderWalletHash`
    * @param trade A `trade` struct encoding the parameters of this trade execution of the counterparty orders
    */
   function executeTrade(
-    string memory baseSymbol,
-    string memory quoteSymbol,
     Structs.Order memory buy,
-    string memory buyClientOrderId,
-    bytes memory buyWalletSignature,
     Structs.Order memory sell,
-    string memory sellClientOrderId,
-    bytes memory sellWalletSignature,
     Structs.Trade memory trade
   ) public override onlyDispatcher {
     require(!isWalletExitFinalized(buy.walletAddress), 'Buy wallet exited');
     require(!isWalletExitFinalized(sell.walletAddress), 'Sell wallet exited');
 
-    validateAssetPair(baseSymbol, quoteSymbol, buy, sell, trade);
+    validateAssetPair(buy, sell, trade);
     validateLimitPrices(buy, sell, trade);
-    validateOrderNonces(
-      buy.walletAddress,
-      buy.nonce,
-      sell.walletAddress,
-      sell.nonce
-    );
+    validateOrderNonces(buy, sell);
     (bytes32 buyHash, bytes32 sellHash) = validateOrderSignatures(
-      baseSymbol,
-      quoteSymbol,
       buy,
-      buyClientOrderId,
-      buyWalletSignature,
       sell,
-      sellClientOrderId,
-      sellWalletSignature
+      trade
     );
     validateTradeFees(trade);
 
@@ -636,8 +614,8 @@ contract Exchange is IExchange, Owned {
     emit TradeExecuted(
       buy.walletAddress,
       sell.walletAddress,
-      baseSymbol,
-      quoteSymbol,
+      trade.baseAssetSymbol,
+      trade.quoteAssetSymbol,
       trade.grossBaseQuantityInPips,
       trade.grossQuoteQuantityInPips,
       trade.priceInPips,
@@ -767,8 +745,6 @@ contract Exchange is IExchange, Owned {
   // Validations //
 
   function validateAssetPair(
-    string memory baseSymbol,
-    string memory quoteSymbol,
     Structs.Order memory buy,
     Structs.Order memory sell,
     Structs.Trade memory trade
@@ -780,11 +756,11 @@ contract Exchange is IExchange, Owned {
 
     // Buy order market pair
     Structs.Asset memory buyBaseAsset = _assetRegistry.loadAssetBySymbol(
-      baseSymbol,
+      trade.baseAssetSymbol,
       UUID.getTimestampFromUuidV1(buy.nonce)
     );
     Structs.Asset memory buyQuoteAsset = _assetRegistry.loadAssetBySymbol(
-      quoteSymbol,
+      trade.quoteAssetSymbol,
       UUID.getTimestampFromUuidV1(buy.nonce)
     );
     require(
@@ -795,11 +771,11 @@ contract Exchange is IExchange, Owned {
 
     // Sell order market pair
     Structs.Asset memory sellBaseAsset = _assetRegistry.loadAssetBySymbol(
-      baseSymbol,
+      trade.baseAssetSymbol,
       UUID.getTimestampFromUuidV1(sell.nonce)
     );
     Structs.Asset memory sellQuoteAsset = _assetRegistry.loadAssetBySymbol(
-      quoteSymbol,
+      trade.quoteAssetSymbol,
       UUID.getTimestampFromUuidV1(sell.nonce)
     );
     require(
@@ -895,51 +871,30 @@ contract Exchange is IExchange, Owned {
   }
 
   function validateOrderSignatures(
-    string memory baseSymbol,
-    string memory quoteSymbol,
     Structs.Order memory buy,
-    string memory buyClientOrderId,
-    bytes memory buyWalletSignature,
     Structs.Order memory sell,
-    string memory sellClientOrderId,
-    bytes memory sellWalletSignature
+    Structs.Trade memory trade
   ) private pure returns (bytes32, bytes32) {
-    bytes32 buyOrderHash = validateOrderSignature(
-      buy,
-      baseSymbol,
-      quoteSymbol,
-      buyClientOrderId,
-      buyWalletSignature
-    );
-    bytes32 sellOrderHash = validateOrderSignature(
-      sell,
-      baseSymbol,
-      quoteSymbol,
-      sellClientOrderId,
-      sellWalletSignature
-    );
+    bytes32 buyOrderHash = validateOrderSignature(buy, trade);
+    bytes32 sellOrderHash = validateOrderSignature(sell, trade);
 
     return (buyOrderHash, sellOrderHash);
   }
 
   function validateOrderSignature(
     Structs.Order memory order,
-    string memory baseSymbol,
-    string memory quoteSymbol,
-    string memory clientOrderId,
-    bytes memory walletSignature
+    Structs.Trade memory trade
   ) private pure returns (bytes32) {
     bytes32 orderHash = Signatures.getOrderWalletHash(
       order,
-      baseSymbol,
-      quoteSymbol,
-      clientOrderId
+      trade.baseAssetSymbol,
+      trade.quoteAssetSymbol
     );
 
     require(
       Signatures.isSignatureValid(
         orderHash,
-        walletSignature,
+        order.walletSignature,
         order.walletAddress
       ),
       order.side == Enums.OrderSide.Buy
@@ -951,19 +906,17 @@ contract Exchange is IExchange, Owned {
   }
 
   function validateOrderNonces(
-    address buyWallet,
-    uint128 buyNonce,
-    address sellWallet,
-    uint128 sellNonce
+    Structs.Order memory buy,
+    Structs.Order memory sell
   ) private view {
     require(
-      UUID.getTimestampFromUuidV1(buyNonce) >
-        getLastInvalidatedTimestamp(buyWallet),
+      UUID.getTimestampFromUuidV1(buy.nonce) >
+        getLastInvalidatedTimestamp(buy.walletAddress),
       'Buy order nonce timestamp too low'
     );
     require(
-      UUID.getTimestampFromUuidV1(sellNonce) >
-        getLastInvalidatedTimestamp(sellWallet),
+      UUID.getTimestampFromUuidV1(sell.nonce) >
+        getLastInvalidatedTimestamp(sell.walletAddress),
       'Sell order nonce timestamp too low'
     );
   }
