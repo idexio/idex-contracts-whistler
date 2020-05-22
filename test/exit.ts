@@ -1,5 +1,5 @@
 import { deployAndAssociateContracts, minimumTokenQuantity } from './helpers';
-import { ethAddress } from '../lib';
+import { ethAddress, pipsToAssetUnits } from '../lib';
 
 contract('Exchange (exits)', (accounts) => {
   describe('exitWallet', () => {
@@ -53,9 +53,9 @@ contract('Exchange (exits)', (accounts) => {
       expect(events.length).to.equal(1);
       expect(events[0].returnValues.wallet).to.equal(accounts[0]);
       expect(events[0].returnValues.assetAddress).to.equal(ethAddress);
-      expect(events[0].returnValues.quantityInAssetUnits).to.equal(
-        minimumTokenQuantity,
-      );
+      expect(
+        pipsToAssetUnits(events[0].returnValues.quantityInPips, 18),
+      ).to.equal(minimumTokenQuantity);
     });
 
     it('should revert for wallet not exited', async () => {
