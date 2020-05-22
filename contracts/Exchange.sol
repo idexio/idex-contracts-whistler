@@ -59,7 +59,7 @@ contract Exchange is IExchange, Owned {
   /**
    * @dev Emitted when a user invalidates an order nonce with `invalidateOrderNonce`
    */
-  event InvalidatedOrderNonce(
+  event OrderNonceInvalidated(
     address indexed wallet,
     uint128 nonce,
     uint128 timestamp,
@@ -68,7 +68,7 @@ contract Exchange is IExchange, Owned {
   /**
    * @dev Emitted when an admin initiates the token registration process with `registerAsset`
    */
-  event RegisteredToken(
+  event TokenRegistered(
     address indexed assetAddress,
     string indexed assetSymbol,
     uint8 decimals
@@ -77,7 +77,7 @@ contract Exchange is IExchange, Owned {
    * @dev Emitted when an admin finalizes the token registration process with `confirmAssetRegistration`, after
    * which it can be deposited, traded, or withdrawn
    */
-  event ConfirmedRegisteredToken(
+  event ConfirmedTokenRegistered(
     address indexed assetAddress,
     string indexed assetSymbol,
     uint8 decimals
@@ -85,7 +85,7 @@ contract Exchange is IExchange, Owned {
   /**
    * @dev Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade`
    */
-  event ExecutedTrade(
+  event TradeExecuted(
     address buyWallet,
     address sellWallet,
     string indexed baseSymbol,
@@ -172,9 +172,14 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Sets the address of the `Custodian` contract. This value is immutable once set and cannot be changed again
+   * @dev Sets the address of the `Custodian` contract. The `Custodian` accepts `Exchange` and
+   * `Governance` addresses in its constructor, after which they can only be changed by the
+   * `Governance` contract itself. Therefore the `Custodian` must be deployed last and its address
+   * set here on an existing `Exchange` contract. This value is immutable once set and cannot be
+   * changed again
    *
-   * @param newCustodian The address of the `Custodian` contract deployed against this `Exchange` contract's address
+   * @param newCustodian The address of the `Custodian` contract deployed against this `Exchange`
+   * contract's address
    */
   function setCustodian(address payable newCustodian) external onlyAdmin {
     require(_custodian == address(0x0), 'Custodian can only be set once');
@@ -439,7 +444,7 @@ contract Exchange is IExchange, Owned {
       effectiveBlockNumber
     );
 
-    emit InvalidatedOrderNonce(
+    emit OrderNonceInvalidated(
       msg.sender,
       nonce,
       timestamp,
@@ -453,16 +458,12 @@ contract Exchange is IExchange, Owned {
    * Settles a user withdrawal submitted off-chain. Calls restricted to currently whitelisted Dispatcher wallet
    *
    * @param withdrawal A `Structs.Withdrawal` struct encoding the parameters of the withdrawal
-   * @param withdrawalAssetSymbol The case-sensitive token symbol. Mutually exclusive with the `assetAddress`
-   * field of the `withdrawal` struct argument
-   * @param withdrawalWalletSignature The ECDSA signature of the withdrawal hash as produced by
-   * `Signatures.getWithdrawalWalletHash`
    */
-  function withdraw(
-    Structs.Withdrawal calldata withdrawal,
-    string calldata withdrawalAssetSymbol,
-    bytes calldata withdrawalWalletSignature
-  ) external override onlyDispatcher {
+  function withdraw(Structs.Withdrawal memory withdrawal)
+    public
+    override
+    onlyDispatcher
+  {
     // Validations
     require(!isWalletExitFinalized(withdrawal.walletAddress), 'Wallet exited');
     require(
@@ -470,11 +471,7 @@ contract Exchange is IExchange, Owned {
         _maxWithdrawalFeeBasisPoints,
       'Excessive withdrawal fee'
     );
-    bytes32 withdrawalHash = validateWithdrawalSignature(
-      withdrawal,
-      withdrawalAssetSymbol,
-      withdrawalWalletSignature
-    );
+    bytes32 withdrawalHash = validateWithdrawalSignature(withdrawal);
     require(
       !_completedWithdrawalHashes[withdrawalHash],
       'Hash already withdrawn'
@@ -484,7 +481,7 @@ contract Exchange is IExchange, Owned {
     Structs.Asset memory asset = withdrawal.withdrawalType ==
       Enums.WithdrawalType.BySymbol
       ? _assetRegistry.loadAssetBySymbol(
-        withdrawalAssetSymbol,
+        withdrawal.assetSymbol,
         UUID.getTimestampFromUuidV1(withdrawal.nonce)
       )
       : _assetRegistry.loadAssetByAddress(withdrawal.assetAddress);
@@ -636,7 +633,7 @@ contract Exchange is IExchange, Owned {
     updateOrderFilledQuantities(buy, buyHash, sell, sellHash, trade);
     updateBalancesForTrade(buy, sell, trade);
 
-    emit ExecutedTrade(
+    emit TradeExecuted(
       buy.walletAddress,
       sell.walletAddress,
       baseSymbol,
@@ -971,20 +968,17 @@ contract Exchange is IExchange, Owned {
     );
   }
 
-  function validateWithdrawalSignature(
-    Structs.Withdrawal memory withdrawal,
-    string memory withdrawalAssetSymbol,
-    bytes memory withdrawalWalletSignature
-  ) private pure returns (bytes32) {
-    bytes32 withdrawalHash = Signatures.getWithdrawalWalletHash(
-      withdrawal,
-      withdrawalAssetSymbol
-    );
+  function validateWithdrawalSignature(Structs.Withdrawal memory withdrawal)
+    private
+    pure
+    returns (bytes32)
+  {
+    bytes32 withdrawalHash = Signatures.getWithdrawalWalletHash(withdrawal);
 
     require(
       Signatures.isSignatureValid(
         withdrawalHash,
-        withdrawalWalletSignature,
+        withdrawal.walletSignature,
         withdrawal.walletAddress
       ),
       'Invalid wallet signature'
@@ -1004,7 +998,7 @@ contract Exchange is IExchange, Owned {
     uint8 decimals
   ) external onlyAdmin {
     _assetRegistry.registerToken(tokenAddress, symbol, decimals);
-    emit RegisteredToken(tokenAddress, symbol, decimals);
+    emit TokenRegistered(tokenAddress, symbol, decimals);
   }
 
   /**
@@ -1017,7 +1011,7 @@ contract Exchange is IExchange, Owned {
     uint8 decimals
   ) external onlyAdmin {
     _assetRegistry.confirmTokenRegistration(tokenAddress, symbol, decimals);
-    emit ConfirmedRegisteredToken(tokenAddress, symbol, decimals);
+    emit ConfirmedTokenRegistered(tokenAddress, symbol, decimals);
   }
 
   function loadAssetBySymbol(string calldata assetSymbol, uint64 timestamp)

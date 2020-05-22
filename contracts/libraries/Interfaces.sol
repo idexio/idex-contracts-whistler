@@ -87,10 +87,12 @@ contract Structs {
     Enums.WithdrawalType withdrawalType;
     uint128 nonce;
     address payable walletAddress;
+    string assetSymbol;
     address assetAddress; // used in case symbol not specified
     uint64 quantityInPips;
     uint64 gasFeeInPips;
     bool autoDispatchEnabled; // ignored, auto dispatch is always enabled
+    bytes walletSignature;
   }
 }
 
@@ -127,9 +129,5 @@ interface IExchange {
     Structs.Trade calldata trade
   ) external;
 
-  function withdraw(
-    Structs.Withdrawal calldata withdrawal,
-    string calldata withdrawalTokenSymbol,
-    bytes calldata withdrawalWalletSignature
-  ) external;
+  function withdraw(Structs.Withdrawal calldata withdrawal) external;
 }

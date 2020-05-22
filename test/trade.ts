@@ -48,7 +48,7 @@ contract('Exchange (trades)', (accounts) => {
         sellWallet,
       );
 
-      const events = await exchange.getPastEvents('ExecutedTrade', {
+      const events = await exchange.getPastEvents('TradeExecuted', {
         fromBlock: 0,
       });
       expect(events).to.be.an('array');
@@ -97,7 +97,7 @@ contract('Exchange (trades)', (accounts) => {
         fill,
       );
 
-      const events = await exchange.getPastEvents('ExecutedTrade', {
+      const events = await exchange.getPastEvents('TradeExecuted', {
         fromBlock: 0,
       });
       expect(events).to.be.an('array');
@@ -152,7 +152,7 @@ contract('Exchange (trades)', (accounts) => {
         fill,
       );
 
-      const events = await exchange.getPastEvents('ExecutedTrade', {
+      const events = await exchange.getPastEvents('TradeExecuted', {
         fromBlock: 0,
       });
       expect(events).to.be.an('array');
@@ -209,7 +209,7 @@ contract('Exchange (trades)', (accounts) => {
         fill,
       );
 
-      const events = await exchange.getPastEvents('ExecutedTrade', {
+      const events = await exchange.getPastEvents('TradeExecuted', {
         fromBlock: 0,
       });
       expect(events).to.be.an('array');

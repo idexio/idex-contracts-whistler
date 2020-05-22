@@ -11,7 +11,7 @@ contract('Exchange (invalidations)', (accounts) => {
 
       await exchange.invalidateOrderNonce(uuidToHexString(uuidv1()));
 
-      const events = await exchange.getPastEvents('InvalidatedOrderNonce', {
+      const events = await exchange.getPastEvents('OrderNonceInvalidated', {
         fromBlock: 0,
       });
       expect(events).to.be.an('array');
@@ -24,7 +24,7 @@ contract('Exchange (invalidations)', (accounts) => {
       await exchange.invalidateOrderNonce(uuidToHexString(uuidv1()));
       await exchange.invalidateOrderNonce(uuidToHexString(uuidv1()));
 
-      const events = await exchange.getPastEvents('InvalidatedOrderNonce', {
+      const events = await exchange.getPastEvents('OrderNonceInvalidated', {
         fromBlock: 0,
       });
       expect(events).to.be.an('array');

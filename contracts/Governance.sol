@@ -77,9 +77,14 @@ contract Governance is Owned {
   }
 
   /**
-   * @dev Sets the address of the `Custodian` contract. This value is immutable once set and cannot be changed again
+   * @dev Sets the address of the `Custodian` contract. The `Custodian` accepts `Exchange` and
+   * `Governance` addresses in its constructor, after which they can only be changed by the
+   * `Governance` contract itself. Therefore the `Custodian` must be deployed last and its address
+   * set here on an existing `Governance` contract. This value is immutable once set and cannot be
+   * changed again
    *
-   * @param newCustodian The address of the `Custodian` contract deployed against this `Governance` contract's address
+   * @param newCustodian The address of the `Custodian` contract deployed against this `Governance`
+   * contract's address
    */
   function setCustodian(ICustodian newCustodian) external onlyAdmin {
     require(_custodian == ICustodian(0x0), 'Custodian can only be set once');

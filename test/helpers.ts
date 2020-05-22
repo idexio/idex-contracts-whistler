@@ -77,19 +77,11 @@ export const withdraw = async (
   wallet: string,
   gasFee = '0.00000000',
 ): Promise<void> => {
-  const [
-    withdrawalStruct,
-    withdrawalTokenSymbol,
-    withdrawalWalletSignature,
-  ] = await getWithdrawArguments(
+  const [withdrawalStruct] = await getWithdrawArguments(
     withdrawal,
     gasFee,
     await getSignature(web3, getWithdrawalHash(withdrawal), wallet),
   );
 
-  await exchange.withdraw(
-    withdrawalStruct,
-    withdrawalTokenSymbol,
-    withdrawalWalletSignature,
-  );
+  await exchange.withdraw(withdrawalStruct);
 };

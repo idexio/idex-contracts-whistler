@@ -190,11 +190,7 @@ contract('Exchange (withdrawals)', (accounts) => {
         autoDispatchEnabled: true,
         asset: ethSymbol,
       };
-      const [
-        withdrawalStruct,
-        withdrawalTokenSymbol,
-        withdrawalWalletSignature,
-      ] = await getWithdrawArguments(
+      const [withdrawalStruct] = await getWithdrawArguments(
         withdrawal,
         '0.00000000',
         // Sign with a different wallet
@@ -203,11 +199,7 @@ contract('Exchange (withdrawals)', (accounts) => {
 
       let error;
       try {
-        await exchange.withdraw(
-          withdrawalStruct,
-          withdrawalTokenSymbol,
-          withdrawalWalletSignature,
-        );
+        await exchange.withdraw(withdrawalStruct);
       } catch (e) {
         error = e;
       }
@@ -289,29 +281,17 @@ contract('Exchange (withdrawals)', (accounts) => {
         autoDispatchEnabled: true,
         asset: ethSymbol,
       };
-      const [
-        withdrawalStruct,
-        withdrawalTokenSymbol,
-        withdrawalWalletSignature,
-      ] = await getWithdrawArguments(
+      const [withdrawalStruct] = await getWithdrawArguments(
         withdrawal,
         '0',
         await getSignature(web3, getWithdrawalHash(withdrawal), accounts[0]),
       );
 
-      await exchange.withdraw(
-        withdrawalStruct,
-        withdrawalTokenSymbol,
-        withdrawalWalletSignature,
-      );
+      await exchange.withdraw(withdrawalStruct);
 
       let error;
       try {
-        await exchange.withdraw(
-          withdrawalStruct,
-          withdrawalTokenSymbol,
-          withdrawalWalletSignature,
-        );
+        await exchange.withdraw(withdrawalStruct);
       } catch (e) {
         error = e;
       }

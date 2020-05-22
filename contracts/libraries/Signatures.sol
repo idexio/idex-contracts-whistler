@@ -61,17 +61,20 @@ library Signatures {
       );
   }
 
-  function getWithdrawalWalletHash(
-    Structs.Withdrawal memory withdrawal,
-    string memory withdrawalTokenSymbol
-  ) internal pure returns (bytes32) {
+  function getWithdrawalWalletHash(Structs.Withdrawal memory withdrawal)
+    internal
+    pure
+    returns (bytes32)
+  {
     return
       keccak256(
         abi.encodePacked(
           withdrawal.nonce,
           withdrawal.walletAddress,
-          withdrawalTokenSymbol,
-          withdrawal.assetAddress,
+          // Ternary branches must resolve to the same type, so wrap in idempotent encodePacked
+          withdrawal.withdrawalType == Enums.WithdrawalType.BySymbol
+            ? abi.encodePacked(withdrawal.assetSymbol)
+            : abi.encodePacked(withdrawal.assetAddress),
           pipToDecimal(withdrawal.quantityInPips),
           withdrawal.autoDispatchEnabled
         )
