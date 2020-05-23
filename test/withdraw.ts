@@ -4,7 +4,12 @@ import type { CustodianInstance } from '../types/truffle-contracts/Custodian';
 import type { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 import type { GovernanceInstance } from '../types/truffle-contracts/Governance';
 
-import { getWithdrawArguments, getWithdrawalHash } from '../lib';
+import {
+  decimalToAssetUnits,
+  decimalToPips,
+  getWithdrawArguments,
+  getWithdrawalHash,
+} from '../lib';
 import {
   deployAndRegisterToken,
   ethAddress,
@@ -14,8 +19,8 @@ import {
   minimumTokenQuantity,
   withdraw,
 } from './helpers';
+import BigNumber from 'bignumber.js';
 
-// TODO Balance changes for wallet, Exchange, and Custodian
 // TODO Non-zero gas fees
 contract('Exchange (withdrawals)', (accounts) => {
   const Custodian = artifacts.require('Custodian');
@@ -48,11 +53,27 @@ contract('Exchange (withdrawals)', (accounts) => {
         accounts[0],
       );
 
-      const events = await exchange.getPastEvents('Withdrawn', {
-        fromBlock: 0,
-      });
-      expect(events).to.be.an('array');
-      expect(events.length).to.equal(1);
+      await assertWithdrawnEvent(
+        exchange,
+        accounts[0],
+        ethAddress,
+        ethSymbol,
+        minimumDecimalQuantity,
+      );
+
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            accounts[0],
+            ethAddress,
+          )
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadBalanceInPipsByAddress(accounts[0], ethAddress)
+        ).toString(),
+      ).to.equal('0');
     });
 
     it('should work by address for ETH', async () => {
@@ -76,11 +97,27 @@ contract('Exchange (withdrawals)', (accounts) => {
         accounts[0],
       );
 
-      const events = await exchange.getPastEvents('Withdrawn', {
-        fromBlock: 0,
-      });
-      expect(events).to.be.an('array');
-      expect(events.length).to.equal(1);
+      await assertWithdrawnEvent(
+        exchange,
+        accounts[0],
+        ethAddress,
+        ethSymbol,
+        minimumDecimalQuantity,
+      );
+
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            accounts[0],
+            ethAddress,
+          )
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadBalanceInPipsByAddress(accounts[0], ethAddress)
+        ).toString(),
+      ).to.equal('0');
     });
 
     it('should work by symbol for token', async () => {
@@ -103,11 +140,98 @@ contract('Exchange (withdrawals)', (accounts) => {
         accounts[0],
       );
 
-      const events = await exchange.getPastEvents('Withdrawn', {
-        fromBlock: 0,
-      });
-      expect(events).to.be.an('array');
-      expect(events.length).to.equal(1);
+      await assertWithdrawnEvent(
+        exchange,
+        accounts[0],
+        token.address,
+        tokenSymbol,
+        minimumDecimalQuantity,
+      );
+
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            accounts[0],
+            ethAddress,
+          )
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadBalanceInPipsByAddress(accounts[0], ethAddress)
+        ).toString(),
+      ).to.equal('0');
+    });
+
+    it('should deduct fee', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      await exchange.setFeeWallet(accounts[1]);
+
+      const tokenBalanceBefore = (
+        await token.balanceOf(accounts[0])
+      ).toString();
+      const withdrawalAmount = new BigNumber(minimumDecimalQuantity)
+        .multipliedBy(100)
+        .toFixed(8);
+      await token.approve(
+        exchange.address,
+        decimalToAssetUnits(withdrawalAmount, 18),
+      );
+      await exchange.depositTokenByAddress(
+        token.address,
+        decimalToAssetUnits(withdrawalAmount, 18),
+      );
+
+      await withdraw(
+        web3,
+        exchange,
+        {
+          nonce: uuidv1(),
+          wallet: accounts[0],
+          quantity: withdrawalAmount,
+          autoDispatchEnabled: true,
+          asset: tokenSymbol,
+        },
+        accounts[0],
+        minimumDecimalQuantity,
+      );
+
+      await assertWithdrawnEvent(
+        exchange,
+        accounts[0],
+        token.address,
+        tokenSymbol,
+        withdrawalAmount,
+      );
+
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            accounts[0],
+            token.address,
+          )
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadBalanceInPipsByAddress(accounts[0], token.address)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            accounts[1],
+            token.address,
+          )
+        ).toString(),
+      ).to.equal(minimumTokenQuantity);
+      expect((await token.balanceOf(accounts[0])).toString()).to.equal(
+        new BigNumber(tokenBalanceBefore)
+          .minus(new BigNumber(minimumTokenQuantity))
+          .toString(),
+      );
     });
 
     it('should revert for unknown token', async () => {
@@ -315,5 +439,29 @@ contract('Exchange (withdrawals)', (accounts) => {
     await exchange.setCustodian(custodian.address);
 
     return { custodian, exchange, governance };
+  };
+
+  const assertWithdrawnEvent = async (
+    exchange: ExchangeInstance,
+    walletAddress: string,
+    assetAddress: string,
+    assetSymbol: string,
+    decimalQuantity: string,
+  ): Promise<void> => {
+    const events = await exchange.getPastEvents('Withdrawn', {
+      fromBlock: 0,
+    });
+    expect(events).to.be.an('array');
+    expect(events.length).to.equal(1);
+    expect(events[0].returnValues.wallet).to.equal(walletAddress);
+    expect(events[0].returnValues.assetAddress).to.equal(assetAddress);
+    expect(events[0].returnValues.assetSymbol).to.equal(assetSymbol);
+    expect(events[0].returnValues.quantityInPips).to.equal(
+      decimalToPips(decimalQuantity),
+    );
+    expect(events[0].returnValues.newExchangeBalanceInPips).to.equal(
+      decimalToPips('0'),
+    );
+    expect(events[0].returnValues.newExchangeBalanceInAssetUnits).to.equal('0');
   };
 });

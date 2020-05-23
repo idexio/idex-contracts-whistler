@@ -24,6 +24,9 @@ import {
 import { UUID } from './libraries/UUID.sol';
 
 
+/**
+ * @dev The term `asset` refers collectively to ETH and ERC-20 tokens, the term `token` refers only to the latter
+ */
 contract Exchange is IExchange, Owned {
   using SafeMath64 for uint64;
   using SafeMath256 for uint256;
@@ -43,8 +46,8 @@ contract Exchange is IExchange, Owned {
     address indexed wallet,
     address indexed assetAddress,
     string indexed assetSymbol,
-    uint256 quantityInPips,
-    uint256 newExchangeBalanceInPips,
+    uint64 quantityInPips,
+    uint64 newExchangeBalanceInPips,
     uint256 newExchangeBalanceInAssetUnits
   );
   /**
@@ -108,9 +111,9 @@ contract Exchange is IExchange, Owned {
   event WalletExitWithdrawn(
     address indexed wallet,
     address indexed assetAddress,
-    string indexed assetSymbol,
-    uint256 quantityInPips,
-    uint256 newExchangeBalanceInPips,
+    string assetSymbol,
+    uint64 quantityInPips,
+    uint64 newExchangeBalanceInPips,
     uint256 newExchangeBalanceInAssetUnits
   );
   /**
@@ -119,9 +122,9 @@ contract Exchange is IExchange, Owned {
   event Withdrawn(
     address indexed wallet,
     address indexed assetAddress,
-    string indexed assetSymbol,
-    uint256 quantityInPips,
-    uint256 newExchangeBalanceInPips,
+    string assetSymbol,
+    uint64 quantityInPips,
+    uint64 newExchangeBalanceInPips,
     uint256 newExchangeBalanceInAssetUnits
   );
 
@@ -282,7 +285,7 @@ contract Exchange is IExchange, Owned {
   function loadBalanceInPipsByAddress(address wallet, address assetAddress)
     external
     view
-    returns (uint256)
+    returns (uint64)
   {
     return _balancesInPips[wallet][assetAddress];
   }
@@ -293,7 +296,7 @@ contract Exchange is IExchange, Owned {
   function loadBalanceInPipsBySymbol(
     address wallet,
     string calldata assetSymbol
-  ) external view returns (uint256) {
+  ) external view returns (uint64) {
     address assetAddress = _assetRegistry
       .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
       .assetAddress;
