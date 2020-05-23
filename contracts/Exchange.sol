@@ -24,6 +24,9 @@ import {
 import { UUID } from './libraries/UUID.sol';
 
 
+/**
+ * @dev The term `asset` refers collectively to ETH and ERC-20 tokens, the term `token` refers only to the latter
+ */
 contract Exchange is IExchange, Owned {
   using SafeMath64 for uint64;
   using SafeMath256 for uint256;
@@ -43,8 +46,9 @@ contract Exchange is IExchange, Owned {
     address indexed wallet,
     address indexed assetAddress,
     string indexed assetSymbol,
-    uint256 quantityInPips,
-    uint256 newExchangeBalanceInPips
+    uint64 quantityInPips,
+    uint64 newExchangeBalanceInPips,
+    uint256 newExchangeBalanceInAssetUnits
   );
   /**
    * @dev Emitted when an admin changes the Dispatch Wallet tunable parameter with `setDispatcher`
@@ -77,7 +81,7 @@ contract Exchange is IExchange, Owned {
    * @dev Emitted when an admin finalizes the token registration process with `confirmAssetRegistration`, after
    * which it can be deposited, traded, or withdrawn
    */
-  event ConfirmedTokenRegistered(
+  event TokenRegistrationConfirmed(
     address indexed assetAddress,
     string indexed assetSymbol,
     uint8 decimals
@@ -107,9 +111,10 @@ contract Exchange is IExchange, Owned {
   event WalletExitWithdrawn(
     address indexed wallet,
     address indexed assetAddress,
-    string indexed assetSymbol,
-    uint256 quantityInPips,
-    uint256 newExchangeBalanceInPips
+    string assetSymbol,
+    uint64 quantityInPips,
+    uint64 newExchangeBalanceInPips,
+    uint256 newExchangeBalanceInAssetUnits
   );
   /**
    * @dev Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
@@ -117,9 +122,10 @@ contract Exchange is IExchange, Owned {
   event Withdrawn(
     address indexed wallet,
     address indexed assetAddress,
-    string indexed assetSymbol,
-    uint256 quantityInPips,
-    uint256 newExchangeBalanceInPips
+    string assetSymbol,
+    uint64 quantityInPips,
+    uint64 newExchangeBalanceInPips,
+    uint256 newExchangeBalanceInAssetUnits
   );
 
   // Internally used structs //
@@ -239,13 +245,12 @@ contract Exchange is IExchange, Owned {
   // Accessors //
 
   /**
-   * @dev Returns the quantity of `assetAddress` currently deposited by `wallet` in asset units
+   * Returns the quantity denominated in asset units of asset with `assetAddress` currently deposited by `wallet`
    */
-  function balanceOfInAssetUnits(address wallet, address assetAddress)
-    external
-    view
-    returns (uint256)
-  {
+  function loadBalanceInAssetUnitsByAddress(
+    address wallet,
+    address assetAddress
+  ) external view returns (uint256) {
     Structs.Asset memory asset = _assetRegistry.loadAssetByAddress(
       assetAddress
     );
@@ -257,9 +262,9 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Returns the quantity of `assetSymbol` currently deposited by `wallet` in asset units
+   * Returns the quantity denominated in asset units of asset with `assetSymbol` currently deposited by `wallet`
    */
-  function balanceOfBySymbolInAssetUnits(
+  function loadBalanceInAssetUnitsBySymbol(
     address wallet,
     string calldata assetSymbol
   ) external view returns (uint256) {
@@ -275,24 +280,23 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @dev Returns the amount of `asset` currently deposited by `wallet` in pips
+   * @dev Returns the quantity denominated in pips of asset with `assetAddress` currently deposited by `wallet`
    */
-  function balanceOfInPips(address wallet, address assetAddress)
+  function loadBalanceInPipsByAddress(address wallet, address assetAddress)
     external
     view
-    returns (uint256)
+    returns (uint64)
   {
     return _balancesInPips[wallet][assetAddress];
   }
 
   /**
-   * @dev Returns the amount of `assetSymbol` currently deposited by `wallet` in pips
+   * @dev Returns the quantity denominated in pips of asset with `assetSymbol` currently deposited by `wallet`
    */
-  function balanceOfBySymbolInPips(address wallet, string calldata assetSymbol)
-    external
-    view
-    returns (uint256)
-  {
+  function loadBalanceInPipsBySymbol(
+    address wallet,
+    string calldata assetSymbol
+  ) external view returns (uint64) {
     address assetAddress = _assetRegistry
       .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
       .assetAddress;
@@ -305,7 +309,7 @@ contract Exchange is IExchange, Owned {
    * an order nonce will not clear partial fill quantities for earlier orders because the gas cost
    * would potentially be unbound
    */
-  function partiallyFilledOrderQuantityInPips(bytes32 orderHash)
+  function loadPartiallyFilledOrderQuantityInPips(bytes32 orderHash)
     external
     view
     returns (uint64)
@@ -329,9 +333,10 @@ contract Exchange is IExchange, Owned {
    * @param quantityInAssetUnits The quantity to deposit. The sending wallet must first call the `approve` method on
    * the token contract for at least this quantity first
    */
-  function depositToken(address assetAddress, uint256 quantityInAssetUnits)
-    external
-  {
+  function depositTokenByAddress(
+    address assetAddress,
+    uint256 quantityInAssetUnits
+  ) external {
     require(assetAddress != address(0x0), 'Use depositEther to deposit Ether');
     deposit(msg.sender, assetAddress, quantityInAssetUnits);
   }
@@ -397,10 +402,13 @@ contract Exchange is IExchange, Owned {
       quantityInAssetUnitsWithoutFractionalPips
     );
 
-    // Update balance with transferred quantity
     uint64 newExchangeBalanceInPips = _balancesInPips[wallet][assetAddress].add(
       quantityInPips
     );
+    uint256 newExchangeBalanceInAssetUnits = AssetUnitConversions
+      .pipsToAssetUnits(newExchangeBalanceInPips, asset.decimals);
+
+    // Update balance with actual transferred quantity
     _balancesInPips[wallet][assetAddress] = newExchangeBalanceInPips;
     _depositIndex++;
 
@@ -410,7 +418,8 @@ contract Exchange is IExchange, Owned {
       assetAddress,
       asset.symbol,
       quantityInPips,
-      newExchangeBalanceInPips
+      newExchangeBalanceInPips,
+      newExchangeBalanceInAssetUnits
     );
   }
 
@@ -503,6 +512,8 @@ contract Exchange is IExchange, Owned {
     uint64 newExchangeBalanceInPips = _balancesInPips[withdrawal
       .walletAddress][asset.assetAddress]
       .sub(withdrawal.quantityInPips);
+    uint256 newExchangeBalanceInAssetUnits = AssetUnitConversions
+      .pipsToAssetUnits(newExchangeBalanceInPips, asset.decimals);
 
     _balancesInPips[withdrawal.walletAddress][asset
       .assetAddress] = newExchangeBalanceInPips;
@@ -524,7 +535,8 @@ contract Exchange is IExchange, Owned {
       asset.assetAddress,
       asset.symbol,
       withdrawal.quantityInPips,
-      newExchangeBalanceInPips
+      newExchangeBalanceInPips,
+      newExchangeBalanceInAssetUnits
     );
   }
 
@@ -575,6 +587,7 @@ contract Exchange is IExchange, Owned {
       assetAddress,
       asset.symbol,
       balanceInPips,
+      0,
       0
     );
   }
@@ -594,8 +607,8 @@ contract Exchange is IExchange, Owned {
    * market symbol into its two constituent asset symbols
    * @dev Stack level too deep if declared external
    *
-   * @param buy An `Structs.Order` struct encoding the parameters of the buy-side o
-   * @param sell An `Structs.Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
+   * @param buy A `Structs.Order` struct encoding the parameters of the buy-side order (receiving base, giving quote)
+   * @param sell A `Structs.Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
    * @param trade A `trade` struct encoding the parameters of this trade execution of the counterparty orders
    */
   function executeTrade(
@@ -642,18 +655,6 @@ contract Exchange is IExchange, Owned {
     Structs.Order memory sell,
     Structs.Trade memory trade
   ) private {
-    // Capture balances before and after updates to assert zero-sum
-    /*
-    uint64 baseAssetBalanceInPipsBefore = _balancesInPips[sell
-      .walletAddress][trade.baseAssetAddress]
-      .add(_balancesInPips[buy.walletAddress][trade.baseAssetAddress])
-      .add(_balancesInPips[_feeWallet][trade.baseAssetAddress]);
-    uint64 quoteAssetBalanceInPipsBefore = _balancesInPips[sell
-      .walletAddress][trade.quoteAssetAddress]
-      .add(_balancesInPips[buy.walletAddress][trade.quoteAssetAddress])
-      .add(_balancesInPips[_feeWallet][trade.quoteAssetAddress]);
-      */
-
     // Seller gives base asset including fees
     _balancesInPips[sell.walletAddress][trade
       .baseAssetAddress] = _balancesInPips[sell.walletAddress][trade
@@ -685,21 +686,6 @@ contract Exchange is IExchange, Owned {
       .takerFeeAssetAddress] = _balancesInPips[_feeWallet][trade
       .takerFeeAssetAddress]
       .add(trade.takerFeeQuantityInPips);
-
-    // Assert invariants - balance updates should always be zero-sum. There is no known case in
-    // which these do not hold
-    /*
-    uint256 baseAssetBalanceInPipsAfter = _balancesInPips[sell
-      .walletAddress][trade.baseAssetAddress]
-      .add(_balancesInPips[buy.walletAddress][trade.baseAssetAddress])
-      .add(_balancesInPips[_feeWallet][trade.baseAssetAddress]);
-    assert(baseAssetBalanceInPipsBefore == baseAssetBalanceInPipsAfter);
-    uint256 quoteAssetBalanceInPipsAfter = _balancesInPips[sell
-      .walletAddress][trade.quoteAssetAddress]
-      .add(_balancesInPips[buy.walletAddress][trade.quoteAssetAddress])
-      .add(_balancesInPips[_feeWallet][trade.quoteAssetAddress]);
-    assert(quoteAssetBalanceInPipsBefore == quoteAssetBalanceInPipsAfter);
-    */
   }
 
   function updateOrderFilledQuantities(
@@ -983,7 +969,7 @@ contract Exchange is IExchange, Owned {
     uint8 decimals
   ) external onlyAdmin {
     _assetRegistry.confirmTokenRegistration(tokenAddress, symbol, decimals);
-    emit ConfirmedTokenRegistered(tokenAddress, symbol, decimals);
+    emit TokenRegistrationConfirmed(tokenAddress, symbol, decimals);
   }
 
   function loadAssetBySymbol(string calldata assetSymbol, uint64 timestampInMs)

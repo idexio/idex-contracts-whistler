@@ -57,22 +57,28 @@ contract('Exchange (trades)', (accounts) => {
       const { buyOrderHash, sellOrderHash } = events[0].returnValues;
       expect(
         (
-          await exchange.balanceOfInAssetUnits(buyWallet, token.address)
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            buyWallet,
+            token.address,
+          )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
       expect(
         (
-          await exchange.balanceOfInAssetUnits(sellWallet, ethAddress)
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            sellWallet,
+            ethAddress,
+          )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
       expect(
         (
-          await exchange.partiallyFilledOrderQuantityInPips(buyOrderHash)
+          await exchange.loadPartiallyFilledOrderQuantityInPips(buyOrderHash)
         ).toString(),
       ).to.equal('0');
       expect(
         (
-          await exchange.partiallyFilledOrderQuantityInPips(sellOrderHash)
+          await exchange.loadPartiallyFilledOrderQuantityInPips(sellOrderHash)
         ).toString(),
       ).to.equal('0');
     });
@@ -110,22 +116,28 @@ contract('Exchange (trades)', (accounts) => {
       const { buyOrderHash, sellOrderHash } = events[0].returnValues;
       expect(
         (
-          await exchange.balanceOfInAssetUnits(buyWallet, token.address)
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            buyWallet,
+            token.address,
+          )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
       expect(
         (
-          await exchange.balanceOfInAssetUnits(sellWallet, ethAddress)
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            sellWallet,
+            ethAddress,
+          )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
       expect(
         (
-          await exchange.partiallyFilledOrderQuantityInPips(buyOrderHash)
+          await exchange.loadPartiallyFilledOrderQuantityInPips(buyOrderHash)
         ).toString(),
       ).to.equal('0');
       expect(
         (
-          await exchange.partiallyFilledOrderQuantityInPips(sellOrderHash)
+          await exchange.loadPartiallyFilledOrderQuantityInPips(sellOrderHash)
         ).toString(),
       ).to.equal('0');
     });
@@ -169,22 +181,28 @@ contract('Exchange (trades)', (accounts) => {
       const { buyOrderHash, sellOrderHash } = events[0].returnValues;
       expect(
         (
-          await exchange.balanceOfInAssetUnits(buyWallet, token.address)
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            buyWallet,
+            token.address,
+          )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
       expect(
         (
-          await exchange.balanceOfInAssetUnits(sellWallet, ethAddress)
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            sellWallet,
+            ethAddress,
+          )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
       expect(
         (
-          await exchange.partiallyFilledOrderQuantityInPips(buyOrderHash)
+          await exchange.loadPartiallyFilledOrderQuantityInPips(buyOrderHash)
         ).toString(),
       ).to.equal(decimalToPips(fill.grossBaseQuantity));
       expect(
         (
-          await exchange.partiallyFilledOrderQuantityInPips(sellOrderHash)
+          await exchange.loadPartiallyFilledOrderQuantityInPips(sellOrderHash)
         ).toString(),
       ).to.equal(decimalToPips(fill.grossBaseQuantity));
     });
@@ -230,22 +248,28 @@ contract('Exchange (trades)', (accounts) => {
       const { buyOrderHash, sellOrderHash } = events[0].returnValues;
       expect(
         (
-          await exchange.balanceOfInAssetUnits(buyWallet, token.address)
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            buyWallet,
+            token.address,
+          )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
       expect(
         (
-          await exchange.balanceOfInAssetUnits(sellWallet, ethAddress)
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            sellWallet,
+            ethAddress,
+          )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
       expect(
         (
-          await exchange.partiallyFilledOrderQuantityInPips(buyOrderHash)
+          await exchange.loadPartiallyFilledOrderQuantityInPips(buyOrderHash)
         ).toString(),
       ).to.equal(decimalToPips(fill.grossBaseQuantity));
       expect(
         (
-          await exchange.partiallyFilledOrderQuantityInPips(sellOrderHash)
+          await exchange.loadPartiallyFilledOrderQuantityInPips(sellOrderHash)
         ).toString(),
       ).to.equal(decimalToPips(fill.grossQuoteQuantity));
     });
@@ -1050,7 +1074,7 @@ export const deposit = async (
   await token.approve(exchange.address, decimalToAssetUnits(quantity, 18), {
     from: sellWallet,
   });
-  await exchange.depositToken(
+  await exchange.depositTokenByAddress(
     token.address,
     decimalToAssetUnits(quantity, 18),
     {

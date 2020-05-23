@@ -54,7 +54,8 @@ contract Structs {
   }
 
   /**
-   * @dev Return type for `Exchange.getTokenForSymbol`, also used internally by AssetRegistry
+   * @dev Return type for `Exchange.loadAssetBySymbol`, and `Exchange.loadAssetByAddress`; also
+   * used internally by `AssetRegistry`
    */
   struct Asset {
     bool exists;
