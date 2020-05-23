@@ -76,9 +76,9 @@ smart contracts before trading. The interaction lifecycle spans three steps.
 
 Users must deposit funds into the Whistler contracts before they are available for trading on IDEX. Depositing ETH
 requires calling `depositEther` on the Exchange contract; depositing tokens requires an `approve` call on the token itself
-before calling `depositToken` on the Exchange contract.
+before calling `depositTokenByAddress` on the Exchange contract.
 
-- The `depositEther` and `depositToken` are functions on the Exchange contract, but the funds are ultimately held in the
+- The `depositEther` and `depositTokenByAddress` are functions on the Exchange contract, but the funds are ultimately held in the
 Custody contract. As part of the deposit process, tokens are transferred first to the Exchange contract, which tracks
 wallet asset balances, and then transferred again to the Custody contract. Separate exchange logic and fund custody
 supports IDEX 2.0’s [upgrade design](#upgradability).
