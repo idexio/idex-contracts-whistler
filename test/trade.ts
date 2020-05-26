@@ -28,9 +28,6 @@ import {
 const tokenSymbol = 'TKN';
 const marketSymbol = `${tokenSymbol}-${ethSymbol}`;
 
-// TODO Balance changes for wallet, Exchange, and Custodian
-// TODO Advanced order types
-// TODO Test tokens with decimals other than 18
 contract('Exchange (trades)', (accounts) => {
   const Token = artifacts.require('TestToken');
 
@@ -46,6 +43,181 @@ contract('Exchange (trades)', (accounts) => {
         token,
         buyWallet,
         sellWallet,
+      );
+
+      const events = await exchange.getPastEvents('TradeExecuted', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+
+      const { buyOrderHash, sellOrderHash } = events[0].returnValues;
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            buyWallet,
+            token.address,
+          )
+        ).toString(),
+      ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            sellWallet,
+            ethAddress,
+          )
+        ).toString(),
+      ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
+      expect(
+        (
+          await exchange.loadPartiallyFilledOrderQuantityInPips(buyOrderHash)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadPartiallyFilledOrderQuantityInPips(sellOrderHash)
+        ).toString(),
+      ).to.equal('0');
+    });
+
+    it('should work for matching limit orders with 2 decimal base asset', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol, 2);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet, 2);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+
+      await executeTrade(
+        exchange,
+        buyWallet,
+        sellWallet,
+        buyOrder,
+        sellOrder,
+        fill,
+      );
+
+      const events = await exchange.getPastEvents('TradeExecuted', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+
+      const { buyOrderHash, sellOrderHash } = events[0].returnValues;
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            buyWallet,
+            token.address,
+          )
+        ).toString(),
+      ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 2));
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            sellWallet,
+            ethAddress,
+          )
+        ).toString(),
+      ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
+      expect(
+        (
+          await exchange.loadPartiallyFilledOrderQuantityInPips(buyOrderHash)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadPartiallyFilledOrderQuantityInPips(sellOrderHash)
+        ).toString(),
+      ).to.equal('0');
+    });
+
+    it('should work for matching stop limit orders', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      buyOrder.type = OrderType.StopLossLimit;
+      sellOrder.type = OrderType.StopLossLimit;
+
+      await executeTrade(
+        exchange,
+        buyWallet,
+        sellWallet,
+        buyOrder,
+        sellOrder,
+        fill,
+      );
+
+      const events = await exchange.getPastEvents('TradeExecuted', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+
+      const { buyOrderHash, sellOrderHash } = events[0].returnValues;
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            buyWallet,
+            token.address,
+          )
+        ).toString(),
+      ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            sellWallet,
+            ethAddress,
+          )
+        ).toString(),
+      ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
+      expect(
+        (
+          await exchange.loadPartiallyFilledOrderQuantityInPips(buyOrderHash)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadPartiallyFilledOrderQuantityInPips(sellOrderHash)
+        ).toString(),
+      ).to.equal('0');
+    });
+
+    it('should work for matching stop market orders', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+      buyOrder.type = OrderType.StopLoss;
+      sellOrder.type = OrderType.TakeProfit;
+
+      await executeTrade(
+        exchange,
+        buyWallet,
+        sellWallet,
+        buyOrder,
+        sellOrder,
+        fill,
       );
 
       const events = await exchange.getPastEvents('TradeExecuted', {
@@ -1064,25 +1236,30 @@ export const deposit = async (
   token: TestTokenInstance,
   buyWallet: string,
   sellWallet: string,
+  decimals = 18,
 ): Promise<void> => {
   const quantity = '10.00000000';
-  const price = '0.10000000'; // 1 ETH buys 10 TKN
+  const price = new BigNumber('0.10000000').shiftedBy(18 - decimals); // 1 ETH buys 10 TKN
   const quoteQuantity = new BigNumber(quantity)
     .multipliedBy(new BigNumber(price))
     .toFixed(8, BigNumber.ROUND_DOWN);
 
-  await token.approve(exchange.address, decimalToAssetUnits(quantity, 18), {
-    from: sellWallet,
-  });
+  await token.approve(
+    exchange.address,
+    decimalToAssetUnits(quantity, decimals),
+    {
+      from: sellWallet,
+    },
+  );
   await exchange.depositTokenByAddress(
     token.address,
-    decimalToAssetUnits(quantity, 18),
+    decimalToAssetUnits(quantity, decimals),
     {
       from: sellWallet,
     },
   );
   await exchange.depositEther({
-    value: decimalToAssetUnits(quoteQuantity, 18),
+    value: decimalToAssetUnits(quoteQuantity, decimals),
     from: buyWallet,
   });
 };

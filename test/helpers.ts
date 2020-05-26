@@ -44,11 +44,12 @@ export const deployAndAssociateContracts = async (
 export const deployAndRegisterToken = async (
   exchange: ExchangeInstance,
   tokenSymbol: string,
+  decimals = 18,
 ): Promise<TestTokenInstance> => {
   const Token = artifacts.require('TestToken');
   const token = await Token.new();
-  await exchange.registerToken(token.address, tokenSymbol, 18);
-  await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
+  await exchange.registerToken(token.address, tokenSymbol, decimals);
+  await exchange.confirmTokenRegistration(token.address, tokenSymbol, decimals);
 
   return token;
 };
