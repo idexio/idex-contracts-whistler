@@ -78,8 +78,9 @@ Users must deposit funds into the Whistler contracts before they are available f
 requires calling `depositEther` on the Exchange contract; depositing tokens requires an `approve` call on the token itself
 before calling `depositTokenByAddress` on the Exchange contract.
 
-- The `depositEther` and `depositTokenByAddress` are functions on the Exchange contract, but the funds are ultimately held in the
-Custody contract. As part of the deposit process, tokens are transferred first to the Exchange contract, which tracks
+- The `depositEther` and `depositTokenByAddress` are functions on the Exchange contract, but the funds are ultimately
+held in the Custody contract. As part of the deposit process, tokens are transferred first to the Exchange contract, which
+tracks
 wallet asset balances, and then transferred again to the Custody contract. Separate exchange logic and fund custody
 supports IDEX 2.0’s [upgrade design](#upgradability).
   
@@ -106,7 +107,9 @@ infrastructure is compromised, the validations ensure that funds can only move i
 depositing wallet.
   
 - Due to business requirements, orders are specified by symbol, eg “UBT-ETH” rather than by token contract addresses.
-A number of validations result from the [token symbol registration system](#token-symbol-registry). Note the `trade` parameter to the `executeTrade` function includes the symbol strings separately. This is a gas optimization to order signature verification as string concat is cheaper than split.
+A number of validations result from the [token symbol registration system](#token-symbol-registry). Note the `trade`
+parameter to the `executeTrade` function includes the symbol strings separately. This is a gas optimization to order
+signature verification as string concat is cheaper than split.
   
 - Due to business requirements, order quantity and price are specified as strings in
 [PIP precision](#precision-and-pips), hence the need for order signature validation to convert the provided values
@@ -184,7 +187,8 @@ conditions.
 
 In its off-chain components, IDEX 2.0 normalizes all assets to a maximum of 8 decimals of precision, with 1e-8 referred
 to as a "pip". Because deposit and withdrawals must account for the true token precision, however, the token registry
-includes token decimals as well as functions to convert `pipsToAssetUnits` and `assetUnitsToPips`. All wallet asset balances are tracked in pips.
+includes token decimals as well as functions to convert `pipsToAssetUnits` and `assetUnitsToPips`. All wallet asset
+balances are tracked in pips.
 
 ### Nonces and Invalidation
 
@@ -198,8 +202,8 @@ placing wallet, the Whistler contract cannot distinguish between active orders p
 since cancelled.
 
 Nonce invalidation via `invalidateOrderNonce` allows users to invalidate all orders prior to a specified nonce, making it
-impossible to submit those orders in a subsequent cancelled-order submission attack. The [controls and governance](#controls-and-governance) spec
-covers the exact mechanics and parameters of the mechanism.
+impossible to submit those orders in a subsequent cancelled-order submission attack. The
+[controls and governance](#controls-and-governance) spec covers the exact mechanics and parameters of the mechanism.
 
 ### Wallet Exits
 
