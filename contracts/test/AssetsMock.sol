@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.6.8;
+pragma solidity 0.6.8;
 pragma experimental ABIEncoderV2;
 
 import { AssetUnitConversions } from '../libraries/AssetUnitConversions.sol';
