@@ -7,8 +7,6 @@ import {
   SafeMath as SafeMath256
 } from '@openzeppelin/contracts/math/SafeMath.sol';
 
-import { IERC20 } from './Interfaces.sol';
-
 
 library AssetUnitConversions {
   using SafeMath256 for uint256;

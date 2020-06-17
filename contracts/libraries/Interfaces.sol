@@ -123,7 +123,8 @@ interface IERC20 {
   /**
    * @dev Moves `amount` tokens from the caller's account to `recipient`.
    *
-   * Returns a boolean value indicating whether the operation succeeded.
+   * Most implementing contracts return a boolean value indicating whether the operation succeeded, but
+   * we ignore this and rely on asserting balance changes instead
    *
    * Emits a {Transfer} event.
    */
@@ -162,7 +163,8 @@ interface IERC20 {
    * allowance mechanism. `amount` is then deducted from the caller's
    * allowance.
    *
-   * Returns a boolean value indicating whether the operation succeeded.
+   * Most implementing contracts return a boolean value indicating whether the operation succeeded, but
+   * we ignore this and rely on asserting balance changes instead
    *
    * Emits a {Transfer} event.
    */
