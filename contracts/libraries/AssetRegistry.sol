@@ -3,6 +3,8 @@
 pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
+import { Address } from '@openzeppelin/contracts/utils/Address.sol';
+
 import { Structs } from './Interfaces.sol';
 
 
@@ -20,6 +22,12 @@ library AssetRegistry {
     string memory symbol,
     uint8 decimals
   ) internal {
+    require(
+      tokenAddress != address(0x0) && Address.isContract(address(tokenAddress)),
+      'Invalid token address'
+    );
+    // The string type does not have a length property so cast to bytes to check for empty string
+    require(bytes(symbol).length > 0, 'Invalid token symbol');
     require(
       !self.assetsByAddress[tokenAddress].isConfirmed,
       'Registration of this asset is already finalized'

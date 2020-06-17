@@ -251,6 +251,8 @@ contract Exchange is IExchange, Owned {
     address wallet,
     address assetAddress
   ) external view returns (uint256) {
+    require(wallet != address(0x0), 'Invalid wallet address');
+
     Structs.Asset memory asset = _assetRegistry.loadAssetByAddress(
       assetAddress
     );
@@ -287,6 +289,8 @@ contract Exchange is IExchange, Owned {
     view
     returns (uint64)
   {
+    require(wallet != address(0x0), 'Invalid wallet address');
+
     return _balancesInPips[wallet][assetAddress];
   }
 
@@ -297,6 +301,8 @@ contract Exchange is IExchange, Owned {
     address wallet,
     string calldata assetSymbol
   ) external view returns (uint64) {
+    require(wallet != address(0x0), 'Invalid wallet address');
+
     address assetAddress = _assetRegistry
       .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
       .assetAddress;
