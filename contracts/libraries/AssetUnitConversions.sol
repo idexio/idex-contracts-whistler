@@ -3,10 +3,11 @@
 pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
-import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {
   SafeMath as SafeMath256
 } from '@openzeppelin/contracts/math/SafeMath.sol';
+
+import { IERC20 } from './Interfaces.sol';
 
 
 library AssetUnitConversions {

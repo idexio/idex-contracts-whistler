@@ -3,10 +3,11 @@
 pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
-import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {
   SafeMath as SafeMath256
 } from '@openzeppelin/contracts/math/SafeMath.sol';
+
+import { IERC20 } from './Interfaces.sol';
 
 
 /**
@@ -29,14 +30,13 @@ library AssetTransfers {
     uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
 
     try
+      // Because we check for the expected balance change we can safely ignore the return value of transferFrom
       IERC20(tokenAddress).transferFrom(
         wallet,
         address(this),
         quantityInAssetUnits
       )
-    returns (bool success) {
-      require(success, 'Token transfer failed');
-    } catch Error(
+     {} catch Error(
       string memory /*reason*/
     ) {
       revert('Token transfer failed');
@@ -67,10 +67,9 @@ library AssetTransfers {
       uint256 balanceBefore = IERC20(asset).balanceOf(walletOrContract);
 
       try
+        // Because we check for the expected balance change we can safely ignore the return value of transfer
         IERC20(asset).transfer(walletOrContract, quantityInAssetUnits)
-      returns (bool success) {
-        require(success, 'Token transfer failed');
-      } catch Error(
+       {} catch Error(
         string memory /*reason*/
       ) {
         revert('Token transfer failed');

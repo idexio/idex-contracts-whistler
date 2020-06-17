@@ -8,6 +8,7 @@ import { assetUnitsToPips, ethAddress } from '../lib';
 
 contract('Exchange (deposits)', (accounts) => {
   const Exchange = artifacts.require('Exchange');
+  const NonCompliantToken = artifacts.require('NonCompliantToken');
   const SkimmingToken = artifacts.require('SkimmingTestToken');
   const Token = artifacts.require('TestToken');
 
@@ -172,6 +173,22 @@ contract('Exchange (deposits)', (accounts) => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
 
+      await token.approve(exchange.address, minimumTokenQuantity);
+      await exchange.depositTokenByAddress(token.address, minimumTokenQuantity);
+
+      const events = await exchange.getPastEvents('Deposited', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+    });
+
+    it('should work for minimum quantity with non-compliant token', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await NonCompliantToken.new();
+
+      await exchange.registerToken(token.address, tokenSymbol, 18);
+      await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
       await token.approve(exchange.address, minimumTokenQuantity);
       await exchange.depositTokenByAddress(token.address, minimumTokenQuantity);
 

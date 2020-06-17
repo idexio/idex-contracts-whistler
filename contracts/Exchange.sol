@@ -4,7 +4,6 @@ pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
 import { ECDSA } from '@openzeppelin/contracts/cryptography/ECDSA.sol';
-import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {
   SafeMath as SafeMath256
 } from '@openzeppelin/contracts/math/SafeMath.sol';
@@ -18,6 +17,7 @@ import { Signatures } from './libraries/Signatures.sol';
 import {
   Enums,
   ICustodian,
+  IERC20,
   IExchange,
   Structs
 } from './libraries/Interfaces.sol';

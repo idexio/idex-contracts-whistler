@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import { v1 as uuidv1 } from 'uuid';
 
 import type { CustodianInstance } from '../types/truffle-contracts/Custodian';
@@ -19,13 +20,13 @@ import {
   minimumTokenQuantity,
   withdraw,
 } from './helpers';
-import BigNumber from 'bignumber.js';
 
 // TODO Non-zero gas fees
 contract('Exchange (withdrawals)', (accounts) => {
   const Custodian = artifacts.require('Custodian');
   const Exchange = artifacts.require('Exchange');
   const Governance = artifacts.require('Governance');
+  const NonCompliantToken = artifacts.require('NonCompliantToken');
   const SkimmingToken = artifacts.require('SkimmingTestToken');
   const Token = artifacts.require('TestToken');
 
@@ -124,6 +125,52 @@ contract('Exchange (withdrawals)', (accounts) => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
       await exchange.setDispatcher(accounts[0]);
+      await token.approve(exchange.address, minimumTokenQuantity);
+      await exchange.depositTokenByAddress(token.address, minimumTokenQuantity);
+
+      await withdraw(
+        web3,
+        exchange,
+        {
+          nonce: uuidv1(),
+          wallet: accounts[0],
+          quantity: minimumDecimalQuantity,
+          autoDispatchEnabled: true,
+          asset: tokenSymbol,
+        },
+        accounts[0],
+      );
+
+      await assertWithdrawnEvent(
+        exchange,
+        accounts[0],
+        token.address,
+        tokenSymbol,
+        minimumDecimalQuantity,
+      );
+
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            accounts[0],
+            ethAddress,
+          )
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadBalanceInPipsByAddress(accounts[0], ethAddress)
+        ).toString(),
+      ).to.equal('0');
+    });
+
+    it('should work by symbol for non-compliant token', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await NonCompliantToken.new();
+      await exchange.setDispatcher(accounts[0]);
+
+      await exchange.registerToken(token.address, tokenSymbol, 18);
+      await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
       await token.approve(exchange.address, minimumTokenQuantity);
       await exchange.depositTokenByAddress(token.address, minimumTokenQuantity);
 
