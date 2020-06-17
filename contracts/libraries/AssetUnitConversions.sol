@@ -3,7 +3,6 @@
 pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
-import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {
   SafeMath as SafeMath256
 } from '@openzeppelin/contracts/math/SafeMath.sol';
@@ -17,11 +16,13 @@ library AssetUnitConversions {
     pure
     returns (uint256)
   {
+    require(assetDecimals <= 32, 'Asset cannot have more than 32 decimals');
+
     // Exponents cannot be negative, so divide or multiply based on exponent signedness
     if (assetDecimals > 8) {
-      return uint256(quantityInPips) * uint256(10)**(assetDecimals - 8);
+      return uint256(quantityInPips).mul(uint256(10)**(assetDecimals - 8));
     }
-    return uint256(quantityInPips) / uint256(10)**(8 - assetDecimals);
+    return uint256(quantityInPips).div(uint256(10)**(8 - assetDecimals));
   }
 
   function assetUnitsToPips(uint256 quantityInAssetUnits, uint8 assetDecimals)
@@ -29,6 +30,8 @@ library AssetUnitConversions {
     pure
     returns (uint64)
   {
+    require(assetDecimals <= 32, 'Asset cannot have more than 32 decimals');
+
     uint256 quantityInPips;
     // Exponents cannot be negative, so divide or multiply based on exponent signedness
     if (assetDecimals > 8) {
