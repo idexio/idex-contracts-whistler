@@ -35,9 +35,13 @@ library AssetUnitConversions {
     uint256 quantityInPips;
     // Exponents cannot be negative, so divide or multiply based on exponent signedness
     if (assetDecimals > 8) {
-      quantityInPips = quantityInAssetUnits / uint256(10)**(assetDecimals - 8);
+      quantityInPips = quantityInAssetUnits.div(
+        uint256(10)**(assetDecimals - 8)
+      );
     } else {
-      quantityInPips = quantityInAssetUnits * uint256(10)**(8 - assetDecimals);
+      quantityInPips = quantityInAssetUnits.mul(
+        uint256(10)**(8 - assetDecimals)
+      );
     }
     require(quantityInPips < 2**64, 'Pip quantity overflows uint64');
 
