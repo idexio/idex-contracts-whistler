@@ -1,3 +1,5 @@
+import BigNumber from 'bignumber.js';
+
 import {
   deployAndAssociateContracts,
   deployAndRegisterToken,
@@ -5,7 +7,6 @@ import {
 } from './helpers';
 import { ethAddress } from '../lib';
 import { AssetsMockInstance } from '../types/truffle-contracts/AssetsMock';
-import BigNumber from 'bignumber.js';
 
 contract('Exchange (tokens)', (accounts) => {
   const Token = artifacts.require('TestToken');

@@ -3,6 +3,7 @@
 pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
+import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 import { ECDSA } from '@openzeppelin/contracts/cryptography/ECDSA.sol';
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {
@@ -191,7 +192,7 @@ contract Exchange is IExchange, Owned {
    */
   function setCustodian(address payable newCustodian) external onlyAdmin {
     require(_custodian == address(0x0), 'Custodian can only be set once');
-    require(newCustodian != address(0x0), 'Invalid address');
+    require(Address.isContract(newCustodian), 'Invalid address');
 
     _custodian = newCustodian;
   }
@@ -270,6 +271,8 @@ contract Exchange is IExchange, Owned {
     address wallet,
     string calldata assetSymbol
   ) external view returns (uint256) {
+    require(wallet != address(0x0), 'Invalid wallet address');
+
     Structs.Asset memory asset = _assetRegistry.loadAssetBySymbol(
       assetSymbol,
       uint64(block.timestamp * 1000)

@@ -75,6 +75,22 @@ contract('Exchange (tunable parameters)', (accounts) => {
     });
   });
 
+  describe('loadBalanceInAssetUnitsBySymbol', () => {
+    it('should revert for invalid wallet', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.loadBalanceInAssetUnitsBySymbol(ethAddress, ethSymbol);
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet address/i);
+    });
+  });
+
   describe('setAdmin', async () => {
     it('should work for valid address', async () => {
       const exchange = await Exchange.new();
