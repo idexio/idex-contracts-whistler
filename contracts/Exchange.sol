@@ -366,7 +366,7 @@ contract Exchange is IExchange, Owned {
     uint256 quantityInAssetUnits
   ) private {
     // Calling exitWallet disables deposits immediately on mining, in contrast to withdrawals and
-    // trades which respect the Chain Propagation Delay given by `effectiveBlockNumber` via
+    // trades which respect the Chain Propagation Period given by `effectiveBlockNumber` via
     // `isWalletExitFinalized`
     require(!_walletExits[wallet].exists, 'Wallet exited');
 
@@ -545,7 +545,7 @@ contract Exchange is IExchange, Owned {
 
   /**
    * Permanently flags the sending wallet as exited, immediately disabling deposits on mining. After
-   * the Chain Propagation Delay passes trades and withdrawals are also disabled for the wallet, and
+   * the Chain Propagation Period passes trades and withdrawals are also disabled for the wallet, and
    * assets may then be withdrawn one at a time via `withdrawExit`
    */
   function exitWallet() external {
@@ -560,7 +560,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * Withdraw the entire balance of an asset for an exited wallet. The Chain Propagation Delay must
+   * Withdraw the entire balance of an asset for an exited wallet. The Chain Propagation Period must
    * have already passed since calling `exitWallet`
    */
   function withdrawExit(address assetAddress) external {
