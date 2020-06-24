@@ -22,6 +22,7 @@ library AssetRegistry {
     string memory symbol,
     uint8 decimals
   ) internal {
+    require(decimals <= 32, 'Token cannot have more than 32 decimals');
     require(
       tokenAddress != address(0x0) && Address.isContract(address(tokenAddress)),
       'Invalid token address'
@@ -32,6 +33,7 @@ library AssetRegistry {
       !self.assetsByAddress[tokenAddress].isConfirmed,
       'Registration of this asset is already finalized'
     );
+
     self.assetsByAddress[tokenAddress] = Structs.Asset({
       exists: true,
       assetAddress: tokenAddress,

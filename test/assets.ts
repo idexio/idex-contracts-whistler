@@ -8,7 +8,7 @@ import {
 import { ethAddress } from '../lib';
 import { AssetsMockInstance } from '../types/truffle-contracts/AssetsMock';
 
-contract('Exchange (tokens)', (accounts) => {
+contract('Exchange (tokens)', () => {
   const Token = artifacts.require('TestToken');
   const AssetsMock = artifacts.require('AssetsMock');
 
@@ -20,6 +20,22 @@ contract('Exchange (tokens)', (accounts) => {
       const token = await Token.new();
 
       await exchange.registerToken(token.address, tokenSymbol, 18);
+    });
+
+    it('should revert when token has too many decimals', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await Token.new();
+
+      let error;
+      try {
+        await exchange.registerToken(token.address, tokenSymbol, 100);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /token cannot have more than 32 decimals/i,
+      );
     });
 
     it('should revert for ETH address', async () => {
@@ -245,6 +261,19 @@ contract('Exchange (tokens)', (accounts) => {
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/pip quantity overflows uint64/i);
     });
+
+    it('should revert when token has too many decimals', async () => {
+      let error;
+      try {
+        await assetUnitsToPips(new BigNumber(1).toFixed(), '100');
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /asset cannot have more than 32 decimals/i,
+      );
+    });
   });
 
   describe('pipsToAssetUnits', async () => {
@@ -265,6 +294,19 @@ contract('Exchange (tokens)', (accounts) => {
       expect(await pipsToAssetUnits('1', '8')).to.equal('1');
       expect(await pipsToAssetUnits('1000000', '2')).to.equal('1');
       expect(await pipsToAssetUnits('100000000', '0')).to.equal('1');
+    });
+
+    it('should revert when token has too many decimals', async () => {
+      let error;
+      try {
+        await pipsToAssetUnits(new BigNumber(1).toFixed(), '100');
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(
+        /asset cannot have more than 32 decimals/i,
+      );
     });
   });
 });
