@@ -365,8 +365,9 @@ contract Exchange is IExchange, Owned {
     address assetAddress,
     uint256 quantityInAssetUnits
   ) private {
-    // Calling exitWallet immediately disables deposits, in contrast to withdrawals and trades which
-    // respect the `effectiveBlockNumber` via `isWalletExitFinalized`
+    // Calling exitWallet disables deposits immediately on mining, in contrast to withdrawals and
+    // trades which respect the Chain Propagation Period given by `effectiveBlockNumber` via
+    // `isWalletExitFinalized`
     require(!_walletExits[wallet].exists, 'Wallet exited');
 
     Structs.Asset memory asset = _assetRegistry.loadAssetByAddress(
@@ -543,9 +544,9 @@ contract Exchange is IExchange, Owned {
   // Wallet exits //
 
   /**
-   * Permanently flags the sending wallet as exited, immediately disabling deposits. Once the
-   * Chain Propagation Delay passes trades and withdrawals are also disabled for the wallet,
-   * and assets may be withdrawn one at a time via `withdrawExit`
+   * Permanently flags the sending wallet as exited, immediately disabling deposits on mining. After
+   * the Chain Propagation Period passes trades and withdrawals are also disabled for the wallet, and
+   * assets may then be withdrawn one at a time via `withdrawExit`
    */
   function exitWallet() external {
     require(!_walletExits[msg.sender].exists, 'Wallet already exited');
@@ -559,7 +560,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * Withdraw the entire balance of an asset for an exited wallet. The Chain Propagation Delay must
+   * Withdraw the entire balance of an asset for an exited wallet. The Chain Propagation Period must
    * have already passed since calling `exitWallet`
    */
   function withdrawExit(address assetAddress) external {
