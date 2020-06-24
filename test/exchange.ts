@@ -1,4 +1,4 @@
-import { deployAndAssociateContracts } from './helpers';
+import { deployAndAssociateContracts, ethSymbol } from './helpers';
 
 contract('Exchange (tunable parameters)', (accounts) => {
   const Exchange = artifacts.require('Exchange');
@@ -25,6 +25,70 @@ contract('Exchange (tunable parameters)', (accounts) => {
 
     expect(error).to.not.be.undefined;
     expect(error.message).to.match(/revert/i);
+  });
+
+  describe('loadBalanceInAssetUnitsByAddress', () => {
+    it('should revert for invalid wallet', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.loadBalanceInAssetUnitsByAddress(ethAddress, ethAddress);
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet address/i);
+    });
+  });
+
+  describe('loadBalanceInPipsByAddress', () => {
+    it('should revert for invalid wallet', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.loadBalanceInPipsByAddress(ethAddress, ethAddress);
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet address/i);
+    });
+  });
+
+  describe('loadBalanceInPipsBySymbol', () => {
+    it('should revert for invalid wallet', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.loadBalanceInPipsBySymbol(ethAddress, ethSymbol);
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet address/i);
+    });
+  });
+
+  describe('loadBalanceInAssetUnitsBySymbol', () => {
+    it('should revert for invalid wallet', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.loadBalanceInAssetUnitsBySymbol(ethAddress, ethSymbol);
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet address/i);
+    });
   });
 
   describe('setAdmin', async () => {

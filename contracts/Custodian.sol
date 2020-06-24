@@ -3,6 +3,8 @@
 pragma solidity 0.6.8;
 pragma experimental ABIEncoderV2;
 
+import { Address } from '@openzeppelin/contracts/utils/Address.sol';
+
 import { ICustodian } from './libraries/Interfaces.sol';
 import { Owned } from './Owned.sol';
 import { AssetTransfers } from './libraries/AssetTransfers.sol';
@@ -38,8 +40,11 @@ contract Custodian is ICustodian, Owned {
    * itself
    */
   constructor(address exchange, address governance) public Owned() {
-    require(exchange != address(0x0), 'Invalid exchange contract address');
-    require(governance != address(0x0), 'Invalid governance contract address');
+    require(Address.isContract(exchange), 'Invalid exchange contract address');
+    require(
+      Address.isContract(governance),
+      'Invalid governance contract address'
+    );
 
     _exchange = exchange;
     _governance = governance;
@@ -76,7 +81,7 @@ contract Custodian is ICustodian, Owned {
    * @dev Sets a new Exchange contract address
    */
   function setExchange(address newExchange) external override onlyGovernance {
-    require(newExchange != address(0x0), 'Invalid contract address');
+    require(Address.isContract(newExchange), 'Invalid contract address');
 
     address oldExchange = _exchange;
     _exchange = newExchange;
@@ -99,7 +104,7 @@ contract Custodian is ICustodian, Owned {
     override
     onlyGovernance
   {
-    require(newGovernance != address(0x0), 'Invalid contract address');
+    require(Address.isContract(newGovernance), 'Invalid contract address');
 
     address oldGovernance = _governance;
     _governance = newGovernance;
