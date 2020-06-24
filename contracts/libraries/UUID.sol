@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.6.8;
+pragma solidity 0.6.8;
 
 import { SafeMath64 } from './SafeMath64.sol';
 
