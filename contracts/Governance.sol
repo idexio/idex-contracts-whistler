@@ -3,6 +3,7 @@
 pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
+import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 import {
   SafeMath as SafeMath256
 } from '@openzeppelin/contracts/math/SafeMath.sol';
@@ -88,7 +89,7 @@ contract Governance is Owned {
    */
   function setCustodian(ICustodian newCustodian) external onlyAdmin {
     require(_custodian == ICustodian(0x0), 'Custodian can only be set once');
-    require(newCustodian != ICustodian(0x0), 'Invalid address');
+    require(Address.isContract(address(newCustodian)), 'Invalid address');
 
     _custodian = newCustodian;
   }
@@ -100,7 +101,7 @@ contract Governance is Owned {
    * the process can be finalized with `finalizeExchangeUpgrade`
    */
   function initiateExchangeUpgrade(address newExchange) external onlyAdmin {
-    require(newExchange != address(0x0), 'Invalid address');
+    require(Address.isContract(address(newExchange)), 'Invalid address');
     require(
       newExchange != _custodian.getExchange(),
       'Must be different from current Exchange'
@@ -165,7 +166,7 @@ contract Governance is Owned {
    * the process can be finalized with `finalizeGovernanceUpgrade`
    */
   function initiateGovernanceUpgrade(address newGovernance) external onlyAdmin {
-    require(newGovernance != address(0x0), 'Invalid address');
+    require(Address.isContract(address(newGovernance)), 'Invalid address');
     require(
       newGovernance != _custodian.getGovernance(),
       'Must be different from current Governance'

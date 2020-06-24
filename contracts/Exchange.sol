@@ -3,6 +3,7 @@
 pragma solidity ^0.6.8;
 pragma experimental ABIEncoderV2;
 
+import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 import { ECDSA } from '@openzeppelin/contracts/cryptography/ECDSA.sol';
 import {
   SafeMath as SafeMath256
@@ -191,7 +192,7 @@ contract Exchange is IExchange, Owned {
    */
   function setCustodian(address payable newCustodian) external onlyAdmin {
     require(_custodian == address(0x0), 'Custodian can only be set once');
-    require(newCustodian != address(0x0), 'Invalid address');
+    require(Address.isContract(newCustodian), 'Invalid address');
 
     _custodian = newCustodian;
   }
@@ -251,6 +252,8 @@ contract Exchange is IExchange, Owned {
     address wallet,
     address assetAddress
   ) external view returns (uint256) {
+    require(wallet != address(0x0), 'Invalid wallet address');
+
     Structs.Asset memory asset = _assetRegistry.loadAssetByAddress(
       assetAddress
     );
@@ -268,6 +271,8 @@ contract Exchange is IExchange, Owned {
     address wallet,
     string calldata assetSymbol
   ) external view returns (uint256) {
+    require(wallet != address(0x0), 'Invalid wallet address');
+
     Structs.Asset memory asset = _assetRegistry.loadAssetBySymbol(
       assetSymbol,
       uint64(block.timestamp * 1000)
@@ -287,6 +292,8 @@ contract Exchange is IExchange, Owned {
     view
     returns (uint64)
   {
+    require(wallet != address(0x0), 'Invalid wallet address');
+
     return _balancesInPips[wallet][assetAddress];
   }
 
@@ -297,6 +304,8 @@ contract Exchange is IExchange, Owned {
     address wallet,
     string calldata assetSymbol
   ) external view returns (uint64) {
+    require(wallet != address(0x0), 'Invalid wallet address');
+
     address assetAddress = _assetRegistry
       .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
       .assetAddress;
@@ -365,8 +374,9 @@ contract Exchange is IExchange, Owned {
     address assetAddress,
     uint256 quantityInAssetUnits
   ) private {
-    // Calling exitWallet immediately disables deposits, in contrast to withdrawals and trades which
-    // respect the `effectiveBlockNumber` via `isWalletExitFinalized`
+    // Calling exitWallet disables deposits immediately on mining, in contrast to withdrawals and
+    // trades which respect the Chain Propagation Period given by `effectiveBlockNumber` via
+    // `isWalletExitFinalized`
     require(!_walletExits[wallet].exists, 'Wallet exited');
 
     Structs.Asset memory asset = _assetRegistry.loadAssetByAddress(
@@ -543,9 +553,9 @@ contract Exchange is IExchange, Owned {
   // Wallet exits //
 
   /**
-   * Permanently flags the sending wallet as exited, immediately disabling deposits. Once the
-   * Chain Propagation Delay passes trades and withdrawals are also disabled for the wallet,
-   * and assets may be withdrawn one at a time via `withdrawExit`
+   * Permanently flags the sending wallet as exited, immediately disabling deposits on mining. After
+   * the Chain Propagation Period passes trades and withdrawals are also disabled for the wallet, and
+   * assets may then be withdrawn one at a time via `withdrawExit`
    */
   function exitWallet() external {
     require(!_walletExits[msg.sender].exists, 'Wallet already exited');
@@ -559,7 +569,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * Withdraw the entire balance of an asset for an exited wallet. The Chain Propagation Delay must
+   * Withdraw the entire balance of an asset for an exited wallet. The Chain Propagation Period must
    * have already passed since calling `exitWallet`
    */
   function withdrawExit(address assetAddress) external {
