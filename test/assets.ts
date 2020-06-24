@@ -38,6 +38,33 @@ contract('Exchange (tokens)', () => {
       );
     });
 
+    it('should revert for ETH address', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.registerToken(ethAddress, tokenSymbol, 18);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid token address/i);
+    });
+
+    it('should revert for blank symbol', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await Token.new();
+
+      let error;
+      try {
+        await exchange.registerToken(token.address, '', 18);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid token symbol/i);
+    });
+
     it('should revert when already finalized', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await Token.new();
