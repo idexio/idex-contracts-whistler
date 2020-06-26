@@ -8,6 +8,9 @@ import { ECDSA } from '@openzeppelin/contracts/cryptography/ECDSA.sol';
 import { Enums, Structs } from './Interfaces.sol';
 
 
+/**
+ * Library helpers for building hashes and verifying wallet signatures on `Order` and `Withdrawal` structs
+ */
 library Signatures {
   function isSignatureValid(
     bytes32 hash,
@@ -108,9 +111,8 @@ library Signatures {
       marketSymbolBytes[j++] = baseSymbolBytes[i];
     }
 
-    for (i = 0; i < hyphenBytes.length; i++) {
-      marketSymbolBytes[j++] = hyphenBytes[i];
-    }
+    // Hyphen is one byte
+    marketSymbolBytes[j++] = hyphenBytes[0];
 
     for (i = 0; i < quoteSymbolBytes.length; i++) {
       marketSymbolBytes[j++] = quoteSymbolBytes[i];

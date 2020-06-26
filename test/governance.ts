@@ -220,7 +220,7 @@ contract('Governance', (accounts) => {
       );
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
-      expect(await custodian.getExchange()).to.equal(newExchange.address);
+      expect(await custodian.loadExchange()).to.equal(newExchange.address);
     });
 
     it('should revert when no upgrade in progress', async () => {
@@ -404,7 +404,7 @@ contract('Governance', (accounts) => {
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
 
-      expect(await custodian.getGovernance()).to.equal(newGovernance.address);
+      expect(await custodian.loadGovernance()).to.equal(newGovernance.address);
     });
 
     it('should revert when no upgrade in progress', async () => {

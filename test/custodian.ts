@@ -4,6 +4,7 @@ import { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 import { ExchangeMockInstance } from '../types/truffle-contracts/ExchangeMock';
 import { GovernanceInstance } from '../types/truffle-contracts/Governance';
 import { GovernanceMockInstance } from '../types/truffle-contracts/GovernanceMock';
+import BigNumber from 'bignumber.js';
 
 contract('Custodian', (accounts) => {
   const Custodian = artifacts.require('Custodian');
@@ -234,17 +235,21 @@ contract('Custodian', (accounts) => {
         value: web3.utils.toWei('1', 'ether'),
       });
 
+      const balanceBefore = await web3.eth.getBalance(destinationWallet);
+
       await exchangeMock.withdraw(
         destinationWallet,
         ethAddress,
         web3.utils.toWei('1', 'ether'),
       );
 
-      const events = await custodian.getPastEvents('Withdrawn', {
-        fromBlock: 0,
-      });
-      expect(events).to.be.an('array');
-      expect(events.length).to.equal(1);
+      const balanceAfter = await web3.eth.getBalance(destinationWallet);
+
+      expect(
+        new BigNumber(balanceAfter)
+          .minus(new BigNumber(balanceBefore))
+          .toString(),
+      ).to.equal(web3.utils.toWei('1', 'ether'));
     });
 
     it('should revert withdrawing ETH not deposited', async () => {
@@ -281,7 +286,7 @@ contract('Custodian', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/token transfer failed/i);
+      expect(error.message).to.match(/transfer amount exceeds balance/i);
     });
 
     it('should revert when not sent from exchange', async () => {
