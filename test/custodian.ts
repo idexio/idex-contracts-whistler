@@ -286,7 +286,7 @@ contract('Custodian', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/token transfer failed/i);
+      expect(error.message).to.match(/transfer amount exceeds balance/i);
     });
 
     it('should revert when not sent from exchange', async () => {

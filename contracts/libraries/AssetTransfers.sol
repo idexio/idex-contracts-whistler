@@ -29,14 +29,8 @@ library AssetTransfers {
   ) internal {
     uint256 balanceBefore = tokenAddress.balanceOf(address(this));
 
-    try
-      // Because we check for the expected balance change we can safely ignore the return value of transferFrom
-      tokenAddress.transferFrom(wallet, address(this), quantityInAssetUnits)
-     {} catch Error(
-      string memory /*reason*/
-    ) {
-      revert('Token transfer failed');
-    }
+    // Because we check for the expected balance change we can safely ignore the return value of transferFrom
+    tokenAddress.transferFrom(wallet, address(this), quantityInAssetUnits);
 
     uint256 balanceAfter = tokenAddress.balanceOf(address(this));
     require(
@@ -62,14 +56,8 @@ library AssetTransfers {
     } else {
       uint256 balanceBefore = IERC20(asset).balanceOf(walletOrContract);
 
-      try
-        // Because we check for the expected balance change we can safely ignore the return value of transfer
-        IERC20(asset).transfer(walletOrContract, quantityInAssetUnits)
-       {} catch Error(
-        string memory /*reason*/
-      ) {
-        revert('Token transfer failed');
-      }
+      // Because we check for the expected balance change we can safely ignore the return value of transfer
+      IERC20(asset).transfer(walletOrContract, quantityInAssetUnits);
 
       uint256 balanceAfter = IERC20(asset).balanceOf(walletOrContract);
       require(

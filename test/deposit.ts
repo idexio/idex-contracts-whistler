@@ -161,7 +161,7 @@ contract('Exchange (deposits)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/token transfer failed/i);
+      expect(error.message).to.match(/transfer amount exceeds balance/i);
     });
 
     it('should revert for unknown token', async () => {
