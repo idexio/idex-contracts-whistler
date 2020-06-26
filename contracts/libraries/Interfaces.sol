@@ -9,17 +9,25 @@ pragma experimental ABIEncoderV2;
  */
 contract Enums {
   enum OrderSelfTradePrevention {
-    dc, // Decrement and cancel
-    co, // Cancel oldest
-    cn, // Cancel newest
-    cb // Cancel both
+    // Decrement and cancel
+    dc,
+    // Cancel oldest
+    co,
+    // Cancel newest
+    cn,
+    // Cancel both
+    cb
   }
   enum OrderSide { Buy, Sell }
   enum OrderTimeInForce {
-    gtc, // Good until cancelled
-    gtt, // Good until time
-    ioc, // Immediate or cancel
-    fok // Fill or kill
+    // Good until cancelled
+    gtc,
+    // Good until time
+    gtt,
+    // Immediate or cancel
+    ioc,
+    // Fill or kill
+    fok
   }
   enum OrderType {
     Market,
@@ -42,20 +50,33 @@ contract Structs {
    * @notice Argument type for `Exchange.executeTrade` and `Signatures.getOrderWalletHash`
    */
   struct Order {
+    // Not currently used but reserved for future use. Must be 1
     uint8 signatureHashVersion;
+    // UUIDv1 unique to wallet
     uint128 nonce;
+    // Wallet address that placed order and signed hash
     address walletAddress;
+    // Type of order
     Enums.OrderType orderType;
+    // Order side wallet is on
     Enums.OrderSide side;
+    // Order quantity in base asset terms
     uint64 quantityInPips;
+    // Order quantity in quote asset terms
     uint64 quoteOrderQuantityInPips;
-    uint64 limitPriceInPips; // decimal pips * 10^8
-    uint64 stopPriceInPips; // decimal pips * 10^8
+    // For limit orders, price in decimal pips * 10^8 in quote terms
+    uint64 limitPriceInPips;
+    // For stop orders, stop loss or take profit price in decimal pips * 10^8 in quote terms
+    uint64 stopPriceInPips;
+    // Optional custom client order ID
     string clientOrderId;
+    // TIF option specified by wallet for order
     Enums.OrderTimeInForce timeInForce;
+    // STP behavior specified by wallet for order
     Enums.OrderSelfTradePrevention selfTradePrevention;
+    // Cancellation time specified by wallet for GTT TIF order
     uint64 cancelAfter;
-    // The ECDSA signature of the buy order hash as produced by Signatures.getOrderWalletHash
+    // The ECDSA signature of the order hash as produced by Signatures.getOrderWalletHash
     bytes walletSignature;
   }
 
@@ -64,31 +85,51 @@ contract Structs {
    * used internally by `AssetRegistry`
    */
   struct Asset {
+    // Flag to distinguish from empty struct
     bool exists;
+    // The asset's address
     address assetAddress;
+    // The asset's symbol
     string symbol;
+    // The asset's decimal precision
     uint8 decimals;
+    // Flag set when asset registration confirmed. Asset deposits, trades, or withdrawals only allowed if true
     bool isConfirmed;
-    uint64 confirmedTimestampInMs; // ms since Unix epoch
+    // Timestamp as ms since Unix epoch when isConfirmed was asserted
+    uint64 confirmedTimestampInMs;
   }
 
   /**
-   * @notice Argument type for `Exchange.executeTrade`
+   * @notice Argument type for `Exchange.executeTrade` specifying execution parameters for matching orders
    */
   struct Trade {
+    // Base asset symbol
     string baseAssetSymbol;
+    // Quote asset symbol
     string quoteAssetSymbol;
+    // Base asset address
     address baseAssetAddress;
+    // Quote asset address
     address quoteAssetAddress;
+    // Gross amount including fees of base asset executed
     uint64 grossBaseQuantityInPips;
+    // Gross amount including fees of quote asset executed
     uint64 grossQuoteQuantityInPips;
+    // Net amount of base asset received by buy side wallet after fees
     uint64 netBaseQuantityInPips;
+    // Net amount of quote asset received by sell side wallet after fees
     uint64 netQuoteQuantityInPips;
+    // Asset address for liquidity maker's fee
     address makerFeeAssetAddress;
+    // Asset address for liquidity taker's fee
     address takerFeeAssetAddress;
+    // Fee paid by liquidity maker
     uint64 makerFeeQuantityInPips;
+    // Fee paid by liquidity taker
     uint64 takerFeeQuantityInPips;
-    uint64 priceInPips; // decimal pips * 10^8
+    // Execution price of trade in decimal pips * 10^8 in quote terms
+    uint64 priceInPips;
+    // Which side of the order (buy or sell) the liquidity maker was on
     Enums.OrderSide makerSide;
   }
 
@@ -96,14 +137,23 @@ contract Structs {
    * @notice Argument type for `Exchange.withdraw` and `Signatures.getWithdrawalWalletHash`
    */
   struct Withdrawal {
+    // Distinguishes between withdrawals by asset symbol or address
     Enums.WithdrawalType withdrawalType;
+    // UUIDv1 unique to wallet
     uint128 nonce;
+    // Address of wallet to which funds will be returned
     address payable walletAddress;
+    // Asset symbol
     string assetSymbol;
+    // Asset address
     address assetAddress; // Used when assetSymbol not specified
+    // Withdrawal quantity
     uint64 quantityInPips;
+    // Gas fee deducted from withdrawn quantity to cover dispatcher tx costs
     uint64 gasFeeInPips;
-    bool autoDispatchEnabled; // Not currently used but reserved for future use. Must be true
+    // Not currently used but reserved for future use. Must be true
+    bool autoDispatchEnabled;
+    // The ECDSA signature of the withdrawal hash as produced by Signatures.getWithdrawalWalletHash
     bytes walletSignature;
   }
 }
@@ -201,21 +251,53 @@ interface IERC20 {
  * delegate calls
  */
 interface ICustodian {
+  /**
+   * @notice ETH can only be sent by the Exchange
+   */
   receive() external payable;
 
+  /**
+   * @notice Withdraw any asset and amount to a target wallet
+   *
+   * @dev No balance checking performed
+   *
+   * @param wallet The wallet to which assets will be returned
+   * @param asset The address of the asset to withdraw (ETH or ERC-20 contract)
+   * @param quantityInAssetUnits The quantity in asset units to withdraw
+   */
   function withdraw(
     address payable wallet,
     address asset,
     uint256 quantityInAssetUnits
   ) external;
 
+  /**
+   * @notice Load address of the currently whitelisted Exchange contract
+   *
+   * @return The address of the currently whitelisted Exchange contract
+   */
   function loadExchange() external view returns (address);
 
-  function setExchange(address exchange) external;
+  /**
+   * @notice Sets a new Exchange contract address
+   *
+   * @param newExchange The address of the new whitelisted Exchange contract
+   */
+  function setExchange(address newExchange) external;
 
+  /**
+   * @notice Load address of the currently whitelisted Governance contract
+   *
+   * @return The address of the currently whitelisted Governance contract
+   */
   function loadGovernance() external view returns (address);
 
-  function setGovernance(address governance) external;
+  /**
+   * @notice Sets a new Governance contract address
+   *
+   * @param newGovernance The address of the new whitelisted Governance contract
+   */
+  function setGovernance(address newGovernance) external;
 }
 
 
@@ -223,11 +305,23 @@ interface ICustodian {
  * @notice Interface to Exchange contract. Provided only to document struct usage
  */
 interface IExchange {
+  /**
+   * @notice Settles a trade between two orders submitted and matched off-chain
+   *
+   * @param buy A `Structs.Order` struct encoding the parameters of the buy-side order (receiving base, giving quote)
+   * @param sell A `Structs.Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
+   * @param trade A `trade` struct encoding the parameters of this trade execution of the counterparty orders
+   */
   function executeTrade(
     Structs.Order calldata buy,
     Structs.Order calldata sell,
     Structs.Trade calldata trade
   ) external;
 
+  /**
+   * @notice Settles a user withdrawal submitted off-chain. Calls restricted to currently whitelisted Dispatcher wallet
+   *
+   * @param withdrawal A `Structs.Withdrawal` struct encoding the parameters of the withdrawal
+   */
   function withdraw(Structs.Withdrawal calldata withdrawal) external;
 }

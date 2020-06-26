@@ -655,10 +655,8 @@ contract Exchange is IExchange, Owned {
   /**
    * @notice Settles a trade between two orders submitted and matched off-chain
    *
-   * @dev Variable-length fields like strings and bytes cannot be encoded in an argument struct, and
-   * must be passed in as separate arguments. As a gas optimization, base and quote symbols are passed
-   * in separately and combined to verify the wallet hash, since this is cheaper than splitting the
-   * market symbol into its two constituent asset symbols
+   * @dev As a gas optimization, base and quote symbols are passed in separately and combined to verify
+   * the wallet hash, since this is cheaper than splitting the market symbol into its two constituent asset symbols
    * @dev Stack level too deep if declared external
    *
    * @param buy A `Structs.Order` struct encoding the parameters of the buy-side order (receiving base, giving quote)
