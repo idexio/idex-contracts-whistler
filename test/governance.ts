@@ -48,6 +48,19 @@ contract('Governance', (accounts) => {
       expect(error.message).to.match(/invalid address/i);
     });
 
+    it('should revert for non-contract address', async () => {
+      const governance = await Governance.new(0);
+
+      let error;
+      try {
+        await governance.setCustodian(accounts[0]);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid address/i);
+    });
+
     it('should revert after first call', async () => {
       const { custodian, governance } = await deployAndAssociateContracts();
 
@@ -106,6 +119,19 @@ contract('Governance', (accounts) => {
       let error;
       try {
         await governance.initiateExchangeUpgrade(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid address/i);
+    });
+
+    it('should revert for non-contract address', async () => {
+      const governance = await Governance.new(0);
+
+      let error;
+      try {
+        await governance.initiateExchangeUpgrade(accounts[0]);
       } catch (e) {
         error = e;
       }
@@ -194,7 +220,7 @@ contract('Governance', (accounts) => {
       );
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
-      expect(await custodian.getExchange()).to.equal(newExchange.address);
+      expect(await custodian.loadExchange()).to.equal(newExchange.address);
     });
 
     it('should revert when no upgrade in progress', async () => {
@@ -274,6 +300,19 @@ contract('Governance', (accounts) => {
       let error;
       try {
         await governance.initiateGovernanceUpgrade(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid address/i);
+    });
+
+    it('should revert for non-contract address', async () => {
+      const governance = await Governance.new(0);
+
+      let error;
+      try {
+        await governance.initiateGovernanceUpgrade(accounts[0]);
       } catch (e) {
         error = e;
       }
@@ -365,7 +404,7 @@ contract('Governance', (accounts) => {
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
 
-      expect(await custodian.getGovernance()).to.equal(newGovernance.address);
+      expect(await custodian.loadGovernance()).to.equal(newGovernance.address);
     });
 
     it('should revert when no upgrade in progress', async () => {

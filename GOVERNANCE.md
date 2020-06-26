@@ -31,7 +31,9 @@ Period.
 contract address.
 - At any time during the Contract Upgrade Period, the admin can cancel the upgrade immediately.
 
-### Tunable Parameters
+### Fixed Parameter Settings
+
+These settings have been pre-determined and may be hard-coded or implicit in the contract logic.
 
 - Admin Change Period: immediate
 - Contract Upgrade Period: 1 week
@@ -45,9 +47,9 @@ such, it contains several fine-grained control and protection mechanisms:
 - The Exchange contract has a single owner, and the owner cannot be changed.
 - The Exchange contract has a single admin, and the admin can be changed with no delay by the owner.
 - The admin can add or remove addresses as Dispatch wallets with no delay. Dispatch wallets are authorized to call
-operator-only contract functions, eg trade.
+operator-only contract functions: executeTrade, withdraw.
 - The Exchange contract tracks a single fee wallet address, and the fee wallet can be changed with no delay by the admin.
-- Nonce invalidation (i.e. mining cancels) is user-initiated rather than operator-initiated, as is the case in IDEX 1.0.
+- Nonce invalidation (i.e. mining cancels in IDEX 1.0 terminology) is user-initiated rather than operator-initiated, as is the case in IDEX 1.0.
   - User calls a function on Exchange with a nonce before which all orders should be invalidated.
   - The Exchange records the invalidation, and starts enforcing it in the trade function after the Chain Propagation Period.
   - Off-chain, on detecting the nonce invalidation transaction, all open orders prior to the target nonce for the wallet
@@ -68,15 +70,22 @@ Maximum Chain Propagation Period limits.
 - Fee maximums are enforced by the Exchange and specified by the Maximum Maker Fee Rate, Maximum Taker Fee Rate, and
 Maximum Withdrawal Fee Rate, all defined as percentages. Fee Rate limits are not changeable.
 
-### Tunable Parameters
+### Fixed Parameter Settings
+
+These settings have been pre-determined and may be hard-coded or implicit in the contract logic.
 
 - Admin Change Period: immediate
 - Dispatch Change Period: immediate
 - Fee Change Period: immediate
-- Chain Propagation Period: 1 hour
 - Minimum Chain Propagation Period: 0
 - Maximum Chain Propagation Period: 1 week
 - Chain Propagation Change Period: immediate
 - Maximum Maker Fee Rate: 10%
 - Maximum Taker Fee Rate: 10%
 - Maximum Withdrawal Fee Rate: 10%
+
+### Changable Parameters
+
+These settings should have the initial values below but should be changeable in the contract according to the above specs.
+
+- Chain Propagation Period: 1 hour

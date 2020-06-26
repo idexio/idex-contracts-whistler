@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.6.8;
+pragma solidity 0.6.8;
 pragma experimental ABIEncoderV2;
 
-import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {
   SafeMath as SafeMath256
 } from '@openzeppelin/contracts/math/SafeMath.sol';
 
+import { IERC20 } from './Interfaces.sol';
+
 
 /**
- * @dev This library provides helper utilities for transfering assets in and out of contracts.
+ * @notice This library provides helper utilities for transfering assets in and out of contracts.
  * It further validates ERC-20 compliant balance updates in the case of token assets
  */
 library AssetTransfers {
@@ -23,26 +24,15 @@ library AssetTransfers {
    */
   function transferFrom(
     address wallet,
-    address tokenAddress,
+    IERC20 tokenAddress,
     uint256 quantityInAssetUnits
   ) internal {
-    uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
+    uint256 balanceBefore = tokenAddress.balanceOf(address(this));
 
-    try
-      IERC20(tokenAddress).transferFrom(
-        wallet,
-        address(this),
-        quantityInAssetUnits
-      )
-    returns (bool success) {
-      require(success, 'Token transfer failed');
-    } catch Error(
-      string memory /*reason*/
-    ) {
-      revert('Token transfer failed');
-    }
+    // Because we check for the expected balance change we can safely ignore the return value of transferFrom
+    tokenAddress.transferFrom(wallet, address(this), quantityInAssetUnits);
 
-    uint256 balanceAfter = IERC20(tokenAddress).balanceOf(address(this));
+    uint256 balanceAfter = tokenAddress.balanceOf(address(this));
     require(
       balanceAfter.sub(balanceBefore) == quantityInAssetUnits,
       'Token contract returned transferFrom success without expected balance change'
@@ -66,15 +56,8 @@ library AssetTransfers {
     } else {
       uint256 balanceBefore = IERC20(asset).balanceOf(walletOrContract);
 
-      try
-        IERC20(asset).transfer(walletOrContract, quantityInAssetUnits)
-      returns (bool success) {
-        require(success, 'Token transfer failed');
-      } catch Error(
-        string memory /*reason*/
-      ) {
-        revert('Token transfer failed');
-      }
+      // Because we check for the expected balance change we can safely ignore the return value of transfer
+      IERC20(asset).transfer(walletOrContract, quantityInAssetUnits);
 
       uint256 balanceAfter = IERC20(asset).balanceOf(walletOrContract);
       require(

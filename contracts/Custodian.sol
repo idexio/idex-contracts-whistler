@@ -1,45 +1,50 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.6.8;
+pragma solidity 0.6.8;
 pragma experimental ABIEncoderV2;
+
+import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 
 import { ICustodian } from './libraries/Interfaces.sol';
 import { Owned } from './Owned.sol';
 import { AssetTransfers } from './libraries/AssetTransfers.sol';
 
 
+/**
+ * @notice The Custodian contract. Holds custody of all deposited funds for whitelisted Exchange
+ * contract with minimal additional logic
+ */
 contract Custodian is ICustodian, Owned {
   // Events //
 
   /**
-   * @dev Emitted on construction and when Governance upgrades the Exchange contract address
+   * @notice Emitted on construction and when Governance upgrades the Exchange contract address
    */
   event ExchangeChanged(address oldExchange, address newExchange);
   /**
-   * @dev Emitted on construction and when Governance replaces itself by upgrading the Governance contract address
+   * @notice Emitted on construction and when Governance replaces itself by upgrading the Governance contract address
    */
   event GovernanceChanged(address oldGovernance, address newGovernance);
-  /**
-   * @dev Emitted when the Exchange withdraws ETH or token
-   */
-  event Withdrawn(
-    address indexed wallet,
-    address indexed asset,
-    uint256 quantityInAssetUnits,
-    address exchange
-  );
 
   address _exchange;
   address _governance;
 
   /**
+   * @notice Instantiate a new Custodian
+   *
    * @dev Sets `owner` and `admin` to `msg.sender`. Sets initial values for Exchange and Governance
    * contract addresses, after which they can only be changed by the currently set Governance contract
    * itself
+   *
+   * @param exchange Address of deployed Exchange contract to whitelist
+   * @param governance ddress of deployed Governance contract to whitelist
    */
   constructor(address exchange, address governance) public Owned() {
-    require(exchange != address(0x0), 'Invalid exchange contract address');
-    require(governance != address(0x0), 'Invalid governance contract address');
+    require(Address.isContract(exchange), 'Invalid exchange contract address');
+    require(
+      Address.isContract(governance),
+      'Invalid governance contract address'
+    );
 
     _exchange = exchange;
     _governance = governance;
@@ -49,12 +54,18 @@ contract Custodian is ICustodian, Owned {
   }
 
   /**
-   * @dev ETH can only be sent by the Exchange
+   * @notice ETH can only be sent by the Exchange
    */
   receive() external override payable onlyExchange {}
 
   /**
-   * Withdraw any asset and amount to a target wallet. No balance checking performed
+   * @notice Withdraw any asset and amount to a target wallet
+   *
+   * @dev No balance checking performed
+   *
+   * @param wallet The wallet to which assets will be returned
+   * @param asset The address of the asset to withdraw (ETH or ERC-20 contract)
+   * @param quantityInAssetUnits The quantity in asset units to withdraw
    */
   function withdraw(
     address payable wallet,
@@ -62,21 +73,24 @@ contract Custodian is ICustodian, Owned {
     uint256 quantityInAssetUnits
   ) external override onlyExchange {
     AssetTransfers.transferTo(wallet, asset, quantityInAssetUnits);
-    emit Withdrawn(wallet, asset, quantityInAssetUnits, _exchange);
   }
 
   /**
-   * @dev Returns address of current Exchange contract
+   * @notice Load address of the currently whitelisted Exchange contract
+   *
+   * @return The address of the currently whitelisted Exchange contract
    */
-  function getExchange() external override view returns (address) {
+  function loadExchange() external override view returns (address) {
     return _exchange;
   }
 
   /**
-   * @dev Sets a new Exchange contract address
+   * @notice Sets a new Exchange contract address
+   *
+   * @param newExchange The address of the new whitelisted Exchange contract
    */
   function setExchange(address newExchange) external override onlyGovernance {
-    require(newExchange != address(0x0), 'Invalid contract address');
+    require(Address.isContract(newExchange), 'Invalid contract address');
 
     address oldExchange = _exchange;
     _exchange = newExchange;
@@ -85,21 +99,25 @@ contract Custodian is ICustodian, Owned {
   }
 
   /**
-   * @dev Returns address of current Governance contract
+   * @notice Load address of the currently whitelisted Governance contract
+   *
+   * @return The address of the currently whitelisted Governance contract
    */
-  function getGovernance() external override view returns (address) {
+  function loadGovernance() external override view returns (address) {
     return _governance;
   }
 
   /**
-   * @dev Sets a new Governance contract address
+   * @notice Sets a new Governance contract address
+   *
+   * @param newGovernance The address of the new whitelisted Governance contract
    */
   function setGovernance(address newGovernance)
     external
     override
     onlyGovernance
   {
-    require(newGovernance != address(0x0), 'Invalid contract address');
+    require(Address.isContract(newGovernance), 'Invalid contract address');
 
     address oldGovernance = _governance;
     _governance = newGovernance;

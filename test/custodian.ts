@@ -1,21 +1,46 @@
 import { ethAddress } from './helpers';
+import { CustodianInstance } from '../types/truffle-contracts/Custodian';
+import { ExchangeInstance } from '../types/truffle-contracts/Exchange';
+import { ExchangeMockInstance } from '../types/truffle-contracts/ExchangeMock';
+import { GovernanceInstance } from '../types/truffle-contracts/Governance';
+import { GovernanceMockInstance } from '../types/truffle-contracts/GovernanceMock';
+import BigNumber from 'bignumber.js';
 
 contract('Custodian', (accounts) => {
   const Custodian = artifacts.require('Custodian');
+  const Exchange = artifacts.require('Exchange');
+  const Governance = artifacts.require('Governance');
+  const GovernanceMock = artifacts.require('GovernanceMock');
+  const ExchangeMock = artifacts.require('ExchangeMock');
   const Token = artifacts.require('TestToken');
+
+  let exchange: ExchangeInstance;
+  let governance: GovernanceInstance;
+  beforeEach(async () => {
+    exchange = await Exchange.new();
+    governance = await Governance.new(10);
+  });
 
   describe('deploy', () => {
     it('should work', async () => {
-      const [owner] = accounts;
-      await Custodian.new(owner, owner);
+      await Custodian.new(exchange.address, governance.address);
     });
 
     it('should revert for invalid exchange address', async () => {
-      const [owner] = accounts;
-
       let error;
       try {
-        await Custodian.new(ethAddress, owner);
+        await Custodian.new(ethAddress, governance.address);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid exchange contract address/i);
+    });
+
+    it('should revert for non-contract exchange address', async () => {
+      let error;
+      try {
+        await Custodian.new(accounts[0], governance.address);
       } catch (e) {
         error = e;
       }
@@ -24,11 +49,20 @@ contract('Custodian', (accounts) => {
     });
 
     it('should revert for invalid governance address', async () => {
-      const [owner] = accounts;
-
       let error;
       try {
-        await Custodian.new(owner, ethAddress);
+        await Custodian.new(exchange.address, ethAddress);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid governance contract address/i);
+    });
+
+    it('should revert for non-contract governance address', async () => {
+      let error;
+      try {
+        await Custodian.new(exchange.address, accounts[0]);
       } catch (e) {
         error = e;
       }
@@ -38,25 +72,27 @@ contract('Custodian', (accounts) => {
   });
 
   describe('receive', () => {
-    it('should work when sent from exchange address', async () => {
-      const [owner] = accounts;
-      const custodian = await Custodian.new(owner, owner);
+    let custodian: CustodianInstance;
+    let exchangeMock: ExchangeMockInstance;
+    beforeEach(async () => {
+      exchangeMock = await ExchangeMock.new();
+      custodian = await Custodian.new(exchangeMock.address, governance.address);
+      await exchangeMock.setCustodian(custodian.address);
+    });
 
+    it('should work when sent from exchange address', async () => {
       await web3.eth.sendTransaction({
-        from: owner,
-        to: custodian.address,
+        from: accounts[0],
+        to: exchangeMock.address,
         value: web3.utils.toWei('1', 'ether'),
       });
     });
 
     it('should revert when not sent from exchange address', async () => {
-      const [owner] = accounts;
-      const custodian = await Custodian.new(owner, owner);
-
       let error;
       try {
         await web3.eth.sendTransaction({
-          from: accounts[1],
+          from: accounts[0],
           to: custodian.address,
           value: web3.utils.toWei('1', 'ether'),
         });
@@ -69,11 +105,18 @@ contract('Custodian', (accounts) => {
   });
 
   describe('setExchange', () => {
-    it('should work when sent from governance address', async () => {
-      const [owner, newExchange] = accounts;
-      const custodian = await Custodian.new(owner, owner);
+    let custodian: CustodianInstance;
+    let governanceMock: GovernanceMockInstance;
+    beforeEach(async () => {
+      governanceMock = await GovernanceMock.new();
+      custodian = await Custodian.new(exchange.address, governanceMock.address);
+      governanceMock.setCustodian(custodian.address);
+    });
 
-      await custodian.setExchange(newExchange);
+    it('should work when sent from governance address', async () => {
+      const newExchange = await Exchange.new();
+
+      await governanceMock.setExchange(newExchange.address);
 
       const events = await custodian.getPastEvents('ExchangeChanged', {
         fromBlock: 0,
@@ -83,12 +126,20 @@ contract('Custodian', (accounts) => {
     });
 
     it('should revert for invalid address', async () => {
-      const [owner] = accounts;
-      const custodian = await Custodian.new(owner, owner);
-
       let error;
       try {
-        await custodian.setExchange(ethAddress);
+        await governanceMock.setExchange(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid contract address/i);
+    });
+
+    it('should revert for non-contract address', async () => {
+      let error;
+      try {
+        await governanceMock.setExchange(accounts[0]);
       } catch (e) {
         error = e;
       }
@@ -97,9 +148,6 @@ contract('Custodian', (accounts) => {
     });
 
     it('should revert when not sent from governance address', async () => {
-      const [owner] = accounts;
-      const custodian = await Custodian.new(owner, owner);
-
       let error;
       try {
         await custodian.setExchange(ethAddress, {
@@ -114,11 +162,18 @@ contract('Custodian', (accounts) => {
   });
 
   describe('setGovernance', () => {
-    it('should work when sent from governance address', async () => {
-      const [owner, newExchange] = accounts;
-      const custodian = await Custodian.new(owner, owner);
+    let custodian: CustodianInstance;
+    let governanceMock: GovernanceMockInstance;
+    beforeEach(async () => {
+      governanceMock = await GovernanceMock.new();
+      custodian = await Custodian.new(exchange.address, governanceMock.address);
+      governanceMock.setCustodian(custodian.address);
+    });
 
-      await custodian.setGovernance(newExchange);
+    it('should work when sent from governance address', async () => {
+      const newGovernance = await Governance.new(0);
+
+      await governanceMock.setGovernance(newGovernance.address);
 
       const events = await custodian.getPastEvents('GovernanceChanged', {
         fromBlock: 0,
@@ -128,12 +183,20 @@ contract('Custodian', (accounts) => {
     });
 
     it('should revert for invalid address', async () => {
-      const [owner] = accounts;
-      const custodian = await Custodian.new(owner, owner);
-
       let error;
       try {
-        await custodian.setGovernance(ethAddress);
+        await governanceMock.setGovernance(ethAddress);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid contract address/i);
+    });
+
+    it('should revert for non-contract address', async () => {
+      let error;
+      try {
+        await governanceMock.setGovernance(accounts[0]);
       } catch (e) {
         error = e;
       }
@@ -142,9 +205,6 @@ contract('Custodian', (accounts) => {
     });
 
     it('should revert when not sent from governance address', async () => {
-      const [owner] = accounts;
-      const custodian = await Custodian.new(owner, owner);
-
       let error;
       try {
         await custodian.setGovernance(ethAddress, {
@@ -159,39 +219,49 @@ contract('Custodian', (accounts) => {
   });
 
   describe('withdraw', () => {
+    let custodian: CustodianInstance;
+    let exchangeMock: ExchangeMockInstance;
+    beforeEach(async () => {
+      exchangeMock = await ExchangeMock.new();
+      custodian = await Custodian.new(exchangeMock.address, governance.address);
+      await exchangeMock.setCustodian(custodian.address);
+    });
+
     it('should work when sent from exchange', async () => {
-      const [owner, destinationWallet] = accounts;
-      const custodian = await Custodian.new(owner, owner);
+      const [sourceWallet, destinationWallet] = accounts;
       await web3.eth.sendTransaction({
-        from: owner,
-        to: custodian.address,
+        from: sourceWallet,
+        to: exchangeMock.address,
         value: web3.utils.toWei('1', 'ether'),
       });
 
-      await custodian.withdraw(
+      const balanceBefore = await web3.eth.getBalance(destinationWallet);
+
+      await exchangeMock.withdraw(
         destinationWallet,
         ethAddress,
         web3.utils.toWei('1', 'ether'),
       );
 
-      const events = await custodian.getPastEvents('Withdrawn', {
-        fromBlock: 0,
-      });
-      expect(events).to.be.an('array');
-      expect(events.length).to.equal(1);
+      const balanceAfter = await web3.eth.getBalance(destinationWallet);
+
+      expect(
+        new BigNumber(balanceAfter)
+          .minus(new BigNumber(balanceBefore))
+          .toString(),
+      ).to.equal(web3.utils.toWei('1', 'ether'));
     });
 
     it('should revert withdrawing ETH not deposited', async () => {
-      const [owner] = accounts;
-      const custodian = await Custodian.new(owner, owner);
+      const [sourceWallet, destinationWallet] = accounts;
 
       let error;
       try {
-        await custodian.withdraw(
-          accounts[1],
+        await exchangeMock.withdraw(
+          destinationWallet,
           ethAddress,
           web3.utils.toWei('1', 'ether'),
-          { from: owner },
+          { from: sourceWallet },
         );
       } catch (e) {
         error = e;
@@ -201,36 +271,34 @@ contract('Custodian', (accounts) => {
     });
 
     it('should revert withdrawing tokens not deposited', async () => {
-      const [owner] = accounts;
-      const custodian = await Custodian.new(owner, owner);
+      const [sourceWallet, destinationWallet] = accounts;
       const token = await Token.new();
 
       let error;
       try {
-        await custodian.withdraw(
-          accounts[1],
+        await exchangeMock.withdraw(
+          destinationWallet,
           token.address,
           web3.utils.toWei('1', 'ether'),
-          { from: owner },
+          { from: sourceWallet },
         );
       } catch (e) {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/token transfer failed/i);
+      expect(error.message).to.match(/transfer amount exceeds balance/i);
     });
 
     it('should revert when not sent from exchange', async () => {
-      const [owner] = accounts;
-      const custodian = await Custodian.new(owner, owner);
+      const [sourceWallet, destinationWallet] = accounts;
 
       let error;
       try {
         await custodian.withdraw(
-          accounts[1],
+          destinationWallet,
           ethAddress,
           web3.utils.toWei('1', 'ether'),
-          { from: accounts[1] },
+          { from: sourceWallet },
         );
       } catch (e) {
         error = e;

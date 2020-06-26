@@ -51,7 +51,21 @@ contract('Exchange (trades)', (accounts) => {
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
 
-      const { buyOrderHash, sellOrderHash } = events[0].returnValues;
+      const {
+        buyWallet: loggedBuyWallet,
+        sellWallet: loggedSellWallet,
+        baseAssetSymbol,
+        quoteAssetSymbol,
+        buyOrderHash,
+        sellOrderHash,
+      } = events[0].returnValues;
+
+      expect(loggedBuyWallet).to.equal(buyWallet);
+      expect(loggedSellWallet).to.equal(sellWallet);
+
+      expect(baseAssetSymbol).to.equal(tokenSymbol);
+      expect(quoteAssetSymbol).to.equal(ethSymbol);
+
       expect(
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
@@ -710,7 +724,7 @@ contract('Exchange (trades)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/buy wallet exited/i);
+      expect(error.message).to.match(/buy wallet exit finalized/i);
     });
 
     it('should revert for exited sell wallet', async () => {
@@ -729,7 +743,7 @@ contract('Exchange (trades)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/sell wallet exited/i);
+      expect(error.message).to.match(/sell wallet exit finalized/i);
     });
 
     it('should revert for invalidated buy nonce', async () => {
