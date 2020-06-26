@@ -92,8 +92,9 @@ contract('Exchange (trades)', (accounts) => {
   });
 });
 
+// https://docs.nethereum.com/en/latest/ethereum-and-clients/ganache-cli/#implemented-methods
 const increaseBlockTimestamp = async (): Promise<void> => {
-  await sendRpc('evm_increaseTime', [1]);
+  await sendRpc('evm_increaseTime', [1]); // 1 second
   await sendRpc('evm_mine', []);
 };
 

@@ -79,10 +79,9 @@ requires calling `depositEther` on the Exchange contract; depositing tokens requ
 before calling `depositTokenByAddress` on the Exchange contract.
 
 - The `depositEther` and `depositTokenByAddress` are functions on the Exchange contract, but the funds are ultimately
-held in the Custody contract. As part of the deposit process, tokens are transferred first to the Exchange contract, which
-tracks
-wallet asset balances, and then transferred again to the Custody contract. Separate exchange logic and fund custody
-supports IDEX 2.0’s [upgrade design](#upgradability).
+held in the Custody contract. As part of the deposit process, tokens are transferred first to the Exchange contract,
+which tracks wallet asset balances, and then transferred again to the Custody contract. Separate exchange logic and fund
+custody supports IDEX 2.0’s [upgrade design](#upgradability).
   
 - Deposits are only allowed for [registered tokens](#token-symbol-registry).
   
