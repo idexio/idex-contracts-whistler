@@ -16,11 +16,19 @@ abstract contract Owned {
     _;
   }
 
+  /**
+   * @notice Sets both the owner and admin roles to the contract creator
+   */
   constructor() public {
     _owner = msg.sender;
     _admin = msg.sender;
   }
 
+  /**
+   * @notice Sets a new whitelisted admin wallet
+   *
+   * @param newAdmin The new whitelisted admin wallet. Must be different from the current one
+   */
   function setAdmin(address newAdmin) external onlyOwner {
     require(newAdmin != address(0x0), 'Invalid wallet address');
     require(newAdmin != _admin, 'Must be different from current admin');
@@ -28,6 +36,10 @@ abstract contract Owned {
     _admin = newAdmin;
   }
 
+  /**
+   * @notice Clears the currently whitelisted admin wallet, effectively disabling any functions requiring
+   * the admin role
+   */
   function removeAdmin() external onlyOwner {
     _admin = address(0x0);
   }

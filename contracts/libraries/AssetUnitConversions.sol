@@ -8,6 +8,9 @@ import {
 } from '@openzeppelin/contracts/math/SafeMath.sol';
 
 
+/**
+ * @notice Library helpers for converting asset quantities between asset units and pips
+ */
 library AssetUnitConversions {
   using SafeMath256 for uint256;
 

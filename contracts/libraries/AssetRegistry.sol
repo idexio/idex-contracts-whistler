@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
 
-import { Structs } from './Interfaces.sol';
+import { IERC20, Structs } from './Interfaces.sol';
 
 
 library AssetRegistry {
@@ -18,25 +18,25 @@ library AssetRegistry {
 
   function registerToken(
     Storage storage self,
-    address tokenAddress,
+    IERC20 tokenAddress,
     string memory symbol,
     uint8 decimals
   ) internal {
     require(decimals <= 32, 'Token cannot have more than 32 decimals');
     require(
-      tokenAddress != address(0x0) && Address.isContract(address(tokenAddress)),
+      tokenAddress != IERC20(0x0) && Address.isContract(address(tokenAddress)),
       'Invalid token address'
     );
     // The string type does not have a length property so cast to bytes to check for empty string
     require(bytes(symbol).length > 0, 'Invalid token symbol');
     require(
-      !self.assetsByAddress[tokenAddress].isConfirmed,
+      !self.assetsByAddress[address(tokenAddress)].isConfirmed,
       'Registration of this asset is already finalized'
     );
 
-    self.assetsByAddress[tokenAddress] = Structs.Asset({
+    self.assetsByAddress[address(tokenAddress)] = Structs.Asset({
       exists: true,
-      assetAddress: tokenAddress,
+      assetAddress: address(tokenAddress),
       symbol: symbol,
       decimals: decimals,
       isConfirmed: false,
@@ -46,11 +46,11 @@ library AssetRegistry {
 
   function confirmTokenRegistration(
     Storage storage self,
-    address tokenAddress,
+    IERC20 tokenAddress,
     string memory symbol,
     uint8 decimals
   ) internal {
-    Structs.Asset memory asset = self.assetsByAddress[tokenAddress];
+    Structs.Asset memory asset = self.assetsByAddress[address(tokenAddress)];
     require(asset.exists, 'Unknown asset');
     require(
       !asset.isConfirmed,
@@ -60,8 +60,8 @@ library AssetRegistry {
     require(asset.decimals == decimals, 'Decimals do not match');
 
     asset.isConfirmed = true;
-    asset.confirmedTimestampInMs = uint64(block.timestamp * 1000); // Block timestampInMs is seconds, store ms
-    self.assetsByAddress[tokenAddress] = asset;
+    asset.confirmedTimestampInMs = uint64(block.timestamp * 1000); // Block timestamp is in seconds, store ms
+    self.assetsByAddress[address(tokenAddress)] = asset;
     self.assetsBySymbol[symbol].push(asset);
   }
 

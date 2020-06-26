@@ -5,6 +5,9 @@ pragma solidity 0.6.8;
 import { SafeMath64 } from './SafeMath64.sol';
 
 
+/**
+ * Library helper for extracting timestamp component of Version 1 UUIDs
+ */
 library UUID {
   using SafeMath64 for uint64;
 

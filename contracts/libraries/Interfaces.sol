@@ -4,6 +4,9 @@ pragma solidity 0.6.8;
 pragma experimental ABIEncoderV2;
 
 
+/**
+ * @notice Enums used in `Order` and `Withdrawal` structs
+ */
 contract Enums {
   enum OrderSelfTradePrevention {
     dc, // Decrement and cancel
@@ -31,9 +34,12 @@ contract Enums {
 }
 
 
+/**
+ * @notice Struct definitions
+ */
 contract Structs {
   /**
-   * @dev Argument type for `Exchange.executeTrade` and `Signatures.getOrderWalletHash`
+   * @notice Argument type for `Exchange.executeTrade` and `Signatures.getOrderWalletHash`
    */
   struct Order {
     uint8 signatureHashVersion;
@@ -54,7 +60,7 @@ contract Structs {
   }
 
   /**
-   * @dev Return type for `Exchange.loadAssetBySymbol`, and `Exchange.loadAssetByAddress`; also
+   * @notice Return type for `Exchange.loadAssetBySymbol`, and `Exchange.loadAssetByAddress`; also
    * used internally by `AssetRegistry`
    */
   struct Asset {
@@ -67,7 +73,7 @@ contract Structs {
   }
 
   /**
-   * @dev Argument type for `Exchange.executeTrade`
+   * @notice Argument type for `Exchange.executeTrade`
    */
   struct Trade {
     string baseAssetSymbol;
@@ -87,7 +93,7 @@ contract Structs {
   }
 
   /**
-   * @dev Argument type for `Exchange.withdraw` and `Signatures.getWithdrawalWalletHash`
+   * @notice Argument type for `Exchange.withdraw` and `Signatures.getWithdrawalWalletHash`
    */
   struct Withdrawal {
     Enums.WithdrawalType withdrawalType;
@@ -104,24 +110,24 @@ contract Structs {
 
 
 /**
- * @dev Interface of the ERC20 standard as defined in the EIP, but with no return values for
+ * @notice Interface of the ERC20 standard as defined in the EIP, but with no return values for
  * transfer and transferFrom. By asserting expected balance changes when calling these two methods
  * we can safely ignore their return values. This allows support of non-compliant tokens that do not
  * return a boolean. See https://github.com/ethereum/solidity/issues/4116
  */
 interface IERC20 {
   /**
-   * @dev Returns the amount of tokens in existence.
+   * @notice Returns the amount of tokens in existence.
    */
   function totalSupply() external view returns (uint256);
 
   /**
-   * @dev Returns the amount of tokens owned by `account`.
+   * @notice Returns the amount of tokens owned by `account`.
    */
   function balanceOf(address account) external view returns (uint256);
 
   /**
-   * @dev Moves `amount` tokens from the caller's account to `recipient`.
+   * @notice Moves `amount` tokens from the caller's account to `recipient`.
    *
    * Most implementing contracts return a boolean value indicating whether the operation succeeded, but
    * we ignore this and rely on asserting balance changes instead
@@ -131,7 +137,7 @@ interface IERC20 {
   function transfer(address recipient, uint256 amount) external;
 
   /**
-   * @dev Returns the remaining number of tokens that `spender` will be
+   * @notice Returns the remaining number of tokens that `spender` will be
    * allowed to spend on behalf of `owner` through {transferFrom}. This is
    * zero by default.
    *
@@ -143,7 +149,7 @@ interface IERC20 {
     returns (uint256);
 
   /**
-   * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
+   * @notice Sets `amount` as the allowance of `spender` over the caller's tokens.
    *
    * Returns a boolean value indicating whether the operation succeeded.
    *
@@ -159,7 +165,7 @@ interface IERC20 {
   function approve(address spender, uint256 amount) external returns (bool);
 
   /**
-   * @dev Moves `amount` tokens from `sender` to `recipient` using the
+   * @notice Moves `amount` tokens from `sender` to `recipient` using the
    * allowance mechanism. `amount` is then deducted from the caller's
    * allowance.
    *
@@ -175,7 +181,7 @@ interface IERC20 {
   ) external;
 
   /**
-   * @dev Emitted when `value` tokens are moved from one account (`from`) to
+   * @notice Emitted when `value` tokens are moved from one account (`from`) to
    * another (`to`).
    *
    * Note that `value` may be zero.
@@ -183,13 +189,17 @@ interface IERC20 {
   event Transfer(address indexed from, address indexed to, uint256 value);
 
   /**
-   * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+   * @notice Emitted when the allowance of a `spender` for an `owner` is set by
    * a call to {approve}. `value` is the new allowance.
    */
   event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
 
+/**
+ * @notice Interface to Custodian contract. Used by Exchange and Governance contracts for internal
+ * delegate calls
+ */
 interface ICustodian {
   receive() external payable;
 
@@ -199,16 +209,19 @@ interface ICustodian {
     uint256 quantityInAssetUnits
   ) external;
 
-  function getExchange() external view returns (address);
+  function loadExchange() external view returns (address);
 
   function setExchange(address exchange) external;
 
-  function getGovernance() external view returns (address);
+  function loadGovernance() external view returns (address);
 
   function setGovernance(address governance) external;
 }
 
 
+/**
+ * @notice Interface to Exchange contract. Provided only to document struct usage
+ */
 interface IExchange {
   function executeTrade(
     Structs.Order calldata buy,

@@ -24,25 +24,21 @@ library AssetTransfers {
    */
   function transferFrom(
     address wallet,
-    address tokenAddress,
+    IERC20 tokenAddress,
     uint256 quantityInAssetUnits
   ) internal {
-    uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
+    uint256 balanceBefore = tokenAddress.balanceOf(address(this));
 
     try
       // Because we check for the expected balance change we can safely ignore the return value of transferFrom
-      IERC20(tokenAddress).transferFrom(
-        wallet,
-        address(this),
-        quantityInAssetUnits
-      )
+      tokenAddress.transferFrom(wallet, address(this), quantityInAssetUnits)
      {} catch Error(
       string memory /*reason*/
     ) {
       revert('Token transfer failed');
     }
 
-    uint256 balanceAfter = IERC20(tokenAddress).balanceOf(address(this));
+    uint256 balanceAfter = tokenAddress.balanceOf(address(this));
     require(
       balanceAfter.sub(balanceBefore) == quantityInAssetUnits,
       'Token contract returned transferFrom success without expected balance change'

@@ -538,7 +538,7 @@ contract('Exchange (trades)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/buy wallet exited/i);
+      expect(error.message).to.match(/buy wallet exit finalized/i);
     });
 
     it('should revert for exited sell wallet', async () => {
@@ -557,7 +557,7 @@ contract('Exchange (trades)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/sell wallet exited/i);
+      expect(error.message).to.match(/sell wallet exit finalized/i);
     });
 
     it('should revert for invalidated buy nonce', async () => {
