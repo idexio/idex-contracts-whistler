@@ -30,8 +30,8 @@ import { UUID } from './libraries/UUID.sol';
  *
  * @dev The term `asset` refers collectively to ETH and ERC-20 tokens, the term `token` refers only to the latter
  * @dev Events with indexed string parameters (Deposited and TradeExecuted) only log the hash values for those
- * parameters, which makes reading the raw string values back impossible. For convenience both indexed and
- * un-indexed values are provided for these events
+ * parameters, from which the original raw string values cannot be retrieved. For convenience these events contain
+ * the un-indexed string parameter values in addition to the indexed values
  */
 contract Exchange is IExchange, Owned {
   using SafeMath64 for uint64;
@@ -109,7 +109,6 @@ contract Exchange is IExchange, Owned {
     bytes32 buyOrderHash,
     bytes32 sellOrderHash
   );
-
   /**
    * @notice Emitted when a user invokes the Exit Wallet mechanism with `exitWallet`
    */
@@ -178,9 +177,9 @@ contract Exchange is IExchange, Owned {
   uint64 immutable _maxWithdrawalFeeBasisPoints;
 
   /**
-   * @notice Instantiate a new Exchange
+   * @notice Instantiate a new `Exchange` contract
    *
-   * @dev Sets `owner` and `admin` to `msg.sender`. Sets the values for `_maxChainPropagationPeriod`,
+   * @dev Sets `_owner` and `_admin` to `msg.sender`. Sets the values for `_maxChainPropagationPeriod`,
    * `_maxWithdrawalFeeBasisPoints`, and `_maxTradeFeeBasisPoints` to 1 week, 10%, and 10% respectively.
    * All three of these values are immutable, and cannot be changed after construction
    */
@@ -211,8 +210,8 @@ contract Exchange is IExchange, Owned {
   /*** Tunable parameters ***/
 
   /**
-   * @notice Sets a new Chain Propagation Period governing the delay between contract nonce invalidations
-   * and exits going into effect
+   * @notice Sets a new Chain Propagation Period - the block delay after which order nonce invalidations
+   * are respected by `executeTrade` and wallet exits are respected by `executeTrade` and `withdraw`
    *
    * @param newChainPropagationPeriod The new Chain Propagation Period expressed as a number of blocks. Must
    * be less than `_maxChainPropagationPeriod`
@@ -258,12 +257,12 @@ contract Exchange is IExchange, Owned {
   // Accessors //
 
   /**
-   * @notice Load a wallet's balance by asset address in asset units
+   * @notice Load a wallet's balance by asset address, in asset units
    *
-   * @param wallet The wallet to load the balance for. Can be different from calling wallet
-   * @param assetAddress The asset's address to load the wallet's balance for
+   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
+   * @param assetAddress The asset address to load the wallet's balance for
    *
-   * @return The quantity denominated in asset units of asset with `assetAddress` currently
+   * @return The quantity denominated in asset units of asset at `assetAddress` currently
    * deposited by `wallet`
    */
   function loadBalanceInAssetUnitsByAddress(
@@ -283,12 +282,12 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @notice Load a wallet's balance by asset address in asset units
+   * @notice Load a wallet's balance by asset address, in asset units
    *
-   * @param wallet The wallet to load the balance for. Can be different from calling wallet
-   * @param assetSymbol The asset's symbol to load the wallet's balance for
+   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
+   * @param assetSymbol The asset symbol to load the wallet's balance for
    *
-   * @return The quantity denominated in asset units of asset with `assetSymbol` currently deposited
+   * @return The quantity denominated in asset units of asset `assetSymbol` currently deposited
    * by `wallet`
    */
   function loadBalanceInAssetUnitsBySymbol(
@@ -309,12 +308,12 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @notice Load a wallet's balance by asset address in pips
+   * @notice Load a wallet's balance by asset address, in pips
    *
-   * @param wallet The wallet to load the balance for. Can be different from calling wallet
-   * @param assetAddress The asset's address to load the wallet's balance for
+   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
+   * @param assetAddress The asset address to load the wallet's balance for
    *
-   * @return The quantity denominated in pips of asset with `assetAddress` currently deposited by `wallet`
+   * @return The quantity denominated in pips of asset at `assetAddress` currently deposited by `wallet`
    */
   function loadBalanceInPipsByAddress(address wallet, address assetAddress)
     external
@@ -327,10 +326,10 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @notice Load a wallet's balance by asset address in pips
+   * @notice Load a wallet's balance by asset symbol, in pips
    *
-   * @param wallet The wallet to load the balance for. Can be different from calling wallet
-   * @param assetSymbol The asset's symbol to load the wallet's balance for
+   * @param wallet The wallet address to load the balance for. Can be different from `msg.sender`
+   * @param assetSymbol The asset symbol to load the wallet's balance for
    *
    * @return The quantity denominated in pips of asset with `assetSymbol` currently deposited by `wallet`
    */
@@ -347,7 +346,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @notice Load the amount filled so far for a partially filled orders
+   * @notice Load the quantity filled so far for a partially filled orders
 
    * @dev Invalidating an order nonce will not clear partial fill quantities for earlier orders because
    * the gas cost would potentially be unbound
@@ -376,16 +375,19 @@ contract Exchange is IExchange, Owned {
   /**
    * @notice Deposit `IERC20` compliant tokens
    *
-   * @param assetAddress The token contract address
+   * @param tokenAddress The token contract address
    * @param quantityInAssetUnits The quantity to deposit. The sending wallet must first call the `approve` method on
    * the token contract for at least this quantity first
    */
   function depositTokenByAddress(
-    address assetAddress,
+    IERC20 tokenAddress,
     uint256 quantityInAssetUnits
   ) external {
-    require(assetAddress != address(0x0), 'Use depositEther to deposit Ether');
-    deposit(msg.sender, assetAddress, quantityInAssetUnits);
+    require(
+      address(tokenAddress) != address(0x0),
+      'Use depositEther to deposit Ether'
+    );
+    deposit(msg.sender, address(tokenAddress), quantityInAssetUnits);
   }
 
   /**
@@ -399,12 +401,17 @@ contract Exchange is IExchange, Owned {
     string calldata assetSymbol,
     uint256 quantityInAssetUnits
   ) external {
-    address assetAddress = _assetRegistry
-      .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
-      .assetAddress;
-    require(assetAddress != address(0x0), 'Use depositEther to deposit ETH');
+    IERC20 tokenAddress = IERC20(
+      _assetRegistry
+        .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
+        .assetAddress
+    );
+    require(
+      address(tokenAddress) != address(0x0),
+      'Use depositEther to deposit ETH'
+    );
 
-    deposit(msg.sender, assetAddress, quantityInAssetUnits);
+    deposit(msg.sender, address(tokenAddress), quantityInAssetUnits);
   }
 
   function deposit(
@@ -485,13 +492,8 @@ contract Exchange is IExchange, Owned {
     uint64 timestampInMs = UUID.getTimestampInMsFromUuidV1(nonce);
     // Enforce a maximum skew for invalidating nonce timestamps in the future so the user doesn't
     // lock their wallet from trades indefinitely
-    uint64 secondsInOneDay = 24 * 60 * 60; // 24 hours/day * 60 min/hour * 60 seconds/min
-    uint64 msInOneSecond = 1000;
-    uint64 oneDayFromNowMs = (uint64(block.timestamp) + secondsInOneDay) *
-      msInOneSecond;
-
     require(
-      timestampInMs < oneDayFromNowMs,
+      timestampInMs < getOneDayFromNowInMs(),
       'Nonce timestamp too far in future'
     );
 
@@ -596,7 +598,7 @@ contract Exchange is IExchange, Owned {
   // Wallet exits //
 
   /**
-   * @notice Permanently flags the sending wallet as exited, immediately disabling deposits on mining.
+   * @notice Permanently flags the sending wallet as exited, immediately disabling deposits upon mining.
    * After the Chain Propagation Period passes trades and withdrawals are also disabled for the wallet,
    * and assets may then be withdrawn one at a time via `withdrawExit`
    */
@@ -613,7 +615,9 @@ contract Exchange is IExchange, Owned {
 
   /**
    * @notice Withdraw the entire balance of an asset for an exited wallet. The Chain Propagation Period must
-   * have already passed since calling `exitWallet`
+   * have already passed since calling `exitWallet` on `assetAddress`
+   *
+   * @param assetAddress The address of the asset to withdraw
    */
   function withdrawExit(address assetAddress) external {
     require(isWalletExitFinalized(msg.sender), 'Wallet exit not finalized');
@@ -661,7 +665,7 @@ contract Exchange is IExchange, Owned {
    *
    * @param buy A `Structs.Order` struct encoding the parameters of the buy-side order (receiving base, giving quote)
    * @param sell A `Structs.Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
-   * @param trade A `trade` struct encoding the parameters of this trade execution of the counterparty orders
+   * @param trade A `Structs.Trade` struct encoding the parameters of this trade execution of the counterparty orders
    */
   function executeTrade(
     Structs.Order memory buy,
@@ -1007,10 +1011,10 @@ contract Exchange is IExchange, Owned {
   // Asset registry //
 
   /**
-   * @notice Initiate registration process for a token asset. Only ERC-20 tokens can be added - ETH is
-   * hardcoded in the registry
+   * @notice Initiate registration process for a token asset. Only `IERC20` compliant tokens can be
+   * added - ETH is hardcoded in the registry
    *
-   * @param tokenAddress The address of the ERC-20 token contract to add
+   * @param tokenAddress The address of the `IERC20` compliant token contract to add
    * @param symbol The symbol identifying the token asset
    * @param decimals The decimal precision of the token
    */
@@ -1027,7 +1031,7 @@ contract Exchange is IExchange, Owned {
    * @notice Finalize registration process for a token asset. All parameters must exactly match a previous
    * call to `registerToken`
    *
-   * @param tokenAddress The address of the ERC-20 token contract to add
+   * @param tokenAddress The address of the `IERC20` compliant token contract to add
    * @param symbol The symbol identifying the token asset
    * @param decimals The decimal precision of the token
    */
@@ -1040,6 +1044,18 @@ contract Exchange is IExchange, Owned {
     emit TokenRegistrationConfirmed(tokenAddress, symbol, decimals);
   }
 
+  /**
+   * @notice Loads an asset descriptor struct by its symbol and timestamp
+   *
+   * @dev Since multiple token addresses can potentially share the same symbol (in case of a token
+   * swap/contract upgrade) the provided `timestampInMs` is compared against each asset's
+   * `confirmedTimestampInMs` to uniquely determine the newest asset for the symbol at that point in time
+   *
+   * @param assetSymbol The asset's symbol
+   * @param timestampInMs Point in time used to disambiguate multiple tokens with same symbol
+   *
+   * @return A `Structs.Asset` record describing the asset
+   */
   function loadAssetBySymbol(string calldata assetSymbol, uint64 timestampInMs)
     external
     view
@@ -1051,7 +1067,7 @@ contract Exchange is IExchange, Owned {
   // Dispatcher whitelisting //
 
   /**
-   * @notice Sets the wallet whitelisted to dispatch transactions invoking the `executeTrade` and `withdraw` functions
+   * @notice Sets the wallet whitelisted to dispatch transactions calling the `executeTrade` and `withdraw` functions
    *
    * @param newDispatcherWallet The new whitelisted dispatcher wallet. Must be different from the current one
    */
@@ -1068,7 +1084,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @notice Clears the currently set whitelisted dispatcher wallet, effectively disabling the
+   * @notice Clears the currently set whitelisted dispatcher wallet, effectively disabling calling the
    * `executeTrade` and `withdraw` functions until a new wallet is set with `setDispatcher`
    */
   function removeDispatcher() external onlyAdmin {
@@ -1128,5 +1144,12 @@ contract Exchange is IExchange, Owned {
     }
 
     return 0;
+  }
+
+  function getOneDayFromNowInMs() private view returns (uint64) {
+    uint64 secondsInOneDay = 24 * 60 * 60; // 24 hours/day * 60 min/hour * 60 seconds/min
+    uint64 msInOneSecond = 1000;
+
+    return (uint64(block.timestamp) + secondsInOneDay) * msInOneSecond;
   }
 }

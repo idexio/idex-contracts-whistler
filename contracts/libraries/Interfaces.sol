@@ -310,7 +310,7 @@ interface IExchange {
    *
    * @param buy A `Structs.Order` struct encoding the parameters of the buy-side order (receiving base, giving quote)
    * @param sell A `Structs.Order` struct encoding the parameters of the sell-side order (giving base, receiving quote)
-   * @param trade A `trade` struct encoding the parameters of this trade execution of the counterparty orders
+   * @param trade A `Structs.Trade` struct encoding the parameters of this trade execution of the counterparty orders
    */
   function executeTrade(
     Structs.Order calldata buy,

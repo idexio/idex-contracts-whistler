@@ -70,7 +70,7 @@ contract Governance is Owned {
   ContractUpgrade _currentGovernanceUpgrade;
 
   /**
-   * @notice Instantiate a new `Governance`
+   * @notice Instantiate a new `Governance` contract
    *
    * @dev Sets `owner` and `admin` to `msg.sender`. Sets the values for `_blockDelay` governing `Exchange`
    * and `Governance` upgrades. This value is immutable, and cannot be changed after construction
@@ -145,7 +145,7 @@ contract Governance is Owned {
 
   /**
    * @notice Finalizes the `Exchange` contract upgrade by changing the contract address on the `Custodian`
-   * contract. The number of blocks specified by `blockDelay` must have passed since calling
+   * contract with `setExchange`. The number of blocks specified by `_blockDelay` must have passed since calling
    * `initiateExchangeUpgrade`
    *
    * @param newExchange The address of the new `Exchange` contract. Must equal the address provided to
@@ -218,10 +218,11 @@ contract Governance is Owned {
 
   /**
    * @notice Finalizes the `Governance` contract upgrade by changing the contract address on the `Custodian`
-   * contract. The number of blocks specified by `blockDelay` must have passed since calling
-   * `initiateExchangeUpgrade`. Note that after calling this function, the current contract will
-   * become useless since it is no longer whitelisted in the `Custodian`, and a new `Custodian` cannot
-   * be set
+   * contract with `setGovernance`. The number of blocks specified by `_blockDelay` must have passed since calling
+   * `initiateGovernanceUpgrade`.
+   *
+   * @dev After successfully calling this function, this contract will become useless since it is no
+   * longer whitelisted in the `Custodian`
    *
    * @param newGovernance The address of the new `Governance` contract. Must equal the address provided to
    * `initiateGovernanceUpgrade`

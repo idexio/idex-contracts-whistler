@@ -3,6 +3,9 @@
 pragma solidity 0.6.8;
 
 
+/**
+ * @notice Mixin that provide separate owner and admin roles for RBAC
+ */
 abstract contract Owned {
   address immutable _owner;
   address _admin;

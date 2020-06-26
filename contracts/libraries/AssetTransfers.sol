@@ -11,7 +11,7 @@ import { IERC20 } from './Interfaces.sol';
 
 
 /**
- * @dev This library provides helper utilities for transfering assets in and out of contracts.
+ * @notice This library provides helper utilities for transfering assets in and out of contracts.
  * It further validates ERC-20 compliant balance updates in the case of token assets
  */
 library AssetTransfers {

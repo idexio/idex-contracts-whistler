@@ -54,7 +54,21 @@ contract('Exchange (trades)', (accounts) => {
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
 
-      const { buyOrderHash, sellOrderHash } = events[0].returnValues;
+      const {
+        buyWallet: loggedBuyWallet,
+        sellWallet: loggedSellWallet,
+        baseAssetSymbol,
+        quoteAssetSymbol,
+        buyOrderHash,
+        sellOrderHash,
+      } = events[0].returnValues;
+
+      expect(loggedBuyWallet).to.equal(buyWallet);
+      expect(loggedSellWallet).to.equal(sellWallet);
+
+      expect(baseAssetSymbol).to.equal(tokenSymbol);
+      expect(quoteAssetSymbol).to.equal(ethSymbol);
+
       expect(
         (
           await exchange.loadBalanceInAssetUnitsByAddress(

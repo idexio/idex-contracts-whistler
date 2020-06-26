@@ -46,6 +46,13 @@ contract('Exchange (deposits)', (accounts) => {
       });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+
+      const { wallet, assetAddress, assetSymbol } = events[0].returnValues;
+
+      expect(wallet).to.equal(accounts[0]);
+      expect(assetAddress).to.equal(ethAddress);
+      expect(assetSymbol).to.equal(ethSymbol);
+
       expect(
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
@@ -101,6 +108,12 @@ contract('Exchange (deposits)', (accounts) => {
       });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+
+      const { wallet, assetAddress, assetSymbol } = events[0].returnValues;
+
+      expect(wallet).to.equal(accounts[0]);
+      expect(assetAddress).to.equal(token.address);
+      expect(assetSymbol).to.equal(tokenSymbol);
     });
 
     it('should revert for ETH', async () => {
