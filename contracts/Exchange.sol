@@ -298,7 +298,7 @@ contract Exchange is IExchange, Owned {
 
     Structs.Asset memory asset = _assetRegistry.loadAssetBySymbol(
       assetSymbol,
-      uint64(block.timestamp * 1000)
+      getCurrentTimestampInMs()
     );
     return
       AssetUnitConversions.pipsToAssetUnits(
@@ -340,7 +340,7 @@ contract Exchange is IExchange, Owned {
     require(wallet != address(0x0), 'Invalid wallet address');
 
     address assetAddress = _assetRegistry
-      .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
+      .loadAssetBySymbol(assetSymbol, getCurrentTimestampInMs())
       .assetAddress;
     return _balancesInPips[wallet][assetAddress];
   }
@@ -403,7 +403,7 @@ contract Exchange is IExchange, Owned {
   ) external {
     IERC20 tokenAddress = IERC20(
       _assetRegistry
-        .loadAssetBySymbol(assetSymbol, uint64(block.timestamp * 1000))
+        .loadAssetBySymbol(assetSymbol, getCurrentTimestampInMs())
         .assetAddress
     );
     require(
@@ -882,7 +882,10 @@ contract Exchange is IExchange, Owned {
       trade.grossQuoteQuantityInPips > 0,
       'Quote quantity must be greater than zero'
     );
-    uint64 priceInPips = trade.grossQuoteQuantityInPips.mul(10**8).div(
+
+    // To convert a fractional price to integer pips, shift right by the pip precision of 8 decimals
+    uint64 pipsMultiplier = 10**8;
+    uint64 priceInPips = trade.grossQuoteQuantityInPips.mul(pipsMultiplier).div(
       trade.grossBaseQuantityInPips
     );
 
@@ -1120,6 +1123,12 @@ contract Exchange is IExchange, Owned {
       orderType == Enums.OrderType.Market ||
       orderType == Enums.OrderType.StopLoss ||
       orderType == Enums.OrderType.TakeProfit;
+  }
+
+  function getCurrentTimestampInMs() private view returns (uint64) {
+    uint64 msInOneSecond = 1000;
+
+    return uint64(block.timestamp) * msInOneSecond;
   }
 
   function getFeeBasisPoints(uint64 fee, uint64 total)
