@@ -151,6 +151,93 @@ contract('Exchange (trades)', (accounts) => {
       ).to.equal('0');
     });
 
+    it('should work for matching limit orders without exact price match', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await deposit(exchange, token, buyWallet, sellWallet);
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token,
+        buyWallet,
+        sellWallet,
+      );
+
+      const quantity = '0.02494589';
+      const price = '0.01986173';
+      buyOrder.quantity = quantity;
+      buyOrder.price = price;
+      sellOrder.quantity = quantity;
+      sellOrder.price = price;
+
+      const quoteQuantity = new BigNumber(quantity)
+        .multipliedBy(new BigNumber(price))
+        .toFixed(8, BigNumber.ROUND_DOWN);
+      fill.grossBaseQuantity = quantity;
+      fill.netBaseQuantity = quantity; // No fee
+      fill.grossQuoteQuantity = quoteQuantity;
+      fill.netQuoteQuantity = quoteQuantity; // No fee
+      fill.price = price;
+
+      await executeTrade(
+        exchange,
+        buyWallet,
+        sellWallet,
+        buyOrder,
+        sellOrder,
+        fill,
+      );
+
+      const events = await exchange.getPastEvents('TradeExecuted', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+
+      const {
+        buyWallet: loggedBuyWallet,
+        sellWallet: loggedSellWallet,
+        baseAssetSymbol,
+        quoteAssetSymbol,
+        buyOrderHash,
+        sellOrderHash,
+      } = events[0].returnValues;
+
+      expect(loggedBuyWallet).to.equal(buyWallet);
+      expect(loggedSellWallet).to.equal(sellWallet);
+
+      expect(baseAssetSymbol).to.equal(tokenSymbol);
+      expect(quoteAssetSymbol).to.equal(ethSymbol);
+
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            buyWallet,
+            token.address,
+          )
+        ).toString(),
+      ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            sellWallet,
+            ethAddress,
+          )
+        ).toString(),
+      ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
+      expect(
+        (
+          await exchange.loadPartiallyFilledOrderQuantityInPips(buyOrderHash)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadPartiallyFilledOrderQuantityInPips(sellOrderHash)
+        ).toString(),
+      ).to.equal('0');
+    });
+
     it('should work for matching stop limit orders', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);

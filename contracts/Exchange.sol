@@ -885,17 +885,28 @@ contract Exchange is IExchange, Owned {
 
     // To convert a fractional price to integer pips, shift right by the pip precision of 8 decimals
     uint64 pipsMultiplier = 10**8;
-    uint64 priceInPips = trade.grossQuoteQuantityInPips.mul(pipsMultiplier).div(
-      trade.grossBaseQuantityInPips
-    );
 
-    bool exceedsBuyLimit = isLimitOrderType(buy.orderType) &&
-      priceInPips > buy.limitPriceInPips;
-    require(!exceedsBuyLimit, 'Buy order limit price exceeded');
+    if (isLimitOrderType(buy.orderType)) {
+      uint64 impliedMaximumQuoteQuantityInPips = trade
+        .grossBaseQuantityInPips
+        .mul(buy.limitPriceInPips)
+        .div(pipsMultiplier);
+      require(
+        impliedMaximumQuoteQuantityInPips >= trade.grossQuoteQuantityInPips,
+        'Buy order limit price exceeded'
+      );
+    }
 
-    bool exceedsSellLimit = isLimitOrderType(sell.orderType) &&
-      priceInPips < sell.limitPriceInPips;
-    require(!exceedsSellLimit, 'Sell order limit price exceeded');
+    if (isLimitOrderType(sell.orderType)) {
+      uint64 impliedMinimumQuoteQuantityInPips = trade
+        .grossBaseQuantityInPips
+        .mul(sell.limitPriceInPips)
+        .div(pipsMultiplier);
+      require(
+        impliedMinimumQuoteQuantityInPips <= trade.grossQuoteQuantityInPips,
+        'Sell order limit price exceeded'
+      );
+    }
   }
 
   function validateTradeFees(Structs.Trade memory trade) private view {
