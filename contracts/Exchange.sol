@@ -346,6 +346,15 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
+   * @notice Load the address of the Fee wallet
+   *
+   * @return The address of the Fee wallet
+   */
+  function loadFeeWallet() external view returns (address) {
+    return _feeWallet;
+  }
+
+  /**
    * @notice Load the quantity filled so far for a partially filled orders
 
    * @dev Invalidating an order nonce will not clear partial fill quantities for earlier orders because
@@ -883,27 +892,22 @@ contract Exchange is IExchange, Owned {
       'Quote quantity must be greater than zero'
     );
 
-    // To convert a fractional price to integer pips, shift right by the pip precision of 8 decimals
-    uint64 pipsMultiplier = 10**8;
-
     if (isLimitOrderType(buy.orderType)) {
-      uint64 impliedMaximumQuoteQuantityInPips = trade
-        .grossBaseQuantityInPips
-        .mul(buy.limitPriceInPips)
-        .div(pipsMultiplier);
       require(
-        impliedMaximumQuoteQuantityInPips >= trade.grossQuoteQuantityInPips,
+        getImpliedQuoteQuantityInPips(
+          trade.grossBaseQuantityInPips,
+          buy.limitPriceInPips
+        ) >= trade.grossQuoteQuantityInPips,
         'Buy order limit price exceeded'
       );
     }
 
     if (isLimitOrderType(sell.orderType)) {
-      uint64 impliedMinimumQuoteQuantityInPips = trade
-        .grossBaseQuantityInPips
-        .mul(sell.limitPriceInPips)
-        .div(pipsMultiplier);
       require(
-        impliedMinimumQuoteQuantityInPips <= trade.grossQuoteQuantityInPips,
+        getImpliedQuoteQuantityInPips(
+          trade.grossBaseQuantityInPips,
+          sell.limitPriceInPips
+        ) <= trade.grossQuoteQuantityInPips,
         'Sell order limit price exceeded'
       );
     }
@@ -1149,6 +1153,24 @@ contract Exchange is IExchange, Owned {
   {
     uint64 basisPointsInTotal = 100 * 100; // 100 basis points/percent * 100 percent/total
     return fee.mul(basisPointsInTotal).div(total);
+  }
+
+  function getImpliedQuoteQuantityInPips(
+    uint64 baseQuantityInPips,
+    uint64 limitPriceInPips
+  ) private pure returns (uint64) {
+    // To convert a fractional price to integer pips, shift right by the pip precision of 8 decimals
+    uint256 pipsMultiplier = 10**8;
+
+    uint256 impliedQuoteQuantityInPips = uint256(baseQuantityInPips)
+      .mul(uint256(limitPriceInPips))
+      .div(pipsMultiplier);
+    require(
+      impliedQuoteQuantityInPips < 2**64,
+      'Implied quote pip quantity overflows uint64'
+    );
+
+    return uint64(impliedQuoteQuantityInPips);
   }
 
   function getLastInvalidatedTimestamp(address walletAddress)

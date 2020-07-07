@@ -277,7 +277,7 @@ contract('Exchange (withdrawals)', (accounts) => {
       expect((await token.balanceOf(accounts[0])).toString()).to.equal(
         new BigNumber(tokenBalanceBefore)
           .minus(new BigNumber(minimumTokenQuantity))
-          .toString(),
+          .toFixed(0),
       );
     });
 

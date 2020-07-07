@@ -280,6 +280,8 @@ contract('Exchange (tunable parameters)', (accounts) => {
       });
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
+
+      expect(await exchange.loadFeeWallet()).to.equal(accounts[1]);
     });
 
     it('should revert for empty address', async () => {

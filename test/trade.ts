@@ -94,6 +94,151 @@ contract('Exchange (trades)', (accounts) => {
       ).to.equal('0');
     });
 
+    it('should work near max pip value', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const baseToken = await deployAndRegisterToken(exchange, 'BASE');
+      const quoteToken = await deployAndRegisterToken(exchange, 'QUOTE');
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await quoteToken.transfer(
+        buyWallet,
+        new BigNumber(10).exponentiatedBy(30).toFixed(0),
+      );
+
+      const quantity = '184467440737.09551615'; // 2^64 - 1 in pips - max value
+      const price = '0.10000000'; // price is <1 so quote quantity won't overflow
+      const decimals = 18;
+      await depositTokenPair(
+        exchange,
+        baseToken,
+        quoteToken,
+        buyWallet,
+        sellWallet,
+        decimals,
+        quantity,
+        price,
+      );
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        baseToken.address,
+        quoteToken.address,
+        buyWallet,
+        sellWallet,
+        quantity,
+        price,
+        'BASE-QUOTE',
+      );
+
+      await executeTrade(
+        exchange,
+        buyWallet,
+        sellWallet,
+        buyOrder,
+        sellOrder,
+        fill,
+      );
+
+      const events = await exchange.getPastEvents('TradeExecuted', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+
+      const {
+        buyWallet: loggedBuyWallet,
+        sellWallet: loggedSellWallet,
+        baseAssetSymbol,
+        quoteAssetSymbol,
+        buyOrderHash,
+        sellOrderHash,
+      } = events[0].returnValues;
+
+      expect(loggedBuyWallet).to.equal(buyWallet);
+      expect(loggedSellWallet).to.equal(sellWallet);
+
+      expect(baseAssetSymbol).to.equal('BASE');
+      expect(quoteAssetSymbol).to.equal('QUOTE');
+
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            buyWallet,
+            baseToken.address,
+          )
+        ).toString(),
+      ).to.equal(decimalToAssetUnits(fill.netBaseQuantity, 18));
+      expect(
+        (
+          await exchange.loadBalanceInAssetUnitsByAddress(
+            sellWallet,
+            quoteToken.address,
+          )
+        ).toString(),
+      ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
+      expect(
+        (
+          await exchange.loadPartiallyFilledOrderQuantityInPips(buyOrderHash)
+        ).toString(),
+      ).to.equal('0');
+      expect(
+        (
+          await exchange.loadPartiallyFilledOrderQuantityInPips(sellOrderHash)
+        ).toString(),
+      ).to.equal('0');
+    });
+
+    it('should revert above max pip value', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const baseToken = await deployAndRegisterToken(exchange, 'BASE');
+      const quoteToken = await deployAndRegisterToken(exchange, 'QUOTE');
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+      await quoteToken.transfer(
+        buyWallet,
+        new BigNumber(10).exponentiatedBy(30).toFixed(0),
+      );
+
+      const quantity = '184467440737.09551615'; // 2^64 - 1 in pips - max value
+      const price = '1.00000001'; // price is >1 so quote quantity will overflow
+      const decimals = 18;
+      await depositTokenPair(
+        exchange,
+        baseToken,
+        quoteToken,
+        buyWallet,
+        sellWallet,
+        decimals,
+        quantity,
+        '1.00000000', // Lower price to not overflow deposit
+      );
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        baseToken.address,
+        quoteToken.address,
+        buyWallet,
+        sellWallet,
+        quantity,
+        price,
+        'BASE-QUOTE',
+      );
+
+      let error;
+      try {
+        await executeTrade(
+          exchange,
+          buyWallet,
+          sellWallet,
+          buyOrder,
+          sellOrder,
+          fill,
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/pip quantity overflows uint64/i);
+    });
+
     it('should work for matching limit orders with 2 decimal base asset', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol, 2);
@@ -102,7 +247,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet, 2);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -159,7 +305,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -246,7 +393,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -305,7 +453,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -364,7 +513,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -423,7 +573,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -488,7 +639,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -555,7 +707,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -586,7 +739,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -619,7 +773,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -654,7 +809,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -689,7 +845,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -736,7 +893,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -885,7 +1043,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -914,7 +1073,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -944,7 +1104,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -980,7 +1141,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1010,7 +1172,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1040,7 +1203,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1072,7 +1236,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1104,7 +1269,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1136,7 +1302,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1168,7 +1335,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1204,7 +1372,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1236,7 +1405,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1266,7 +1436,8 @@ contract('Exchange (trades)', (accounts) => {
       const [sellWallet, buyWallet] = accounts;
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1299,7 +1470,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -1338,11 +1510,11 @@ export const deposit = async (
   buyWallet: string,
   sellWallet: string,
   decimals = 18,
+  quantity = '10.00000000',
+  price = '0.10000000', // 1 ETH buys 10 TKN
 ): Promise<void> => {
-  const quantity = '10.00000000';
-  const price = new BigNumber('0.10000000').shiftedBy(18 - decimals); // 1 ETH buys 10 TKN
   const quoteQuantity = new BigNumber(quantity)
-    .multipliedBy(new BigNumber(price))
+    .multipliedBy(new BigNumber(price).shiftedBy(18 - decimals))
     .toFixed(8, BigNumber.ROUND_DOWN);
 
   await token.approve(
@@ -1363,6 +1535,50 @@ export const deposit = async (
     value: decimalToAssetUnits(quoteQuantity, decimals),
     from: buyWallet,
   });
+};
+
+export const depositTokenPair = async (
+  exchange: ExchangeInstance,
+  baseToken: TestTokenInstance,
+  quoteToken: TestTokenInstance,
+  buyWallet: string,
+  sellWallet: string,
+  decimals = 18,
+  quantity = '10.00000000',
+  price = '0.10000000', // 1 ETH buys 10 TKN
+): Promise<void> => {
+  await baseToken.approve(
+    exchange.address,
+    decimalToAssetUnits(quantity, decimals),
+    {
+      from: sellWallet,
+    },
+  );
+  await exchange.depositTokenByAddress(
+    baseToken.address,
+    decimalToAssetUnits(quantity, decimals),
+    {
+      from: sellWallet,
+    },
+  );
+
+  const quoteQuantity = new BigNumber(quantity)
+    .multipliedBy(new BigNumber(price).shiftedBy(18 - decimals))
+    .toFixed(8, BigNumber.ROUND_DOWN);
+  await quoteToken.approve(
+    exchange.address,
+    decimalToAssetUnits(quoteQuantity, decimals),
+    {
+      from: buyWallet,
+    },
+  );
+  await exchange.depositTokenByAddress(
+    quoteToken.address,
+    decimalToAssetUnits(quoteQuantity, decimals),
+    {
+      from: buyWallet,
+    },
+  );
 };
 
 export const executeTrade = async (
@@ -1391,12 +1607,14 @@ export const executeTrade = async (
 };
 
 export const generateOrdersAndFill = async (
-  token: TestTokenInstance,
+  baseAssetAddress: string,
+  quoteAssetAddress: string,
   buyWallet: string,
   sellWallet: string,
+  quantity = '10.00000000',
+  price = '0.10000000', // 1 ETH buys 10 TKN
+  market = marketSymbol,
 ): Promise<{ buyOrder: Order; sellOrder: Order; fill: Trade }> => {
-  const quantity = '10.00000000';
-  const price = '0.10000000'; // 1 ETH buys 10 TKN
   const quoteQuantity = new BigNumber(quantity)
     .multipliedBy(new BigNumber(price))
     .toFixed(8, BigNumber.ROUND_DOWN);
@@ -1405,7 +1623,7 @@ export const generateOrdersAndFill = async (
     signatureHashVersion: 1,
     nonce: uuidv1(),
     wallet: sellWallet,
-    market: marketSymbol,
+    market,
     type: OrderType.Limit,
     side: OrderSide.Sell,
     quantity,
@@ -1416,7 +1634,7 @@ export const generateOrdersAndFill = async (
     signatureHashVersion: 1,
     nonce: uuidv1(),
     wallet: buyWallet,
-    market: marketSymbol,
+    market,
     type: OrderType.Limit,
     side: OrderSide.Buy,
     quantity,
@@ -1424,14 +1642,14 @@ export const generateOrdersAndFill = async (
   };
 
   const fill: Trade = {
-    baseAssetAddress: token.address,
-    quoteAssetAddress: ethAddress,
+    baseAssetAddress,
+    quoteAssetAddress,
     grossBaseQuantity: quantity,
     grossQuoteQuantity: quoteQuantity,
     netBaseQuantity: quantity, // No fee
     netQuoteQuantity: quoteQuantity, // No fee
-    makerFeeAssetAddress: ethAddress,
-    takerFeeAssetAddress: token.address,
+    makerFeeAssetAddress: quoteAssetAddress,
+    takerFeeAssetAddress: baseAssetAddress,
     makerFeeQuantity: '0',
     takerFeeQuantity: '0',
     price,
@@ -1458,7 +1676,8 @@ const generateAndExecuteTrade = async (
   sellWallet: string,
 ): Promise<Trade> => {
   const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-    token,
+    token.address,
+    ethAddress,
     buyWallet,
     sellWallet,
   );

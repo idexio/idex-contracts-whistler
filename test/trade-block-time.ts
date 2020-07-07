@@ -1,6 +1,10 @@
 import { v1 as uuidv1 } from 'uuid';
 
-import { deployAndAssociateContracts, deployAndRegisterToken } from './helpers';
+import {
+  deployAndAssociateContracts,
+  deployAndRegisterToken,
+  ethAddress,
+} from './helpers';
 import { deposit, executeTrade, generateOrdersAndFill } from './trade';
 
 const tokenSymbol = 'TKN';
@@ -24,7 +28,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
@@ -64,7 +69,8 @@ contract('Exchange (trades)', (accounts) => {
       await deposit(exchange, token, buyWallet, sellWallet);
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
-        token,
+        token.address,
+        ethAddress,
         buyWallet,
         sellWallet,
       );
