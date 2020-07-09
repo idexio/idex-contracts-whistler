@@ -1,7 +1,7 @@
 import BigNumber from 'bignumber.js';
 import { ethers } from 'ethers';
 
-import { ExchangeInstance } from '../types/truffle-contracts/Exchange';
+import { ExchangeInstance } from '../types/truffle-v5/Exchange';
 
 /** The fixed number of digits following the decimal in quantities expressed as pips */
 export const pipsDecimals = 8;

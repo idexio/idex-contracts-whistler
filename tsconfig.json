@@ -9,7 +9,7 @@
     "target": "ES2018",
     "sourceMap": true,
     "typeRoots": ["./types", "./node_modules/@types"],
-    "types": ["node", "truffle-contracts"]
+    "types": ["node", "truffle-v5"]
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "build"]

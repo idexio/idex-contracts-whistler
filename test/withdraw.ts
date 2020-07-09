@@ -1,9 +1,9 @@
 import BigNumber from 'bignumber.js';
 import { v1 as uuidv1 } from 'uuid';
 
-import type { CustodianInstance } from '../types/truffle-contracts/Custodian';
-import type { ExchangeInstance } from '../types/truffle-contracts/Exchange';
-import type { GovernanceInstance } from '../types/truffle-contracts/Governance';
+import type { CustodianInstance } from '../types/truffle-v5/Custodian';
+import type { ExchangeInstance } from '../types/truffle-v5/Exchange';
+import type { GovernanceInstance } from '../types/truffle-v5/Governance';
 
 import {
   decimalToAssetUnits,
