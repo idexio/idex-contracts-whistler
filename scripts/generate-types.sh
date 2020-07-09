@@ -9,7 +9,7 @@ fi
 
 case $1 in
 all)
-  yarn generate:types
+  yarn generate:types-all
   ;;
 *)
   if [ -d "types/$1" ] && [ "$2" != "--overwrite" ]; then 
