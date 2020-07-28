@@ -4,7 +4,8 @@ import {
   minimumTokenQuantity,
   ethSymbol,
 } from './helpers';
-import { assetUnitsToPips, ethAddress } from '../lib';
+import { ethAddress } from '../lib';
+import { assetUnitsToPips } from '../lib/utils';
 
 contract('Exchange (deposits)', (accounts) => {
   const Exchange = artifacts.require('Exchange');

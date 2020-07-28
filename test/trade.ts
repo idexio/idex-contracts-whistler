@@ -7,23 +7,19 @@ import type {
 } from '../types/truffle-contracts';
 
 import {
+  decimalToPips,
+  decimalToAssetUnits,
+  uuidToHexString,
+} from '../lib/utils';
+import {
   deployAndAssociateContracts,
   deployAndRegisterToken,
   ethAddress,
   ethSymbol,
   getSignature,
 } from './helpers';
-import {
-  decimalToPips,
-  decimalToAssetUnits,
-  getOrderHash,
-  getTradeArguments,
-  Order,
-  OrderSide,
-  OrderType,
-  Trade,
-  uuidToHexString,
-} from '../lib';
+import { getOrderHash, getTradeArguments } from '../lib';
+import { Order, OrderSide, OrderType, Trade } from '../lib/types';
 
 const tokenSymbol = 'TKN';
 const marketSymbol = `${tokenSymbol}-${ethSymbol}`;

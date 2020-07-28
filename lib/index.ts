@@ -1,86 +1,18 @@
-import BigNumber from 'bignumber.js';
-import { ethers } from 'ethers';
-
+import fs from 'fs';
+import path from 'path';
+import * as utils from './utils';
 import { ExchangeInstance } from '../types/truffle-contracts/Exchange';
+import { Order, Trade, Withdrawal, WithdrawalType } from './types';
 
 /** The fixed number of digits following the decimal in quantities expressed as pips */
 export const pipsDecimals = 8;
 
-export enum OrderSelfTradePrevention {
-  DecreaseAndCancel,
-  CancelOldest,
-  CancelNewest,
-  CancelBoth,
-}
-export enum OrderSide {
-  Buy,
-  Sell,
-}
-export enum OrderTimeInForce {
-  GTC,
-  GTT,
-  IOC,
-  FOK,
-}
-export enum OrderType {
-  Market,
-  Limit,
-  LimitMaker,
-  StopLoss,
-  StopLossLimit,
-  TakeProfit,
-  TakeProfitLimit,
-}
-export interface Order {
-  signatureHashVersion: number;
-  nonce: string;
-  wallet: string;
-  market: string;
-  type: OrderType;
-  side: OrderSide;
-  timeInForce?: OrderTimeInForce;
-  quantity?: string;
-  quoteOrderQuantity?: string;
-  price: string;
-  stopPrice?: string;
-  clientOrderId?: string;
-  selfTradePrevention?: OrderSelfTradePrevention;
-  cancelAfter?: number;
-}
-export interface Trade {
-  baseAssetAddress: string;
-  quoteAssetAddress: string;
-  grossBaseQuantity: string;
-  grossQuoteQuantity: string;
-  netBaseQuantity: string;
-  netQuoteQuantity: string;
-  makerFeeAssetAddress: string;
-  takerFeeAssetAddress: string;
-  makerFeeQuantity: string;
-  takerFeeQuantity: string;
-  price: string;
-  makerSide: OrderSide;
-}
-
-enum WithdrawalType {
-  BySymbol,
-  ByAddress,
-}
-export interface Withdrawal {
-  nonce: string;
-  wallet: string;
-  quantity: string; // Decimal string
-  autoDispatchEnabled: boolean; // Currently has no effect
-  asset?: string;
-  assetContractAddress?: string;
-}
-
 export const ethAddress = '0x0000000000000000000000000000000000000000';
 
 export const getOrderHash = (order: Order): string =>
-  solidityHashOfParams([
+  utils.solidityHash([
     ['uint8', order.signatureHashVersion], // Signature hash version - only version 1 supported
-    ['uint128', uuidToUint8Array(order.nonce)],
+    ['uint128', utils.uuidToUint8Array(order.nonce)],
     ['address', order.wallet],
     ['string', order.market],
     ['uint8', order.type],
@@ -105,8 +37,8 @@ export const getWithdrawalHash = (withdrawal: Withdrawal): string => {
     );
   }
 
-  return solidityHashOfParams([
-    ['uint128', uuidToUint8Array(withdrawal.nonce)],
+  return utils.solidityHash([
+    ['uint128', utils.uuidToUint8Array(withdrawal.nonce)],
     ['address', withdrawal.wallet],
     withdrawal.asset
       ? ['string', withdrawal.asset]
@@ -123,17 +55,22 @@ export const getTradeArguments = (
   sellWalletSignature: string,
   trade: Trade,
 ): ExchangeInstance['executeTrade']['arguments'] => {
-  const orderToArgumentStruct = (o: Order, walletSignature: string) => {
+  const orderToArgumentStruct = (
+    o: Order,
+    walletSignature: string,
+  ): ExchangeInstance['executeTrade']['arguments'][0] => {
     return {
       signatureHashVersion: o.signatureHashVersion,
-      nonce: uuidToHexString(o.nonce),
+      nonce: utils.uuidToHexString(o.nonce),
       walletAddress: o.wallet,
       orderType: o.type,
       side: o.side,
-      quantityInPips: decimalToPips(o.quantity || '0'),
-      quoteOrderQuantityInPips: decimalToPips(o.quoteOrderQuantity || '0'),
-      limitPriceInPips: decimalToPips(o.price || '0'),
-      stopPriceInPips: decimalToPips(o.stopPrice || '0'),
+      quantityInPips: utils.decimalToPips(o.quantity || '0'),
+      quoteOrderQuantityInPips: utils.decimalToPips(
+        o.quoteOrderQuantity || '0',
+      ),
+      limitPriceInPips: utils.decimalToPips(o.price || '0'),
+      stopPriceInPips: utils.decimalToPips(o.stopPrice || '0'),
       clientOrderId: o.clientOrderId || '',
       timeInForce: o.timeInForce || 0,
       selfTradePrevention: o.selfTradePrevention || 0,
@@ -141,21 +78,23 @@ export const getTradeArguments = (
       walletSignature,
     };
   };
-  const tradeToArgumentStruct = (t: Trade) => {
+  const tradeToArgumentStruct = (
+    t: Trade,
+  ): ExchangeInstance['executeTrade']['arguments'][2] => {
     return {
       baseAssetSymbol: buyOrder.market.split('-')[0],
       quoteAssetSymbol: buyOrder.market.split('-')[1],
       baseAssetAddress: t.baseAssetAddress,
       quoteAssetAddress: t.quoteAssetAddress,
-      grossBaseQuantityInPips: decimalToPips(t.grossBaseQuantity),
-      grossQuoteQuantityInPips: decimalToPips(t.grossQuoteQuantity),
-      netBaseQuantityInPips: decimalToPips(t.netBaseQuantity),
-      netQuoteQuantityInPips: decimalToPips(t.netQuoteQuantity),
+      grossBaseQuantityInPips: utils.decimalToPips(t.grossBaseQuantity),
+      grossQuoteQuantityInPips: utils.decimalToPips(t.grossQuoteQuantity),
+      netBaseQuantityInPips: utils.decimalToPips(t.netBaseQuantity),
+      netQuoteQuantityInPips: utils.decimalToPips(t.netQuoteQuantity),
       makerFeeAssetAddress: t.makerFeeAssetAddress,
       takerFeeAssetAddress: t.takerFeeAssetAddress,
-      makerFeeQuantityInPips: decimalToPips(t.makerFeeQuantity),
-      takerFeeQuantityInPips: decimalToPips(t.takerFeeQuantity),
-      priceInPips: decimalToPips(t.price),
+      makerFeeQuantityInPips: utils.decimalToPips(t.makerFeeQuantity),
+      takerFeeQuantityInPips: utils.decimalToPips(t.takerFeeQuantity),
+      priceInPips: utils.decimalToPips(t.price),
       makerSide: t.makerSide,
     };
   };
@@ -176,68 +115,48 @@ export const getWithdrawArguments = (
       withdrawalType: withdrawal.asset
         ? WithdrawalType.BySymbol
         : WithdrawalType.ByAddress,
-      nonce: uuidToHexString(withdrawal.nonce),
+      nonce: utils.uuidToHexString(withdrawal.nonce),
       walletAddress: withdrawal.wallet,
       assetSymbol: withdrawal.asset || '',
       assetAddress: withdrawal.assetContractAddress || ethAddress,
-      quantityInPips: decimalToPips(withdrawal.quantity),
-      gasFeeInPips: decimalToPips(gasFee),
+      quantityInPips: utils.decimalToPips(withdrawal.quantity),
+      gasFeeInPips: utils.decimalToPips(gasFee),
       autoDispatchEnabled: true,
       walletSignature,
     },
   ];
 };
 
-type TypeValuePair =
-  | ['string' | 'address', string]
-  | ['uint128', string | Uint8Array]
-  | ['uint8' | 'uint64', number]
-  | ['bool', boolean];
+let _custodianAbi: string;
+export const loadCustodianAbi = (): string => {
+  if (!_custodianAbi) {
+    _custodianAbi = loadAbi('Custodian');
+  }
 
-const solidityHashOfParams = (params: TypeValuePair[]): string => {
-  const fields = params.map((param) => param[0]);
-  const values = params.map((param) => param[1]);
-  return ethers.utils.solidityKeccak256(fields, values);
+  return _custodianAbi;
 };
 
-export const uuidToUint8Array = (uuid: string): Uint8Array =>
-  ethers.utils.arrayify(uuidToHexString(uuid));
+let _exchangeAbi: string;
+export const loadExchangeAbi = (): string => {
+  if (!_exchangeAbi) {
+    _exchangeAbi = loadAbi('Exchange');
+  }
 
-export const uuidToHexString = (uuid: string): string =>
-  `0x${uuid.replace(/-/g, '')}`;
+  return _exchangeAbi;
+};
 
-/**
- * Convert decimal quantity string to integer pips as expected by contract structs. Truncates
- * anything beyond 8 decimals
- */
-export const decimalToPips = (decimal: string): string =>
-  new BigNumber(decimal)
-    .shiftedBy(8)
-    .integerValue(BigNumber.ROUND_DOWN)
-    .toFixed(0);
+let _governanceAbi: string;
+export const loadGovernanceAbi = (): string => {
+  if (!_governanceAbi) {
+    _governanceAbi = loadAbi('Governance');
+  }
 
-/**
- * Convert pips to native token quantity, taking the nunmber of decimals into account
- */
-export const pipsToAssetUnits = (pips: string, decimals: number): string =>
-  new BigNumber(pips)
-    .shiftedBy(decimals - 8) // This is still correct when decimals < 8
-    .integerValue(BigNumber.ROUND_DOWN)
-    .toFixed(0);
+  return _governanceAbi;
+};
 
-/**
- * Convert pips to native token quantity, taking the nunmber of decimals into account
- */
-export const assetUnitsToPips = (
-  assetUnits: string,
-  decimals: number,
-): string =>
-  new BigNumber(assetUnits)
-    .shiftedBy(8 - decimals) // This is still correct when decimals > 8
-    .integerValue(BigNumber.ROUND_DOWN)
-    .toString();
-
-export const decimalToAssetUnits = (
-  decimal: string,
-  decimals: number,
-): string => pipsToAssetUnits(decimalToPips(decimal), decimals);
+const loadAbi = (filename: 'Custodian' | 'Exchange' | 'Governance'): string =>
+  JSON.parse(
+    fs
+      .readFileSync(path.join(__dirname, '..', 'contracts', `${filename}.json`))
+      .toString('utf8'),
+  ).abi;
