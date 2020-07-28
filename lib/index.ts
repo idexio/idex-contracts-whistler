@@ -127,36 +127,34 @@ export const getWithdrawArguments = (
   ];
 };
 
-let _custodianAbi: string;
-export const loadCustodianAbi = (): string => {
-  if (!_custodianAbi) {
-    _custodianAbi = loadAbi('Custodian');
-  }
-
-  return _custodianAbi;
+export type LoadContractResult = {
+  abi: unknown[];
+  bytecode: string;
 };
 
-let _exchangeAbi: string;
-export const loadExchangeAbi = (): string => {
-  if (!_exchangeAbi) {
-    _exchangeAbi = loadAbi('Exchange');
+export const loadCustodianContract = (): LoadContractResult =>
+  loadContract('Custodian');
+
+export const loadExchangeContract = (): LoadContractResult =>
+  loadContract('Exchange');
+
+export const loadGovernanceContract = (): LoadContractResult =>
+  loadContract('Governance');
+
+const _compiledContractMap = new Map<string, LoadContractResult>();
+const loadContract = (
+  filename: 'Custodian' | 'Exchange' | 'Governance',
+): LoadContractResult => {
+  if (!_compiledContractMap.has(filename)) {
+    const { abi, bytecode } = JSON.parse(
+      fs
+        .readFileSync(
+          path.join(__dirname, '..', 'contracts', `${filename}.json`),
+        )
+        .toString('utf8'),
+    );
+    _compiledContractMap.set(filename, { abi, bytecode });
   }
 
-  return _exchangeAbi;
+  return _compiledContractMap.get(filename) as LoadContractResult; // Will never be undefined as it gets set above
 };
-
-let _governanceAbi: string;
-export const loadGovernanceAbi = (): string => {
-  if (!_governanceAbi) {
-    _governanceAbi = loadAbi('Governance');
-  }
-
-  return _governanceAbi;
-};
-
-const loadAbi = (filename: 'Custodian' | 'Exchange' | 'Governance'): string =>
-  JSON.parse(
-    fs
-      .readFileSync(path.join(__dirname, '..', 'contracts', `${filename}.json`))
-      .toString('utf8'),
-  ).abi;
