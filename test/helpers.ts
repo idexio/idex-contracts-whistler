@@ -7,7 +7,7 @@ import type { Withdrawal } from '../lib/types';
 import { getWithdrawArguments, getWithdrawalHash } from '../lib';
 import { decimalToAssetUnits } from '../lib/utils';
 
-export const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
+export const ethAddress = '0x0000000000000000000000000000000000000000';
 export const ethSymbol = 'ETH';
 
 // TODO Test tokens with decimals other than 18

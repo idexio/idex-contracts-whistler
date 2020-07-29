@@ -128,7 +128,7 @@ export const getWithdrawArguments = (
 };
 
 export type LoadContractResult = {
-  abi: unknown[];
+  abi: any[];
   bytecode: string;
 };
 
