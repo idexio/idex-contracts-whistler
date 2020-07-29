@@ -1,7 +1,7 @@
 {
   "name": "@idexio/idex-contracts",
   "license": "UNLICENSED",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Collects source code, tests, and documentation for the IDEX Whistler release Ethereum contracts",
   "homepage": "https://github.com/idexio/idex-contracts",
   "repository": {
