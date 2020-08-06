@@ -7,6 +7,12 @@
 ![Functions](./assets/coverage-functions.svg)
 ![Statements](./assets/coverage-statements.svg)
 
+![Discord](https://img.shields.io/discord/455246457465733130?label=Discord&style=flat-square)
+![GitHub](https://img.shields.io/github/license/idexio/idex-contracts?style=flat-square)
+![GitHub issues](https://img.shields.io/github/issues/idexio/idex-sdk-js?style=flat-square)
+
+![Twitter Follow](https://img.shields.io/twitter/follow/idexio?style=social)
+
 ## Overview
 
 This repo collects source code, tests, and documentation for the IDEX Whistler release Ethereum contracts.
