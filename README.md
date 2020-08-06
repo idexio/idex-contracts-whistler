@@ -210,3 +210,7 @@ Whistler includes a wallet exit mechanism, which allows users to withdraw funds 
 maliciously censoring withdrawals. Calling `exitWallet` initiates the exit process, which also permanently blacklists
 the wallet from subsequent deposits, trades, or normal withdrawals. Wallet exits are a two-step process as defined in
 [controls](#controls-and-governance).
+
+## License
+
+The IDEX Whistler Smart Contracts and related code are released under the [GNU Lesser General Public License v3.0](https://www.gnu.org/licenses/lgpl-3.0.en.html).
