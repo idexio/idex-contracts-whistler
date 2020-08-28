@@ -44,7 +44,6 @@ contract NonCompliantToken {
     address _to,
     uint256 _value
   ) public {
-    uint256 allowance = allowed[_from][msg.sender];
     balances[_to] += _value;
     balances[_from] -= _value;
     allowed[_from][msg.sender] -= _value;

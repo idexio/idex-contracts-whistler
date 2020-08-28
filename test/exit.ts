@@ -1,5 +1,6 @@
 import { deployAndAssociateContracts, minimumTokenQuantity } from './helpers';
-import { ethAddress, pipsToAssetUnits } from '../lib';
+import { ethAddress } from '../lib';
+import { pipsToAssetUnits } from '../lib/utils';
 
 contract('Exchange (exits)', (accounts) => {
   describe('exitWallet', () => {

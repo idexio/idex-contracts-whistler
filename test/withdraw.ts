@@ -5,12 +5,7 @@ import type { CustodianInstance } from '../types/truffle-contracts/Custodian';
 import type { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 import type { GovernanceInstance } from '../types/truffle-contracts/Governance';
 
-import {
-  decimalToAssetUnits,
-  decimalToPips,
-  getWithdrawArguments,
-  getWithdrawalHash,
-} from '../lib';
+import { decimalToAssetUnits, decimalToPips } from '../lib/utils';
 import {
   deployAndRegisterToken,
   ethAddress,
@@ -20,6 +15,7 @@ import {
   minimumTokenQuantity,
   withdraw,
 } from './helpers';
+import { getWithdrawArguments, getWithdrawalHash } from '../lib';
 
 // TODO Non-zero gas fees
 contract('Exchange (withdrawals)', (accounts) => {

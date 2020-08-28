@@ -1,10 +1,8 @@
-import { deployAndAssociateContracts } from './helpers';
+import { deployAndAssociateContracts, ethAddress } from './helpers';
 
 contract('Governance', (accounts) => {
   const Exchange = artifacts.require('Exchange');
   const Governance = artifacts.require('Governance');
-
-  const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
 
   it('should deploy', async () => {
     await Governance.new(0);

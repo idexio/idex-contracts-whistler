@@ -99,4 +99,5 @@ module.exports = {
   },
 
   test_directory: 'build/test',
+  test_file_extension_regexp: /.*js$/,
 };

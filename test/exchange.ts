@@ -1,9 +1,7 @@
-import { deployAndAssociateContracts, ethSymbol } from './helpers';
+import { deployAndAssociateContracts, ethAddress, ethSymbol } from './helpers';
 
 contract('Exchange (tunable parameters)', (accounts) => {
   const Exchange = artifacts.require('Exchange');
-
-  const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
 
   it('should deploy', async () => {
     await Exchange.new();

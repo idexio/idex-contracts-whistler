@@ -2,15 +2,12 @@ import type { CustodianInstance } from '../types/truffle-contracts/Custodian';
 import type { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 import type { GovernanceInstance } from '../types/truffle-contracts/Governance';
 import type { TestTokenInstance } from '../types/truffle-contracts/TestToken';
-import type { Withdrawal } from '../lib';
+import type { Withdrawal } from '../lib/types';
 
-import {
-  decimalToAssetUnits,
-  getWithdrawArguments,
-  getWithdrawalHash,
-} from '../lib';
+import { getWithdrawArguments, getWithdrawalHash } from '../lib';
+import { decimalToAssetUnits } from '../lib/utils';
 
-export const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
+export const ethAddress = '0x0000000000000000000000000000000000000000';
 export const ethSymbol = 'ETH';
 
 // TODO Test tokens with decimals other than 18

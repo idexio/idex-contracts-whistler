@@ -1,10 +1,11 @@
+import BigNumber from 'bignumber.js';
+
 import { ethAddress } from './helpers';
 import { CustodianInstance } from '../types/truffle-contracts/Custodian';
 import { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 import { ExchangeMockInstance } from '../types/truffle-contracts/ExchangeMock';
 import { GovernanceInstance } from '../types/truffle-contracts/Governance';
 import { GovernanceMockInstance } from '../types/truffle-contracts/GovernanceMock';
-import BigNumber from 'bignumber.js';
 
 contract('Custodian', (accounts) => {
   const Custodian = artifacts.require('Custodian');

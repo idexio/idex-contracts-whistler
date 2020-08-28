@@ -1,6 +1,6 @@
 import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
 
-import { uuidToHexString } from '../lib';
+import { uuidToHexString } from '../lib/utils';
 
 contract('UUID', () => {
   const UUIDMock = artifacts.require('UUIDMock');

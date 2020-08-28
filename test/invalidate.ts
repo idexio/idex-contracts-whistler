@@ -1,7 +1,7 @@
 import { v1 as uuidv1, v4 as uuidv4 } from 'uuid';
 
 import { deployAndAssociateContracts } from './helpers';
-import { uuidToHexString } from '../lib';
+import { uuidToHexString } from '../lib/utils';
 
 // See trade.ts for tests covering executeTrade behavior for invalidated order nonces
 contract('Exchange (invalidations)', (accounts) => {
