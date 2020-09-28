@@ -60,10 +60,10 @@ contract Structs {
     Enums.OrderType orderType;
     // Order side wallet is on
     Enums.OrderSide side;
-    // Order quantity in base asset terms
+    // Order quantity in base or quote asset terms depending on isQuantityInQuote flag
     uint64 quantityInPips;
-    // Order quantity in quote asset terms
-    uint64 quoteOrderQuantityInPips;
+    // Is quantityInPips in quote terms
+    bool isQuantityInQuote;
     // For limit orders, price in decimal pips * 10^8 in quote terms
     uint64 limitPriceInPips;
     // For stop orders, stop loss or take profit price in decimal pips * 10^8 in quote terms
