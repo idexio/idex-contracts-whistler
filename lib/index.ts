@@ -85,7 +85,7 @@ export const getOrderHash = (order: Order): string =>
     ['string', order.market],
     ['uint8', order.type],
     ['uint8', order.side],
-    ['string', order.quantity || ''],
+    ['string', order.quantity],
     ['bool', order.isQuantityInQuote],
     ['string', order.price || ''],
     ['string', order.stopPrice || ''],
