@@ -185,8 +185,8 @@ contract Exchange is IExchange, Owned {
    */
   constructor() public Owned() {
     _maxChainPropagationPeriod = (7 * 24 * 60 * 60) / 15; // 1 week at 15s/block
-    _maxTradeFeeBasisPoints = 10 * 100; // 10%
-    _maxWithdrawalFeeBasisPoints = 10 * 100; // 10%
+    _maxTradeFeeBasisPoints = 20 * 100; // 20%
+    _maxWithdrawalFeeBasisPoints = 20 * 100; // 20%
   }
 
   /**
