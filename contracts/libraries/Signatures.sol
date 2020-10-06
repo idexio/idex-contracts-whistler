@@ -42,12 +42,10 @@ library Signatures {
             uint8(order.orderType),
             uint8(order.side),
             // Ledger qtys and prices are in pip, but order was signed by wallet owner with decimal values
-            order.quantityInPips > 0 ? pipToDecimal(order.quantityInPips) : ''
+            pipToDecimal(order.quantityInPips)
           ),
           abi.encodePacked(
-            order.quoteOrderQuantityInPips > 0
-              ? pipToDecimal(order.quoteOrderQuantityInPips)
-              : '',
+            order.isQuantityInQuote,
             order.limitPriceInPips > 0
               ? pipToDecimal(order.limitPriceInPips)
               : '',
