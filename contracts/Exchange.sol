@@ -185,8 +185,8 @@ contract Exchange is IExchange, Owned {
    */
   constructor() public Owned() {
     _maxChainPropagationPeriod = (7 * 24 * 60 * 60) / 15; // 1 week at 15s/block
-    _maxTradeFeeBasisPoints = 20 * 100; // 10%
-    _maxWithdrawalFeeBasisPoints = 20 * 100; // 10%
+    _maxTradeFeeBasisPoints = 20 * 100; // 20%
+    _maxWithdrawalFeeBasisPoints = 20 * 100; // 20%
   }
 
   /**
@@ -780,35 +780,33 @@ contract Exchange is IExchange, Owned {
   ) private {
     require(!_completedOrderHashes[orderHash], 'Order double filled');
 
-    // Total asset quantity the order was placed for
-    uint64 orderQuantityInPips;
     // Total quantity of above filled as a result of all trade executions, including this one
     uint64 newFilledQuantityInPips;
 
     // Market orders can express quantity in quote terms, and can be partially filled by multiple
     // limit maker orders necessitating tracking partially filled amounts in quote terms to
     // determine completion
-    if (order.quoteOrderQuantityInPips > 0) {
+    if (order.isQuantityInQuote) {
       require(
         isMarketOrderType(order.orderType),
         'Order quote quantity only valid for market orders'
       );
-
-      orderQuantityInPips = order.quoteOrderQuantityInPips;
       newFilledQuantityInPips = trade.grossQuoteQuantityInPips.add(
         _partiallyFilledOrderQuantitiesInPips[orderHash]
       );
     } else {
       // All other orders track partially filled quantities in base terms
-      orderQuantityInPips = order.quantityInPips;
       newFilledQuantityInPips = trade.grossBaseQuantityInPips.add(
         _partiallyFilledOrderQuantitiesInPips[orderHash]
       );
     }
 
-    require(newFilledQuantityInPips <= orderQuantityInPips, 'Order overfilled');
+    require(
+      newFilledQuantityInPips <= order.quantityInPips,
+      'Order overfilled'
+    );
 
-    if (newFilledQuantityInPips < orderQuantityInPips) {
+    if (newFilledQuantityInPips < order.quantityInPips) {
       // If the order was partially filled, track the new filled quantity
       _partiallyFilledOrderQuantitiesInPips[orderHash] = newFilledQuantityInPips;
     } else {

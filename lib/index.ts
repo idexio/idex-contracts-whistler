@@ -39,8 +39,8 @@ export interface Order {
   type: OrderType;
   side: OrderSide;
   timeInForce?: OrderTimeInForce;
-  quantity?: string;
-  quoteOrderQuantity?: string;
+  quantity: string;
+  isQuantityInQuote: boolean;
   price: string;
   stopPrice?: string;
   clientOrderId?: string;
@@ -85,8 +85,8 @@ export const getOrderHash = (order: Order): string =>
     ['string', order.market],
     ['uint8', order.type],
     ['uint8', order.side],
-    ['string', order.quantity || ''],
-    ['string', order.quoteOrderQuantity || ''],
+    ['string', order.quantity],
+    ['bool', order.isQuantityInQuote],
     ['string', order.price || ''],
     ['string', order.stopPrice || ''],
     ['string', order.clientOrderId || ''],
@@ -130,8 +130,8 @@ export const getTradeArguments = (
       walletAddress: o.wallet,
       orderType: o.type,
       side: o.side,
-      quantityInPips: decimalToPips(o.quantity || '0'),
-      quoteOrderQuantityInPips: decimalToPips(o.quoteOrderQuantity || '0'),
+      quantityInPips: decimalToPips(o.quantity),
+      isQuantityInQuote: o.isQuantityInQuote,
       limitPriceInPips: decimalToPips(o.price || '0'),
       stopPriceInPips: decimalToPips(o.stopPrice || '0'),
       clientOrderId: o.clientOrderId || '',

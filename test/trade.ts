@@ -519,7 +519,8 @@ contract('Exchange (trades)', (accounts) => {
         sellWallet,
       );
       buyOrder.type = OrderType.Market;
-      buyOrder.quoteOrderQuantity = fill.grossQuoteQuantity;
+      buyOrder.quantity = fill.grossQuoteQuantity;
+      buyOrder.isQuantityInQuote = true;
 
       await executeTrade(
         exchange,
@@ -645,7 +646,8 @@ contract('Exchange (trades)', (accounts) => {
         sellWallet,
       );
       sellOrder.type = OrderType.Market;
-      sellOrder.quoteOrderQuantity = fill.grossQuoteQuantity;
+      sellOrder.quantity = fill.grossQuoteQuantity;
+      sellOrder.isQuantityInQuote = true;
       fill.grossBaseQuantity = new BigNumber(fill.grossBaseQuantity)
         .dividedBy(2)
         .toString();
@@ -744,7 +746,7 @@ contract('Exchange (trades)', (accounts) => {
         buyWallet,
         sellWallet,
       );
-      buyOrder.quoteOrderQuantity = buyOrder.quantity;
+      buyOrder.isQuantityInQuote = true;
 
       let error;
       try {
@@ -899,7 +901,8 @@ contract('Exchange (trades)', (accounts) => {
         sellWallet,
       );
       buyOrder.type = OrderType.Market;
-      buyOrder.quoteOrderQuantity = fill.grossQuoteQuantity;
+      buyOrder.quantity = fill.grossQuoteQuantity;
+      buyOrder.isQuantityInQuote = true;
       fill.grossBaseQuantity = new BigNumber(fill.grossBaseQuantity)
         .multipliedBy(0.9)
         .toString();
@@ -1097,7 +1100,7 @@ contract('Exchange (trades)', (accounts) => {
       expect(error.message).to.match(/signature hash version must be 1/i);
     });
 
-    it('should revert for invalid signature', async () => {
+    it('should revert for invalid signature (wrong wallet)', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
       await exchange.setDispatcher(accounts[0]);
@@ -1114,6 +1117,45 @@ contract('Exchange (trades)', (accounts) => {
         // Sign with wrong wallet
         getSignature(web3, getOrderHash(sellOrder), buyWallet),
       ]);
+
+      let error;
+      try {
+        // https://github.com/microsoft/TypeScript/issues/28486
+        await (exchange.executeTrade as any)(
+          ...getTradeArguments(
+            buyOrder,
+            buySignature,
+            sellOrder,
+            sellSignature,
+            fill,
+          ),
+        );
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/invalid wallet signature/i);
+    });
+
+    it('should revert for invalid signature (quote order quantity switched)', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await deployAndRegisterToken(exchange, tokenSymbol);
+      await exchange.setDispatcher(accounts[0]);
+      const [sellWallet, buyWallet] = accounts;
+
+      const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
+        token.address,
+        ethAddress,
+        buyWallet,
+        sellWallet,
+      );
+      buyOrder.type = OrderType.Market;
+      const [buySignature, sellSignature] = await Promise.all([
+        getSignature(web3, getOrderHash(buyOrder), buyWallet),
+        // Sign with wrong wallet
+        getSignature(web3, getOrderHash(sellOrder), sellWallet),
+      ]);
+      buyOrder.isQuantityInQuote = true;
 
       let error;
       try {
@@ -1627,6 +1669,7 @@ export const generateOrdersAndFill = async (
     type: OrderType.Limit,
     side: OrderSide.Sell,
     quantity,
+    isQuantityInQuote: false,
     price,
   };
 
@@ -1638,6 +1681,7 @@ export const generateOrdersAndFill = async (
     type: OrderType.Limit,
     side: OrderSide.Buy,
     quantity,
+    isQuantityInQuote: false,
     price,
   };
 
