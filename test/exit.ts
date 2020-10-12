@@ -100,4 +100,33 @@ contract('Exchange (exits)', (accounts) => {
       expect(error.message).to.match(/no balance for asset/i);
     });
   });
+
+  describe('clearWalletExit', () => {
+    it('should work for non-exited wallet', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      await exchange.exitWallet({ from: accounts[0] });
+      await exchange.clearWalletExit({ from: accounts[0] });
+
+      const events = await exchange.getPastEvents('WalletExitCleared', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+      expect(events[0].returnValues.wallet).to.equal(accounts[0]);
+    });
+
+    it('should revert for wallet not exited', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+
+      let error;
+      try {
+        await exchange.clearWalletExit();
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/wallet not exited/i);
+    });
+  });
 });
