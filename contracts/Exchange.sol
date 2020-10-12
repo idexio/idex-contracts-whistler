@@ -180,7 +180,6 @@ contract Exchange is IExchange, Owned {
   uint256 constant _maxChainPropagationPeriod = (7 * 24 * 60 * 60) / 15; // 1 week at 15s/block
   uint64 constant _maxTradeFeeBasisPoints = 20 * 100; // 20%;
   uint64 constant _maxWithdrawalFeeBasisPoints = 20 * 100; // 20%;
-  uint64 constant _addTokenSymbolEffectiveDelayInMs = 7 * 24 * 60 * 60 * 1000; // 1 week
 
   /**
    * @notice Instantiate a new `Exchange` contract
@@ -910,7 +909,7 @@ contract Exchange is IExchange, Owned {
     }
   }
 
-  function validateTradeFees(Structs.Trade memory trade) private view {
+  function validateTradeFees(Structs.Trade memory trade) private pure {
     uint64 makerTotalQuantityInPips = trade.makerFeeAssetAddress ==
       trade.baseAssetAddress
       ? trade.grossBaseQuantityInPips
@@ -1060,9 +1059,7 @@ contract Exchange is IExchange, Owned {
   }
 
   /**
-   * @notice Add a symbol to a token that has already been registered and confirmed. The new symbol
-   * mapping will not go into effect for 1 week to prevent fraudulently swapping tokens before
-   * users placing orders can react
+   * @notice Add a symbol to a token that has already been registered and confirmed
    *
    * @param tokenAddress The address of the `IERC20` compliant token contract the symbol will identify
    * @param symbol The symbol identifying the token asset
@@ -1071,11 +1068,7 @@ contract Exchange is IExchange, Owned {
     external
     onlyAdmin
   {
-    _assetRegistry.addTokenSymbol(
-      tokenAddress,
-      symbol,
-      _addTokenSymbolEffectiveDelayInMs
-    );
+    _assetRegistry.addTokenSymbol(tokenAddress, symbol);
     emit TokenSymbolAdded(tokenAddress, symbol);
   }
 
