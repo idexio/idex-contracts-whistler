@@ -125,6 +125,10 @@ contract Exchange is IExchange, Owned {
     uint256 newExchangeBalanceInAssetUnits
   );
   /**
+   * @notice Emitted when a user clears the exited status of a wallet previously exited with `exitWallet`
+   */
+  event WalletExitCleared(address indexed wallet);
+  /**
    * @notice Emitted when the Dispatcher Wallet submits a withdrawal with `withdraw`
    */
   event Withdrawn(
@@ -607,7 +611,7 @@ contract Exchange is IExchange, Owned {
   // Wallet exits //
 
   /**
-   * @notice Permanently flags the sending wallet as exited, immediately disabling deposits upon mining.
+   * @notice Flags the sending wallet as exited, immediately disabling deposits upon mining.
    * After the Chain Propagation Period passes trades and withdrawals are also disabled for the wallet,
    * and assets may then be withdrawn one at a time via `withdrawExit`
    */
@@ -656,6 +660,18 @@ contract Exchange is IExchange, Owned {
       0,
       0
     );
+  }
+
+  /**
+   * @notice Clears exited status of sending wallet. Upon mining immediately enables
+   * deposits, trades, and withdrawals by sending wallet
+   */
+  function clearWalletExit() external {
+    require(_walletExits[msg.sender].exists, 'Wallet not exited');
+
+    delete _walletExits[msg.sender];
+
+    emit WalletExitCleared(msg.sender);
   }
 
   function isWalletExitFinalized(address wallet) internal view returns (bool) {
