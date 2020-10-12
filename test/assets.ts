@@ -9,8 +9,8 @@ import { ethAddress } from '../lib';
 import { AssetsMockInstance } from '../types/truffle-contracts/AssetsMock';
 
 contract('Exchange (tokens)', () => {
-  const Token = artifacts.require('TestToken');
   const AssetsMock = artifacts.require('AssetsMock');
+  const Token = artifacts.require('TestToken');
 
   const tokenSymbol = 'TKN';
 
@@ -89,6 +89,7 @@ contract('Exchange (tokens)', () => {
       const token = await Token.new();
 
       await exchange.registerToken(token.address, tokenSymbol, 18);
+      await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
     });
 
     it('should revert for unknown token address', async () => {
@@ -162,6 +163,72 @@ contract('Exchange (tokens)', () => {
       }
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/decimals do not match/i);
+    });
+  });
+
+  describe('addTokenSymbol', () => {
+    it('should work', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await Token.new();
+
+      await exchange.registerToken(token.address, tokenSymbol, 18);
+      await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
+      await exchange.addTokenSymbol(token.address, 'NEW');
+
+      const events = await exchange.getPastEvents('TokenSymbolAdded', {
+        fromBlock: 0,
+      });
+      expect(events).to.be.an('array');
+      expect(events.length).to.equal(1);
+      expect(events[0].returnValues.assetAddress).to.equal(token.address);
+      expect(events[0].returnValues.assetSymbol).to.equal('NEW');
+    });
+
+    it('should revert for unregistered token', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await Token.new();
+
+      let error;
+      try {
+        await exchange.addTokenSymbol(token.address, 'NEW');
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/unknown asset/i);
+    });
+
+    it('should revert for unconfirmed token', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await Token.new();
+
+      await exchange.registerToken(token.address, tokenSymbol, 18);
+
+      let error;
+      try {
+        await exchange.addTokenSymbol(token.address, 'NEW');
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/not finalized/i);
+    });
+
+    it('should revert for reserved ETH symbol', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await Token.new();
+
+      await exchange.registerToken(token.address, tokenSymbol, 18);
+      await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
+
+      let error;
+      try {
+        await exchange.addTokenSymbol(token.address, 'ETH');
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/ETH symbol reserved/i);
     });
   });
 

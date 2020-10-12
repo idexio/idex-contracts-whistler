@@ -68,6 +68,26 @@ library AssetRegistry {
     self.assetsBySymbol[symbol].push(asset);
   }
 
+  function addTokenSymbol(
+    Storage storage self,
+    IERC20 tokenAddress,
+    string memory symbol,
+    uint64 addTokenSymbolEffectiveDelayInMs
+  ) internal {
+    Structs.Asset memory asset = self.assetsByAddress[address(tokenAddress)];
+    require(asset.exists, 'Unknown asset');
+    require(asset.isConfirmed, 'Registration of this asset is not finalized');
+    require(!isStringEqual(symbol, 'ETH'), 'ETH symbol reserved for Ether');
+
+    // To avoid fraudulently swapping assets for a symbol, introduce a 1-week delay before the new
+    // symbol mapping goes into effect
+    asset.confirmedTimestampInMs =
+      uint64(block.timestamp * 1000) +
+      addTokenSymbolEffectiveDelayInMs;
+
+    self.assetsBySymbol[symbol].push(asset);
+  }
+
   /**
    * @dev Resolves an asset address into corresponding Asset struct
    *
