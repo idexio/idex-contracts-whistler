@@ -125,7 +125,7 @@ contract Exchange is IExchange, Owned {
     uint256 newExchangeBalanceInAssetUnits
   );
   /**
-   * @notice Emitted when a user clears the exited status of a walled previously exited with `exitWallet`
+   * @notice Emitted when a user clears the exited status of a wallet previously exited with `exitWallet`
    */
   event WalletExitCleared(address indexed wallet);
   /**
