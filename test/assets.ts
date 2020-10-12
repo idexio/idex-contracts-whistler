@@ -230,6 +230,23 @@ contract('Exchange (tokens)', () => {
       expect(error).to.not.be.undefined;
       expect(error.message).to.match(/ETH symbol reserved/i);
     });
+
+    it('should revert for ETH address', async () => {
+      const { exchange } = await deployAndAssociateContracts();
+      const token = await Token.new();
+
+      await exchange.registerToken(token.address, tokenSymbol, 18);
+      await exchange.confirmTokenRegistration(token.address, tokenSymbol, 18);
+
+      let error;
+      try {
+        await exchange.addTokenSymbol(ethAddress, 'TKN');
+      } catch (e) {
+        error = e;
+      }
+      expect(error).to.not.be.undefined;
+      expect(error.message).to.match(/Cannot add additional symbol for Ether/i);
+    });
   });
 
   describe('loadAssetBySymbol', () => {

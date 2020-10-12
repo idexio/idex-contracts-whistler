@@ -74,6 +74,11 @@ library AssetRegistry {
     string memory symbol,
     uint64 addTokenSymbolEffectiveDelayInMs
   ) internal {
+    require(
+      tokenAddress != IERC20(0x0),
+      'Cannot add additional symbol for Ether'
+    );
+
     Structs.Asset memory asset = self.assetsByAddress[address(tokenAddress)];
     require(asset.exists, 'Unknown asset');
     require(asset.isConfirmed, 'Registration of this asset is not finalized');
