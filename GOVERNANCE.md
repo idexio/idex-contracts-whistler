@@ -54,8 +54,8 @@ operator-only contract functions: executeTrade, withdraw.
   - The Exchange records the invalidation, and starts enforcing it in the trade function after the Chain Propagation Period.
   - Off-chain, on detecting the nonce invalidation transaction, all open orders prior to the target nonce for the wallet
 are cancelled.
-- Wallet exits (i.e. escape hatch) are user-initiated, and both prevent the target wallet from deposits, trading and normal withdrawals
-and subsequently allow the user to directly withdraw any balances.
+- Wallet exits (i.e. escape hatch) are user-initiated, and 1) prevent the target wallet from deposits, trading, and normal withdrawals, 
+and 2) subsequently allow the user to directly withdraw any balances.
   - User calls the `exitWallet` function on the Exchange.
   - The Exchange records the exit and block number, which immediately blocks deposits and initiates the Chain Propagation Period.
   - Once the Chain Propagation Period expires:
