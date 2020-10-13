@@ -34,7 +34,7 @@ library AssetRegistry {
     require(bytes(symbol).length > 0, 'Invalid token symbol');
     require(
       !self.assetsByAddress[address(tokenAddress)].isConfirmed,
-      'Registration of this asset is already finalized'
+      'Token already finalized'
     );
 
     self.assetsByAddress[address(tokenAddress)] = Structs.Asset({
@@ -54,17 +54,33 @@ library AssetRegistry {
     uint8 decimals
   ) internal {
     Structs.Asset memory asset = self.assetsByAddress[address(tokenAddress)];
-    require(asset.exists, 'Unknown asset');
-    require(
-      !asset.isConfirmed,
-      'Registration of this asset is already finalized'
-    );
+    require(asset.exists, 'Unknown token');
+    require(!asset.isConfirmed, 'Token already finalized');
     require(isStringEqual(asset.symbol, symbol), 'Symbols do not match');
     require(asset.decimals == decimals, 'Decimals do not match');
 
     asset.isConfirmed = true;
     asset.confirmedTimestampInMs = uint64(block.timestamp * 1000); // Block timestamp is in seconds, store ms
     self.assetsByAddress[address(tokenAddress)] = asset;
+    self.assetsBySymbol[symbol].push(asset);
+  }
+
+  function addTokenSymbol(
+    Storage storage self,
+    IERC20 tokenAddress,
+    string memory symbol
+  ) internal {
+    Structs.Asset memory asset = self.assetsByAddress[address(tokenAddress)];
+    require(
+      asset.exists && asset.isConfirmed,
+      'Registration of token not finalized'
+    );
+    require(!isStringEqual(symbol, 'ETH'), 'ETH symbol reserved for Ether');
+
+    // This will prevent swapping assets for previously existing orders
+    uint64 msInOneSecond = 1000;
+    asset.confirmedTimestampInMs = uint64(block.timestamp * msInOneSecond);
+
     self.assetsBySymbol[symbol].push(asset);
   }
 

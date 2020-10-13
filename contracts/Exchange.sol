@@ -94,6 +94,11 @@ contract Exchange is IExchange, Owned {
     uint8 decimals
   );
   /**
+   * @notice Emitted when an admin adds a symbol to a previously registered and confirmed token
+   * via `addTokenSymbol`
+   */
+  event TokenSymbolAdded(IERC20 indexed assetAddress, string assetSymbol);
+  /**
    * @notice Emitted when the Dispatcher Wallet submits a trade for execution with `executeTrade`
    */
   event TradeExecuted(
@@ -174,24 +179,17 @@ contract Exchange is IExchange, Owned {
   address _dispatcherWallet;
   address _feeWallet;
 
-  // Immutable constants //
+  // Constant values //
 
-  uint256 immutable _maxChainPropagationPeriod;
-  uint64 immutable _maxTradeFeeBasisPoints;
-  uint64 immutable _maxWithdrawalFeeBasisPoints;
+  uint256 constant _maxChainPropagationPeriod = (7 * 24 * 60 * 60) / 15; // 1 week at 15s/block
+  uint64 constant _maxTradeFeeBasisPoints = 20 * 100; // 20%;
+  uint64 constant _maxWithdrawalFeeBasisPoints = 20 * 100; // 20%;
 
   /**
    * @notice Instantiate a new `Exchange` contract
    *
-   * @dev Sets `_owner` and `_admin` to `msg.sender`. Sets the values for `_maxChainPropagationPeriod`,
-   * `_maxWithdrawalFeeBasisPoints`, and `_maxTradeFeeBasisPoints` to 1 week, 10%, and 10% respectively.
-   * All three of these values are immutable, and cannot be changed after construction
-   */
-  constructor() public Owned() {
-    _maxChainPropagationPeriod = (7 * 24 * 60 * 60) / 15; // 1 week at 15s/block
-    _maxTradeFeeBasisPoints = 20 * 100; // 20%
-    _maxWithdrawalFeeBasisPoints = 20 * 100; // 20%
-  }
+   * @dev Sets `_owner` and `_admin` to `msg.sender` */
+  constructor() public Owned() {}
 
   /**
    * @notice Sets the address of the `Custodian` contract
@@ -927,7 +925,7 @@ contract Exchange is IExchange, Owned {
     }
   }
 
-  function validateTradeFees(Structs.Trade memory trade) private view {
+  function validateTradeFees(Structs.Trade memory trade) private pure {
     uint64 makerTotalQuantityInPips = trade.makerFeeAssetAddress ==
       trade.baseAssetAddress
       ? trade.grossBaseQuantityInPips
@@ -1074,6 +1072,20 @@ contract Exchange is IExchange, Owned {
   ) external onlyAdmin {
     _assetRegistry.confirmTokenRegistration(tokenAddress, symbol, decimals);
     emit TokenRegistrationConfirmed(tokenAddress, symbol, decimals);
+  }
+
+  /**
+   * @notice Add a symbol to a token that has already been registered and confirmed
+   *
+   * @param tokenAddress The address of the `IERC20` compliant token contract the symbol will identify
+   * @param symbol The symbol identifying the token asset
+   */
+  function addTokenSymbol(IERC20 tokenAddress, string calldata symbol)
+    external
+    onlyAdmin
+  {
+    _assetRegistry.addTokenSymbol(tokenAddress, symbol);
+    emit TokenSymbolAdded(tokenAddress, symbol);
   }
 
   /**
