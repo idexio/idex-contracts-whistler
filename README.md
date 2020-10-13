@@ -213,7 +213,7 @@ impossible to submit those orders in a subsequent cancelled-order submission att
 ### Wallet Exits
 
 Whistler includes a wallet exit mechanism, which allows users to withdraw funds in the case IDEX is offline or
-maliciously censoring withdrawals. Calling `exitWallet` initiates the exit process, which also permanently blacklists
+maliciously censoring withdrawals. Calling `exitWallet` initiates the exit process, which prevents
 the wallet from subsequent deposits, trades, or normal withdrawals. Wallet exits are a two-step process as defined in
 [controls](#controls-and-governance).
 
