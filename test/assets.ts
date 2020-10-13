@@ -245,7 +245,7 @@ contract('Exchange (tokens)', () => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/Cannot add additional symbol for Ether/i);
+      expect(error.message).to.match(/not finalized/i);
     });
   });
 
