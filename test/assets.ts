@@ -109,7 +109,7 @@ contract('Exchange (tokens)', () => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/unknown asset/i);
+      expect(error.message).to.match(/unknown token/i);
     });
 
     it('should revert when already finalized', async () => {
@@ -195,7 +195,7 @@ contract('Exchange (tokens)', () => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/unknown asset/i);
+      expect(error.message).to.match(/not finalized/i);
     });
 
     it('should revert for unconfirmed token', async () => {
