@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: LGPL-3.0-only
 
 pragma solidity 0.6.8;
 pragma experimental ABIEncoderV2;
