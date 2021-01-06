@@ -3,7 +3,7 @@ import { v1 as uuidv1 } from 'uuid';
 import {
   deployAndAssociateContracts,
   deployAndRegisterToken,
-  ethAddress,
+  bnbAddress,
 } from './helpers';
 import { deposit, executeTrade, generateOrdersAndFill } from './trade';
 
@@ -29,7 +29,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -70,7 +70,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );

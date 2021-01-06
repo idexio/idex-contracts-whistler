@@ -1,5 +1,5 @@
 import { deployAndAssociateContracts, minimumTokenQuantity } from './helpers';
-import { ethAddress, pipsToAssetUnits } from '../lib';
+import { bnbAddress, pipsToAssetUnits } from '../lib';
 
 contract('Exchange (exits)', (accounts) => {
   describe('exitWallet', () => {
@@ -35,16 +35,16 @@ contract('Exchange (exits)', (accounts) => {
   });
 
   describe('withdrawExit', () => {
-    it('should work for ETH', async () => {
+    it('should work for BNB', async () => {
       const { exchange } = await deployAndAssociateContracts();
 
-      await exchange.depositEther({
+      await exchange.depositBinanceCoin({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
       await exchange.exitWallet({ from: accounts[0] });
 
-      await exchange.withdrawExit(ethAddress);
+      await exchange.withdrawExit(bnbAddress);
 
       const events = await exchange.getPastEvents('WalletExitWithdrawn', {
         fromBlock: 0,
@@ -52,7 +52,7 @@ contract('Exchange (exits)', (accounts) => {
       expect(events).to.be.an('array');
       expect(events.length).to.equal(1);
       expect(events[0].returnValues.wallet).to.equal(accounts[0]);
-      expect(events[0].returnValues.assetAddress).to.equal(ethAddress);
+      expect(events[0].returnValues.assetAddress).to.equal(bnbAddress);
       expect(
         pipsToAssetUnits(events[0].returnValues.quantityInPips, 18),
       ).to.equal(minimumTokenQuantity);
@@ -63,7 +63,7 @@ contract('Exchange (exits)', (accounts) => {
 
       let error;
       try {
-        await exchange.withdrawExit(ethAddress);
+        await exchange.withdrawExit(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -78,7 +78,7 @@ contract('Exchange (exits)', (accounts) => {
 
       let error;
       try {
-        await exchange.withdrawExit(ethAddress);
+        await exchange.withdrawExit(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -92,7 +92,7 @@ contract('Exchange (exits)', (accounts) => {
 
       let error;
       try {
-        await exchange.withdrawExit(ethAddress);
+        await exchange.withdrawExit(bnbAddress);
       } catch (e) {
         error = e;
       }

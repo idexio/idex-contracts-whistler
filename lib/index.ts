@@ -75,11 +75,11 @@ export interface Withdrawal {
   assetContractAddress?: string;
 }
 
-export const ethAddress = '0x0000000000000000000000000000000000000000';
+export const bnbAddress = '0x0000000000000000000000000000000000000000';
 
 export const getOrderHash = (order: Order): string =>
   solidityHashOfParams([
-    ['uint8', order.signatureHashVersion], // Signature hash version - only version 1 supported
+    ['uint8', order.signatureHashVersion], // Signature hash version - only version 2 supported
     ['uint128', uuidToUint8Array(order.nonce)],
     ['address', order.wallet],
     ['string', order.market],
@@ -179,7 +179,7 @@ export const getWithdrawArguments = (
       nonce: uuidToHexString(withdrawal.nonce),
       walletAddress: withdrawal.wallet,
       assetSymbol: withdrawal.asset || '',
-      assetAddress: withdrawal.assetContractAddress || ethAddress,
+      assetAddress: withdrawal.assetContractAddress || bnbAddress,
       quantityInPips: decimalToPips(withdrawal.quantity),
       gasFeeInPips: decimalToPips(gasFee),
       autoDispatchEnabled: true,

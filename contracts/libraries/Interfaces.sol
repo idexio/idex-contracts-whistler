@@ -50,7 +50,7 @@ contract Structs {
    * @notice Argument type for `Exchange.executeTrade` and `Signatures.getOrderWalletHash`
    */
   struct Order {
-    // Not currently used but reserved for future use. Must be 1
+    // Not currently used but reserved for future use. Must be 2
     uint8 signatureHashVersion;
     // UUIDv1 unique to wallet
     uint128 nonce;
@@ -252,7 +252,7 @@ interface IERC20 {
  */
 interface ICustodian {
   /**
-   * @notice ETH can only be sent by the Exchange
+   * @notice BNB can only be sent by the Exchange
    */
   receive() external payable;
 
@@ -262,7 +262,7 @@ interface ICustodian {
    * @dev No balance checking performed
    *
    * @param wallet The wallet to which assets will be returned
-   * @param asset The address of the asset to withdraw (ETH or ERC-20 contract)
+   * @param asset The address of the asset to withdraw (BNB or ERC-20 contract)
    * @param quantityInAssetUnits The quantity in asset units to withdraw
    */
   function withdraw(

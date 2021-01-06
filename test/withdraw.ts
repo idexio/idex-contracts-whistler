@@ -13,7 +13,7 @@ import {
 } from '../lib';
 import {
   deployAndRegisterToken,
-  ethAddress,
+  bnbAddress,
   ethSymbol,
   getSignature,
   minimumDecimalQuantity,
@@ -33,10 +33,10 @@ contract('Exchange (withdrawals)', (accounts) => {
   const tokenSymbol = 'TKN';
 
   describe('withdraw', () => {
-    it('should work by symbol for ETH', async () => {
+    it('should work by symbol for BNB', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositEther({
+      await exchange.depositBinanceCoin({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -57,7 +57,7 @@ contract('Exchange (withdrawals)', (accounts) => {
       await assertWithdrawnEvent(
         exchange,
         accounts[0],
-        ethAddress,
+        bnbAddress,
         ethSymbol,
         minimumDecimalQuantity,
       );
@@ -66,21 +66,21 @@ contract('Exchange (withdrawals)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             accounts[0],
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal('0');
       expect(
         (
-          await exchange.loadBalanceInPipsByAddress(accounts[0], ethAddress)
+          await exchange.loadBalanceInPipsByAddress(accounts[0], bnbAddress)
         ).toString(),
       ).to.equal('0');
     });
 
-    it('should work by address for ETH', async () => {
+    it('should work by address for BNB', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositEther({
+      await exchange.depositBinanceCoin({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -93,7 +93,7 @@ contract('Exchange (withdrawals)', (accounts) => {
           wallet: accounts[0],
           quantity: minimumDecimalQuantity,
           autoDispatchEnabled: true,
-          assetContractAddress: ethAddress,
+          assetContractAddress: bnbAddress,
         },
         accounts[0],
       );
@@ -101,7 +101,7 @@ contract('Exchange (withdrawals)', (accounts) => {
       await assertWithdrawnEvent(
         exchange,
         accounts[0],
-        ethAddress,
+        bnbAddress,
         ethSymbol,
         minimumDecimalQuantity,
       );
@@ -110,13 +110,13 @@ contract('Exchange (withdrawals)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             accounts[0],
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal('0');
       expect(
         (
-          await exchange.loadBalanceInPipsByAddress(accounts[0], ethAddress)
+          await exchange.loadBalanceInPipsByAddress(accounts[0], bnbAddress)
         ).toString(),
       ).to.equal('0');
     });
@@ -153,13 +153,13 @@ contract('Exchange (withdrawals)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             accounts[0],
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal('0');
       expect(
         (
-          await exchange.loadBalanceInPipsByAddress(accounts[0], ethAddress)
+          await exchange.loadBalanceInPipsByAddress(accounts[0], bnbAddress)
         ).toString(),
       ).to.equal('0');
     });
@@ -199,13 +199,13 @@ contract('Exchange (withdrawals)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             accounts[0],
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal('0');
       expect(
         (
-          await exchange.loadBalanceInPipsByAddress(accounts[0], ethAddress)
+          await exchange.loadBalanceInPipsByAddress(accounts[0], bnbAddress)
         ).toString(),
       ).to.equal('0');
     });
@@ -349,7 +349,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     it('should revert for invalid signature', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositEther({
+      await exchange.depositBinanceCoin({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -381,7 +381,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     it('should revert for exited wallet', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositEther({
+      await exchange.depositBinanceCoin({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -411,7 +411,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     it('should revert for excessive fee', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositEther({
+      await exchange.depositBinanceCoin({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -441,7 +441,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     it('should revert for double withdrawal', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositEther({
+      await exchange.depositBinanceCoin({
         value: (BigInt(minimumTokenQuantity) * BigInt(2)).toString(),
         from: accounts[0],
       });
