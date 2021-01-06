@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.6.8;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import { ECDSA } from '@openzeppelin/contracts/cryptography/ECDSA.sol';
@@ -24,11 +24,12 @@ library Signatures {
   function getOrderWalletHash(
     Structs.Order memory order,
     string memory baseSymbol,
-    string memory quoteSymbol
+    string memory quoteSymbol,
+    uint8 signatureHashVersion
   ) internal pure returns (bytes32) {
     require(
-      order.signatureHashVersion == 1,
-      'Signature hash version must be 1'
+      order.signatureHashVersion == signatureHashVersion,
+      'Signature hash version invalid'
     );
     return
       keccak256(

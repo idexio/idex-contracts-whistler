@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.6.8;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import {
@@ -19,7 +19,7 @@ library AssetUnitConversions {
     pure
     returns (uint256)
   {
-    require(assetDecimals <= 32, 'Asset cannot have more than 32 decimals');
+    require(assetDecimals <= 32, 'Decimals cannot be over 32');
 
     // Exponents cannot be negative, so divide or multiply based on exponent signedness
     if (assetDecimals > 8) {
@@ -33,7 +33,7 @@ library AssetUnitConversions {
     pure
     returns (uint64)
   {
-    require(assetDecimals <= 32, 'Asset cannot have more than 32 decimals');
+    require(assetDecimals <= 32, 'Decimals cannot be over 32');
 
     uint256 quantityInPips;
     // Exponents cannot be negative, so divide or multiply based on exponent signedness

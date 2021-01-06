@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.6.8;
+pragma solidity 0.7.6;
 
 
 /**
@@ -22,7 +22,7 @@ abstract contract Owned {
   /**
    * @notice Sets both the owner and admin roles to the contract creator
    */
-  constructor() public {
+  constructor() {
     _owner = msg.sender;
     _admin = msg.sender;
   }

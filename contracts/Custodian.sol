@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.6.8;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
@@ -39,11 +39,11 @@ contract Custodian is ICustodian, Owned {
    * @param exchange Address of deployed Exchange contract to whitelist
    * @param governance ddress of deployed Governance contract to whitelist
    */
-  constructor(address exchange, address governance) public Owned() {
-    require(Address.isContract(exchange), 'Invalid exchange contract address');
+  constructor(address exchange, address governance) Owned() {
+    require(Address.isContract(exchange), 'Invalid Exchange address');
     require(
       Address.isContract(governance),
-      'Invalid governance contract address'
+      'Invalid Governance address'
     );
 
     _exchange = exchange;
@@ -128,12 +128,12 @@ contract Custodian is ICustodian, Owned {
   // RBAC //
 
   modifier onlyExchange() {
-    require(msg.sender == _exchange, 'Caller must be Exchange contract');
+    require(msg.sender == _exchange, 'Caller must be Exchange');
     _;
   }
 
   modifier onlyGovernance() {
-    require(msg.sender == _governance, 'Caller must be Governance contract');
+    require(msg.sender == _governance, 'Caller must be Governance');
     _;
   }
 }

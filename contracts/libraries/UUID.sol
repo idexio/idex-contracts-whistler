@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.6.8;
+pragma solidity 0.7.6;
 
 import { SafeMath64 } from './SafeMath64.sol';
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.6.8;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
@@ -78,7 +78,7 @@ contract Governance is Owned {
    * @param blockDelay The minimum number of blocks that must be mined after initiating an `Exchange`
    * or `Governance` upgrade before the upgrade may be finalized
    */
-  constructor(uint256 blockDelay) public Owned() {
+  constructor(uint256 blockDelay) Owned() {
     _blockDelay = blockDelay;
   }
 

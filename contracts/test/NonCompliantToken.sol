@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity ^0.6.8;
+pragma solidity ^0.7.6;
 
 
 contract NonCompliantToken {
@@ -25,7 +25,7 @@ contract NonCompliantToken {
   uint8 public decimals; //How many decimals to show.
   string public symbol; //An identifier: eg SBX
 
-  constructor() public {
+  constructor() {
     balances[msg.sender] = 1000000000000000000000; // Give the creator all initial tokens
     totalSupply = 1000000000000000000000; // Update total supply
     name = 'NoncompliantToken'; // Set the name for display purposes

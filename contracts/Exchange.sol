@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.6.8;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
@@ -179,6 +179,10 @@ contract Exchange is IExchange, Owned {
   address _dispatcherWallet;
   address _feeWallet;
 
+  // Immutable values //
+
+  uint8 immutable _signatureHashVersion;
+
   // Constant values //
 
   uint256 constant _maxChainPropagationPeriod = (7 * 24 * 60 * 60) / 15; // 1 week at 15s/block
@@ -189,7 +193,12 @@ contract Exchange is IExchange, Owned {
    * @notice Instantiate a new `Exchange` contract
    *
    * @dev Sets `_owner` and `_admin` to `msg.sender` */
-  constructor() public Owned() {}
+  constructor(uint8 signatureHashVersion, string memory nativeTokenSymbol)
+    Owned()
+  {
+    _signatureHashVersion = signatureHashVersion;
+    _assetRegistry.nativeTokenSymbol = nativeTokenSymbol;
+  }
 
   /**
    * @notice Sets the address of the `Custodian` contract
@@ -972,7 +981,7 @@ contract Exchange is IExchange, Owned {
     Structs.Order memory buy,
     Structs.Order memory sell,
     Structs.Trade memory trade
-  ) private pure returns (bytes32, bytes32) {
+  ) private view returns (bytes32, bytes32) {
     bytes32 buyOrderHash = validateOrderSignature(buy, trade);
     bytes32 sellOrderHash = validateOrderSignature(sell, trade);
 
@@ -982,11 +991,12 @@ contract Exchange is IExchange, Owned {
   function validateOrderSignature(
     Structs.Order memory order,
     Structs.Trade memory trade
-  ) private pure returns (bytes32) {
+  ) private view returns (bytes32) {
     bytes32 orderHash = Signatures.getOrderWalletHash(
       order,
       trade.baseAssetSymbol,
-      trade.quoteAssetSymbol
+      trade.quoteAssetSymbol,
+      _signatureHashVersion
     );
 
     require(

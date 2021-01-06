@@ -29,7 +29,7 @@
   "devDependencies": {
     "@commitlint/cli": "^8.2.0",
     "@commitlint/config-conventional": "^8.2.0",
-    "@openzeppelin/contracts": "3.2.0",
+    "@openzeppelin/contracts": "3.3.0",
     "@truffle/debug-utils": "^4.1.1",
     "@typechain/truffle-v5": "^2.0.0",
     "@types/chai": "^4.2.11",
@@ -54,7 +54,7 @@
     "prettier-eslint-cli": "^5.0.0",
     "prettier-plugin-solidity": "^1.0.0-alpha.50",
     "solidity-coverage": "^0.7.5",
-    "truffle": "^5.1.24",
+    "truffle": "^5.1.60",
     "truffle-security": "^1.7.1",
     "ts-node": "^8.4.1",
     "ts-node-dev": "^1.0.0-pre.43",

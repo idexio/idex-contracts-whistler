@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-pragma solidity 0.6.8;
+pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
 
 import { Address } from '@openzeppelin/contracts/utils/Address.sol';
@@ -17,6 +17,7 @@ library AssetRegistry {
     // Mapping value is array since the same symbol can be re-used for a different address
     // (usually as a result of a token swap or upgrade)
     mapping(string => Structs.Asset[]) assetsBySymbol;
+    string nativeTokenSymbol;
   }
 
   function registerToken(
@@ -25,7 +26,7 @@ library AssetRegistry {
     string memory symbol,
     uint8 decimals
   ) internal {
-    require(decimals <= 32, 'Token cannot have more than 32 decimals');
+    require(decimals <= 32, 'Decimals cannot be over 32');
     require(
       tokenAddress != IERC20(0x0) && Address.isContract(address(tokenAddress)),
       'Invalid token address'
@@ -71,11 +72,8 @@ library AssetRegistry {
     string memory symbol
   ) internal {
     Structs.Asset memory asset = self.assetsByAddress[address(tokenAddress)];
-    require(
-      asset.exists && asset.isConfirmed,
-      'Registration of token not finalized'
-    );
-    require(!isStringEqual(symbol, 'ETH'), 'ETH symbol reserved for Ether');
+    require(asset.exists && asset.isConfirmed, 'Registration not finalized');
+    require(!isStringEqual(symbol, self.nativeTokenSymbol), 'Symbol reserved');
 
     // This will prevent swapping assets for previously existing orders
     uint64 msInOneSecond = 1000;
@@ -95,13 +93,13 @@ library AssetRegistry {
     returns (Structs.Asset memory)
   {
     if (assetAddress == address(0x0)) {
-      return getEthAsset();
+      return getNativeAsset(self);
     }
 
     Structs.Asset memory asset = self.assetsByAddress[assetAddress];
     require(
       asset.exists && asset.isConfirmed,
-      'No confirmed asset found for address'
+      'No confirmed asset for address'
     );
 
     return asset;
@@ -120,8 +118,8 @@ library AssetRegistry {
     string memory symbol,
     uint64 timestampInMs
   ) internal view returns (Structs.Asset memory) {
-    if (isStringEqual('ETH', symbol)) {
-      return getEthAsset();
+    if (isStringEqual(self.nativeTokenSymbol, symbol)) {
+      return getNativeAsset(self);
     }
 
     Structs.Asset memory asset;
@@ -134,19 +132,21 @@ library AssetRegistry {
         }
       }
     }
-    require(
-      asset.exists && asset.isConfirmed,
-      'No confirmed asset found for symbol'
-    );
+    require(asset.exists && asset.isConfirmed, 'No confirmed asset for symbol');
 
     return asset;
   }
 
   /**
-   * @dev ETH is modeled as an always-confirmed Asset struct for programmatic consistency
+   * @dev The native token is modeled as an always-confirmed Asset struct for programmatic consistency
    */
-  function getEthAsset() private pure returns (Structs.Asset memory) {
-    return Structs.Asset(true, address(0x0), 'ETH', 18, true, 0);
+  function getNativeAsset(Storage storage self)
+    private
+    view
+    returns (Structs.Asset memory)
+  {
+    return
+      Structs.Asset(true, address(0x0), self.nativeTokenSymbol, 18, true, 0);
   }
 
   // See https://solidity.readthedocs.io/en/latest/types.html#bytes-and-strings-as-arrays
