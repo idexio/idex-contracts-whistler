@@ -1573,7 +1573,7 @@ export const deposit = async (
       from: sellWallet,
     },
   );
-  await exchange.depositBinanceCoin({
+  await exchange.depositEther({
     value: decimalToAssetUnits(quoteQuantity, decimals),
     from: buyWallet,
   });

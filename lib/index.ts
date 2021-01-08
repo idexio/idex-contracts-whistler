@@ -1,4 +1,6 @@
 import BigNumber from 'bignumber.js';
+import fs from 'fs';
+import path from 'path';
 import { ethers } from 'ethers';
 
 import { ExchangeInstance } from '../types/truffle-contracts/Exchange';
@@ -241,3 +243,34 @@ export const decimalToAssetUnits = (
   decimal: string,
   decimals: number,
 ): string => pipsToAssetUnits(decimalToPips(decimal), decimals);
+
+export type LoadContractResult = {
+  abi: any[];
+  bytecode: string;
+};
+
+export const loadCustodianContract = (): LoadContractResult =>
+  loadContract('Custodian');
+
+export const loadExchangeContract = (): LoadContractResult =>
+  loadContract('Exchange');
+
+export const loadGovernanceContract = (): LoadContractResult =>
+  loadContract('Governance');
+
+const _compiledContractMap = new Map<string, LoadContractResult>();
+const loadContract = (
+  filename: 'Custodian' | 'Exchange' | 'Governance',
+): LoadContractResult => {
+  if (!_compiledContractMap.has(filename)) {
+    const { abi, bytecode } = JSON.parse(
+      fs
+        .readFileSync(
+          path.join(__dirname, '..', 'contracts', `${filename}.json`),
+        )
+        .toString('utf8'),
+    );
+    _compiledContractMap.set(filename, { abi, bytecode });
+  }
+  return _compiledContractMap.get(filename) as LoadContractResult; // Will never be undefined as it gets set above
+};

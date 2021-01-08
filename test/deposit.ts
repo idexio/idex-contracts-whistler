@@ -32,11 +32,11 @@ contract('Exchange (deposits)', (accounts) => {
   });
 
   // TODO Verify balances
-  describe('depositBinanceCoin', () => {
+  describe('depositEther', () => {
     it('should work for minimum quantity', async () => {
       const { exchange } = await deployAndAssociateContracts();
 
-      await exchange.depositBinanceCoin({
+      await exchange.depositEther({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -83,7 +83,7 @@ contract('Exchange (deposits)', (accounts) => {
 
       let error;
       try {
-        await exchange.depositBinanceCoin({
+        await exchange.depositEther({
           value: (BigInt(minimumTokenQuantity) - BigInt(1)).toString(),
           from: accounts[0],
         });
@@ -128,7 +128,7 @@ contract('Exchange (deposits)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/use depositBinanceCoin for BNB/i);
+      expect(error.message).to.match(/use depositEther for BNB/i);
     });
 
     it('should revert for exited wallet', async () => {
@@ -224,7 +224,7 @@ contract('Exchange (deposits)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/use depositBinanceCoin for BNB/i);
+      expect(error.message).to.match(/use depositEther for BNB/i);
     });
 
     it('should revert for unknown token', async () => {

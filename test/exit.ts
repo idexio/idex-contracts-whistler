@@ -38,7 +38,7 @@ contract('Exchange (exits)', (accounts) => {
     it('should work for BNB', async () => {
       const { exchange } = await deployAndAssociateContracts();
 
-      await exchange.depositBinanceCoin({
+      await exchange.depositEther({
         value: minimumTokenQuantity,
         from: accounts[0],
       });

@@ -36,7 +36,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     it('should work by symbol for BNB', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositBinanceCoin({
+      await exchange.depositEther({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -80,7 +80,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     it('should work by address for BNB', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositBinanceCoin({
+      await exchange.depositEther({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -349,7 +349,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     it('should revert for invalid signature', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositBinanceCoin({
+      await exchange.depositEther({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -381,7 +381,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     it('should revert for exited wallet', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositBinanceCoin({
+      await exchange.depositEther({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -411,7 +411,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     it('should revert for excessive fee', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositBinanceCoin({
+      await exchange.depositEther({
         value: minimumTokenQuantity,
         from: accounts[0],
       });
@@ -441,7 +441,7 @@ contract('Exchange (withdrawals)', (accounts) => {
     it('should revert for double withdrawal', async () => {
       const { exchange } = await deployAndAssociateContracts();
       await exchange.setDispatcher(accounts[0]);
-      await exchange.depositBinanceCoin({
+      await exchange.depositEther({
         value: (BigInt(minimumTokenQuantity) * BigInt(2)).toString(),
         from: accounts[0],
       });

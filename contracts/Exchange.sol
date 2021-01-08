@@ -45,7 +45,7 @@ contract Exchange is IExchange, Owned {
    */
   event ChainPropagationPeriodChanged(uint256 previousValue, uint256 newValue);
   /**
-   * @notice Emitted when a user deposits BNB with `depositBinanceCoin` or a token with `depositAsset` or `depositAssetBySymbol`
+   * @notice Emitted when a user deposits BNB with `depositEther` or a token with `depositAsset` or `depositAssetBySymbol`
    */
   event Deposited(
     uint64 index,
@@ -376,7 +376,7 @@ contract Exchange is IExchange, Owned {
   /**
    * @notice Deposit BNB
    */
-  function depositBinanceCoin() external payable {
+  function depositEther() external payable {
     deposit(msg.sender, address(0x0), msg.value);
   }
 
@@ -391,10 +391,7 @@ contract Exchange is IExchange, Owned {
     IERC20 tokenAddress,
     uint256 quantityInAssetUnits
   ) external {
-    require(
-      address(tokenAddress) != address(0x0),
-      'Use depositBinanceCoin for BNB'
-    );
+    require(address(tokenAddress) != address(0x0), 'Use depositEther for BNB');
     deposit(msg.sender, address(tokenAddress), quantityInAssetUnits);
   }
 
@@ -414,10 +411,7 @@ contract Exchange is IExchange, Owned {
         .loadAssetBySymbol(assetSymbol, getCurrentTimestampInMs())
         .assetAddress
     );
-    require(
-      address(tokenAddress) != address(0x0),
-      'Use depositBinanceCoin for BNB'
-    );
+    require(address(tokenAddress) != address(0x0), 'Use depositEther for BNB');
 
     deposit(msg.sender, address(tokenAddress), quantityInAssetUnits);
   }
