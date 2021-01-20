@@ -81,10 +81,10 @@ smart contracts before trading. The interaction lifecycle spans three steps.
 ### Deposit
 
 Users must deposit funds into the Whistler contracts before they are available for trading on IDEX. Depositing BNB
-requires calling `depositBinanceCoin` on the Exchange contract; depositing tokens requires an `approve` call on the
+requires calling `depositEther` on the Exchange contract; depositing tokens requires an `approve` call on the
 token contract itself before calling `depositTokenByAddress` on the Exchange contract.
 
-- The `depositBinanceCoin` and `depositTokenByAddress` are functions on the Exchange contract, but the funds are ultimately
+- The `depositEther` and `depositTokenByAddress` are functions on the Exchange contract, but the funds are ultimately
 held in the Custody contract. As part of the deposit process, tokens are transferred first to the Exchange contract,
 which tracks wallet asset balances, and then transferred again to the Custody contract. Separate exchange logic and fund
 custody supports IDEX 2.0’s [upgrade design](#upgradability).
