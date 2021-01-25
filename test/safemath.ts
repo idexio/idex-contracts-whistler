@@ -2,7 +2,7 @@
 //
 import chai from 'chai';
 
-import { SafeMath64MockInstance } from '../types/truffle-contracts';
+import { SafeMath64MockInstance } from '../types/truffle-v5';
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const { BN, expectRevert } = require('@openzeppelin/test-helpers');

@@ -4,15 +4,22 @@
     "type": "git",
     "url": "git+https://github.com/idexio/idex-contracts.git"
   },
+  "engines": {
+    "node": ">=12 <14"
+  },
   "private": true,
   "scripts": {
     "analyze": "slither .",
-    "build": "yarn build:sol && yarn build:ts",
-    "build:sol": "truffle compile && yarn generate-types",
+    "build": "npm-run-all -s clean build:sol generate:types:truffle-v5 build:ts",
+    "build:sol": "truffle compile",
     "build:ts": "tsc -p .",
-    "clean": "rm -rf build; rm -rf types/truffle-contracts; rm -rf coverage",
+    "clean": "rm -rf build types coverage",
     "coverage": "multi='spec=- json=./coverage/mocha-summary.json' truffle run coverage && node bin/get-badges.js",
-    "generate-types": "typechain --target=truffle-v5 'build/contracts/*.json'",
+    "generate:types-all": "npm-run-all -p generate:types:*",
+    "generate:types": "./scripts/generate-types.sh",
+    "generate:types:truffle-v5": "./scripts/generate-types.sh truffle-v5",
+    "generate:types:ethers-v4": "./scripts/generate-types.sh ethers-v4",
+    "generate:types:ethers-v5": "./scripts/generate-types.sh ethers-v5",
     "lint:markdown": "markdownlint README.md",
     "prettier": "prettier --write **/*.sol",
     "test": "multi='spec=- json=./coverage/mocha-summary.json' truffle test",
@@ -31,6 +38,8 @@
     "@commitlint/config-conventional": "^8.2.0",
     "@openzeppelin/contracts": "3.2.0",
     "@truffle/debug-utils": "^4.1.1",
+    "@typechain/ethers-v4": "^1.0.0",
+    "@typechain/ethers-v5": "^0.0.2",
     "@typechain/truffle-v5": "^2.0.0",
     "@types/chai": "^4.2.11",
     "@types/mocha": "^7.0.2",
@@ -49,6 +58,7 @@
     "husky": "^4.2.5",
     "markdownlint-cli": "^0.22.0",
     "mocha-multi": "^1.1.3",
+    "npm-run-all": "^4.1.5",
     "prettier": "^2.0.2",
     "prettier-eslint": "^9.0.0",
     "prettier-eslint-cli": "^5.0.0",
@@ -66,7 +76,7 @@
   "husky": {
     "hooks": {
       "commit-msg": "[[ -n $HUSKY_BYPASS ]] || commitlint -E HUSKY_GIT_PARAMS",
-      "pre-commit": "yarn lint:markdown && yarn clean && yarn build && yarn coverage && git add assets/coverage-*.svg && git add assets/tests.svg"
+      "pre-commit": "npm-run-all -s lint:markdown build coverage && git add assets/coverage-*.svg && git add assets/tests.svg"
     }
   },
   "commitlint": {

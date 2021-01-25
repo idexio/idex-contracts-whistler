@@ -29,18 +29,42 @@ pip3 install slither-analyzer
 ## Usage
 
 This repo is setup as a [Truffle](https://www.trufflesuite.com/docs/truffle/overview) project, with library and test
-code written in Typescript. To build:
+code written in Typescript. 
+
+### Build
 
 ```console
 nvm use
 yarn && yarn build
 ```
 
-To run test suite, generate coverage report, and perform static analysis:
+### Tests & Coverage
 
 ```console
 yarn coverage
 yarn analyze
+```
+
+### TypeChain
+
+To generate types with [TypeChain](https://github.com/ethereum-ts/TypeChain), you can run the command for your
+desired target.  By default we include `truffle-v5`, `ethers-v4`, and `ethers-v5` as options but other targets
+can be installed locally if needed.
+
+```console
+yarn generate:types:truffle-v5
+yarn generate:types:ethers-v4
+yarn generate:types:ethers-v5
+```
+
+#### Custom Targets
+
+If a target is not available, you can intall it locally and use the provided scripts to easily get the desired
+types.
+
+```console
+yarn add --dev @typechain/web3-v1
+yarn generate:types webv3-v1
 ```
 
 ## Background

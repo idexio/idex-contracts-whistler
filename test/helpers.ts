@@ -1,7 +1,7 @@
-import type { CustodianInstance } from '../types/truffle-contracts/Custodian';
-import type { ExchangeInstance } from '../types/truffle-contracts/Exchange';
-import type { GovernanceInstance } from '../types/truffle-contracts/Governance';
-import type { TestTokenInstance } from '../types/truffle-contracts/TestToken';
+import type { CustodianInstance } from '../types/truffle-v5/Custodian';
+import type { ExchangeInstance } from '../types/truffle-v5/Exchange';
+import type { GovernanceInstance } from '../types/truffle-v5/Governance';
+import type { TestTokenInstance } from '../types/truffle-v5/TestToken';
 import type { Withdrawal } from '../lib';
 
 import {

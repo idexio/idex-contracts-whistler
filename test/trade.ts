@@ -4,7 +4,7 @@ import { v1 as uuidv1 } from 'uuid';
 import type {
   ExchangeInstance,
   TestTokenInstance,
-} from '../types/truffle-contracts';
+} from '../types/truffle-v5';
 
 import {
   deployAndAssociateContracts,
