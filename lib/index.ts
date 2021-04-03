@@ -1,4 +1,6 @@
 import BigNumber from 'bignumber.js';
+import fs from 'fs';
+import path from 'path';
 import { ethers } from 'ethers';
 
 import { ExchangeInstance } from '../types/truffle-contracts/Exchange';
@@ -75,11 +77,11 @@ export interface Withdrawal {
   assetContractAddress?: string;
 }
 
-export const ethAddress = '0x0000000000000000000000000000000000000000';
+export const bnbAddress = '0x0000000000000000000000000000000000000000';
 
 export const getOrderHash = (order: Order): string =>
   solidityHashOfParams([
-    ['uint8', order.signatureHashVersion], // Signature hash version - only version 1 supported
+    ['uint8', order.signatureHashVersion], // Signature hash version - only version 2 supported
     ['uint128', uuidToUint8Array(order.nonce)],
     ['address', order.wallet],
     ['string', order.market],
@@ -179,7 +181,7 @@ export const getWithdrawArguments = (
       nonce: uuidToHexString(withdrawal.nonce),
       walletAddress: withdrawal.wallet,
       assetSymbol: withdrawal.asset || '',
-      assetAddress: withdrawal.assetContractAddress || ethAddress,
+      assetAddress: withdrawal.assetContractAddress || bnbAddress,
       quantityInPips: decimalToPips(withdrawal.quantity),
       gasFeeInPips: decimalToPips(gasFee),
       autoDispatchEnabled: true,
@@ -241,3 +243,34 @@ export const decimalToAssetUnits = (
   decimal: string,
   decimals: number,
 ): string => pipsToAssetUnits(decimalToPips(decimal), decimals);
+
+export type LoadContractResult = {
+  abi: any[];
+  bytecode: string;
+};
+
+export const loadCustodianContract = (): LoadContractResult =>
+  loadContract('Custodian');
+
+export const loadExchangeContract = (): LoadContractResult =>
+  loadContract('Exchange');
+
+export const loadGovernanceContract = (): LoadContractResult =>
+  loadContract('Governance');
+
+const _compiledContractMap = new Map<string, LoadContractResult>();
+const loadContract = (
+  filename: 'Custodian' | 'Exchange' | 'Governance',
+): LoadContractResult => {
+  if (!_compiledContractMap.has(filename)) {
+    const { abi, bytecode } = JSON.parse(
+      fs
+        .readFileSync(
+          path.join(__dirname, '..', 'contracts', `${filename}.json`),
+        )
+        .toString('utf8'),
+    );
+    _compiledContractMap.set(filename, { abi, bytecode });
+  }
+  return _compiledContractMap.get(filename) as LoadContractResult; // Will never be undefined as it gets set above
+};

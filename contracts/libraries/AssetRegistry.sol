@@ -75,7 +75,7 @@ library AssetRegistry {
       asset.exists && asset.isConfirmed,
       'Registration of token not finalized'
     );
-    require(!isStringEqual(symbol, 'ETH'), 'ETH symbol reserved for Ether');
+    require(!isStringEqual(symbol, 'BNB'), 'BNB symbol reserved');
 
     // This will prevent swapping assets for previously existing orders
     uint64 msInOneSecond = 1000;
@@ -95,7 +95,7 @@ library AssetRegistry {
     returns (Structs.Asset memory)
   {
     if (assetAddress == address(0x0)) {
-      return getEthAsset();
+      return getBnbAsset();
     }
 
     Structs.Asset memory asset = self.assetsByAddress[assetAddress];
@@ -120,8 +120,8 @@ library AssetRegistry {
     string memory symbol,
     uint64 timestampInMs
   ) internal view returns (Structs.Asset memory) {
-    if (isStringEqual('ETH', symbol)) {
-      return getEthAsset();
+    if (isStringEqual('BNB', symbol)) {
+      return getBnbAsset();
     }
 
     Structs.Asset memory asset;
@@ -143,10 +143,10 @@ library AssetRegistry {
   }
 
   /**
-   * @dev ETH is modeled as an always-confirmed Asset struct for programmatic consistency
+   * @dev BNB is modeled as an always-confirmed Asset struct for programmatic consistency
    */
-  function getEthAsset() private pure returns (Structs.Asset memory) {
-    return Structs.Asset(true, address(0x0), 'ETH', 18, true, 0);
+  function getBnbAsset() private pure returns (Structs.Asset memory) {
+    return Structs.Asset(true, address(0x0), 'BNB', 18, true, 0);
   }
 
   // See https://solidity.readthedocs.io/en/latest/types.html#bytes-and-strings-as-arrays

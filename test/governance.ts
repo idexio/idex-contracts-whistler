@@ -4,7 +4,7 @@ contract('Governance', (accounts) => {
   const Exchange = artifacts.require('Exchange');
   const Governance = artifacts.require('Governance');
 
-  const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
+  const bnbAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
 
   it('should deploy', async () => {
     await Governance.new(0);
@@ -21,7 +21,7 @@ contract('Governance', (accounts) => {
 
       let error;
       try {
-        await governance.setAdmin(ethAddress);
+        await governance.setAdmin(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -40,7 +40,7 @@ contract('Governance', (accounts) => {
 
       let error;
       try {
-        await governance.setCustodian(ethAddress);
+        await governance.setCustodian(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -118,7 +118,7 @@ contract('Governance', (accounts) => {
 
       let error;
       try {
-        await governance.initiateExchangeUpgrade(ethAddress);
+        await governance.initiateExchangeUpgrade(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -228,7 +228,7 @@ contract('Governance', (accounts) => {
 
       let error;
       try {
-        await governance.finalizeExchangeUpgrade(ethAddress);
+        await governance.finalizeExchangeUpgrade(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -243,7 +243,7 @@ contract('Governance', (accounts) => {
 
       let error;
       try {
-        await governance.finalizeExchangeUpgrade(ethAddress);
+        await governance.finalizeExchangeUpgrade(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -299,7 +299,7 @@ contract('Governance', (accounts) => {
 
       let error;
       try {
-        await governance.initiateGovernanceUpgrade(ethAddress);
+        await governance.initiateGovernanceUpgrade(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -412,7 +412,7 @@ contract('Governance', (accounts) => {
 
       let error;
       try {
-        await governance.finalizeGovernanceUpgrade(ethAddress);
+        await governance.finalizeGovernanceUpgrade(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -427,7 +427,7 @@ contract('Governance', (accounts) => {
 
       let error;
       try {
-        await governance.finalizeGovernanceUpgrade(ethAddress);
+        await governance.finalizeGovernanceUpgrade(bnbAddress);
       } catch (e) {
         error = e;
       }

@@ -20,7 +20,7 @@ library AssetTransfers {
   /**
    * @dev Transfers tokens from a wallet into a contract during deposits. `wallet` must already
    * have called `approve` on the token contract for at least `tokenQuantity`. Note this only
-   * applies to tokens since ETH is sent in the deposit transaction via `msg.value`
+   * applies to tokens since BNB is sent in the deposit transaction via `msg.value`
    */
   function transferFrom(
     address wallet,
@@ -40,7 +40,7 @@ library AssetTransfers {
   }
 
   /**
-   * @dev Transfers ETH or token assets from a contract to 1) another contract, when `Exchange`
+   * @dev Transfers BNB or token assets from a contract to 1) another contract, when `Exchange`
    * forwards funds to `Custodian` during deposit or 2) a wallet, when withdrawing
    */
   function transferTo(
@@ -51,7 +51,7 @@ library AssetTransfers {
     if (asset == address(0x0)) {
       require(
         walletOrContract.send(quantityInAssetUnits),
-        'ETH transfer failed'
+        'BNB transfer failed'
       );
     } else {
       uint256 balanceBefore = IERC20(asset).balanceOf(walletOrContract);

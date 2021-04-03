@@ -1,4 +1,4 @@
-import { ethAddress } from './helpers';
+import { bnbAddress } from './helpers';
 import { CustodianInstance } from '../types/truffle-contracts/Custodian';
 import { ExchangeInstance } from '../types/truffle-contracts/Exchange';
 import { ExchangeMockInstance } from '../types/truffle-contracts/ExchangeMock';
@@ -29,7 +29,7 @@ contract('Custodian', (accounts) => {
     it('should revert for invalid exchange address', async () => {
       let error;
       try {
-        await Custodian.new(ethAddress, governance.address);
+        await Custodian.new(bnbAddress, governance.address);
       } catch (e) {
         error = e;
       }
@@ -51,7 +51,7 @@ contract('Custodian', (accounts) => {
     it('should revert for invalid governance address', async () => {
       let error;
       try {
-        await Custodian.new(exchange.address, ethAddress);
+        await Custodian.new(exchange.address, bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -128,7 +128,7 @@ contract('Custodian', (accounts) => {
     it('should revert for invalid address', async () => {
       let error;
       try {
-        await governanceMock.setExchange(ethAddress);
+        await governanceMock.setExchange(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -150,7 +150,7 @@ contract('Custodian', (accounts) => {
     it('should revert when not sent from governance address', async () => {
       let error;
       try {
-        await custodian.setExchange(ethAddress, {
+        await custodian.setExchange(bnbAddress, {
           from: accounts[1],
         });
       } catch (e) {
@@ -185,7 +185,7 @@ contract('Custodian', (accounts) => {
     it('should revert for invalid address', async () => {
       let error;
       try {
-        await governanceMock.setGovernance(ethAddress);
+        await governanceMock.setGovernance(bnbAddress);
       } catch (e) {
         error = e;
       }
@@ -207,7 +207,7 @@ contract('Custodian', (accounts) => {
     it('should revert when not sent from governance address', async () => {
       let error;
       try {
-        await custodian.setGovernance(ethAddress, {
+        await custodian.setGovernance(bnbAddress, {
           from: accounts[1],
         });
       } catch (e) {
@@ -239,7 +239,7 @@ contract('Custodian', (accounts) => {
 
       await exchangeMock.withdraw(
         destinationWallet,
-        ethAddress,
+        bnbAddress,
         web3.utils.toWei('1', 'ether'),
       );
 
@@ -252,14 +252,14 @@ contract('Custodian', (accounts) => {
       ).to.equal(web3.utils.toWei('1', 'ether'));
     });
 
-    it('should revert withdrawing ETH not deposited', async () => {
+    it('should revert withdrawing BNB not deposited', async () => {
       const [sourceWallet, destinationWallet] = accounts;
 
       let error;
       try {
         await exchangeMock.withdraw(
           destinationWallet,
-          ethAddress,
+          bnbAddress,
           web3.utils.toWei('1', 'ether'),
           { from: sourceWallet },
         );
@@ -267,7 +267,7 @@ contract('Custodian', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/ETH transfer failed/i);
+      expect(error.message).to.match(/BNB transfer failed/i);
     });
 
     it('should revert withdrawing tokens not deposited', async () => {
@@ -296,7 +296,7 @@ contract('Custodian', (accounts) => {
       try {
         await custodian.withdraw(
           destinationWallet,
-          ethAddress,
+          bnbAddress,
           web3.utils.toWei('1', 'ether'),
           { from: sourceWallet },
         );

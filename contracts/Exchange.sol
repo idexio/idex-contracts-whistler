@@ -28,7 +28,7 @@ import { UUID } from './libraries/UUID.sol';
 /**
  * @notice The Exchange contract. Implements all deposit, trade, and withdrawal logic and associated balance tracking
  *
- * @dev The term `asset` refers collectively to ETH and ERC-20 tokens, the term `token` refers only to the latter
+ * @dev The term `asset` refers collectively to BNB and ERC-20 tokens, the term `token` refers only to the latter
  * @dev Events with indexed string parameters (Deposited and TradeExecuted) only log the hash values for those
  * parameters, from which the original raw string values cannot be retrieved. For convenience these events contain
  * the un-indexed string parameter values in addition to the indexed values
@@ -45,7 +45,7 @@ contract Exchange is IExchange, Owned {
    */
   event ChainPropagationPeriodChanged(uint256 previousValue, uint256 newValue);
   /**
-   * @notice Emitted when a user deposits ETH with `depositEther` or a token with `depositAsset` or `depositAssetBySymbol`
+   * @notice Emitted when a user deposits BNB with `depositEther` or a token with `depositAsset` or `depositAssetBySymbol`
    */
   event Deposited(
     uint64 index,
@@ -245,10 +245,7 @@ contract Exchange is IExchange, Owned {
    */
   function setFeeWallet(address newFeeWallet) external onlyAdmin {
     require(newFeeWallet != address(0x0), 'Invalid wallet address');
-    require(
-      newFeeWallet != _feeWallet,
-      'Must be different from current fee wallet'
-    );
+    require(newFeeWallet != _feeWallet, 'Must be different from current');
 
     address oldFeeWallet = _feeWallet;
     _feeWallet = newFeeWallet;
@@ -377,7 +374,7 @@ contract Exchange is IExchange, Owned {
   // Depositing //
 
   /**
-   * @notice Deposit ETH
+   * @notice Deposit BNB
    */
   function depositEther() external payable {
     deposit(msg.sender, address(0x0), msg.value);
@@ -394,10 +391,7 @@ contract Exchange is IExchange, Owned {
     IERC20 tokenAddress,
     uint256 quantityInAssetUnits
   ) external {
-    require(
-      address(tokenAddress) != address(0x0),
-      'Use depositEther to deposit Ether'
-    );
+    require(address(tokenAddress) != address(0x0), 'Use depositEther for BNB');
     deposit(msg.sender, address(tokenAddress), quantityInAssetUnits);
   }
 
@@ -417,10 +411,7 @@ contract Exchange is IExchange, Owned {
         .loadAssetBySymbol(assetSymbol, getCurrentTimestampInMs())
         .assetAddress
     );
-    require(
-      address(tokenAddress) != address(0x0),
-      'Use depositEther to deposit ETH'
-    );
+    require(address(tokenAddress) != address(0x0), 'Use depositEther for BNB');
 
     deposit(msg.sender, address(tokenAddress), quantityInAssetUnits);
   }
@@ -445,13 +436,13 @@ contract Exchange is IExchange, Owned {
     require(quantityInPips > 0, 'Quantity is too low');
 
     // Convert from pips back into asset units to remove any fractional amount that is too small
-    // to express in pips. If the asset is ETH, this leftover fractional amount accumulates as dust
+    // to express in pips. If the asset is BNB, this leftover fractional amount accumulates as dust
     // in the `Exchange` contract. If the asset is a token the `Exchange` will call `transferFrom`
     // without this fractional amount and there will be no dust
     uint256 quantityInAssetUnitsWithoutFractionalPips = AssetUnitConversions
       .pipsToAssetUnits(quantityInPips, asset.decimals);
 
-    // If the asset is ETH then the funds were already assigned to this contract via msg.value. If
+    // If the asset is BNB then the funds were already assigned to this contract via msg.value. If
     // the asset is a token, additionally call the transferFrom function on the token contract for
     // the pre-approved asset quantity
     if (assetAddress != address(0x0)) {
@@ -1042,7 +1033,7 @@ contract Exchange is IExchange, Owned {
 
   /**
    * @notice Initiate registration process for a token asset. Only `IERC20` compliant tokens can be
-   * added - ETH is hardcoded in the registry
+   * added - BNB is hardcoded in the registry
    *
    * @param tokenAddress The address of the `IERC20` compliant token contract to add
    * @param symbol The symbol identifying the token asset
@@ -1119,7 +1110,7 @@ contract Exchange is IExchange, Owned {
     require(newDispatcherWallet != address(0x0), 'Invalid wallet address');
     require(
       newDispatcherWallet != _dispatcherWallet,
-      'Must be different from current dispatcher'
+      'Must be different from current'
     );
     address oldDispatcherWallet = _dispatcherWallet;
     _dispatcherWallet = newDispatcherWallet;

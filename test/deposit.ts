@@ -4,7 +4,7 @@ import {
   minimumTokenQuantity,
   ethSymbol,
 } from './helpers';
-import { assetUnitsToPips, ethAddress } from '../lib';
+import { assetUnitsToPips, bnbAddress } from '../lib';
 
 contract('Exchange (deposits)', (accounts) => {
   const Exchange = artifacts.require('Exchange');
@@ -14,7 +14,7 @@ contract('Exchange (deposits)', (accounts) => {
 
   const tokenSymbol = 'TKN';
 
-  it('should revert when receiving ETH directly', async () => {
+  it('should revert when receiving BNB directly', async () => {
     const exchange = await Exchange.new();
 
     let error;
@@ -50,20 +50,20 @@ contract('Exchange (deposits)', (accounts) => {
       const { wallet, assetAddress, assetSymbol } = events[0].returnValues;
 
       expect(wallet).to.equal(accounts[0]);
-      expect(assetAddress).to.equal(ethAddress);
+      expect(assetAddress).to.equal(bnbAddress);
       expect(assetSymbol).to.equal(ethSymbol);
 
       expect(
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             accounts[0],
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal(minimumTokenQuantity);
       expect(
         (
-          await exchange.loadBalanceInPipsByAddress(accounts[0], ethAddress)
+          await exchange.loadBalanceInPipsByAddress(accounts[0], bnbAddress)
         ).toString(),
       ).to.equal(assetUnitsToPips(minimumTokenQuantity, 18));
       expect(
@@ -116,19 +116,19 @@ contract('Exchange (deposits)', (accounts) => {
       expect(assetSymbol).to.equal(tokenSymbol);
     });
 
-    it('should revert for ETH', async () => {
+    it('should revert for BNB', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
 
       let error;
       try {
         await token.approve(exchange.address, minimumTokenQuantity);
-        await exchange.depositTokenBySymbol('ETH', minimumTokenQuantity);
+        await exchange.depositTokenBySymbol('BNB', minimumTokenQuantity);
       } catch (e) {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/use depositEther to deposit ETH/i);
+      expect(error.message).to.match(/use depositEther for BNB/i);
     });
 
     it('should revert for exited wallet', async () => {
@@ -212,19 +212,19 @@ contract('Exchange (deposits)', (accounts) => {
       expect(events.length).to.equal(1);
     });
 
-    it('should revert for ETH', async () => {
+    it('should revert for BNB', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await deployAndRegisterToken(exchange, tokenSymbol);
 
       let error;
       try {
         await token.approve(exchange.address, minimumTokenQuantity);
-        await exchange.depositTokenByAddress(ethAddress, minimumTokenQuantity);
+        await exchange.depositTokenByAddress(bnbAddress, minimumTokenQuantity);
       } catch (e) {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/use depositEther to deposit ether/i);
+      expect(error.message).to.match(/use depositEther for BNB/i);
     });
 
     it('should revert for unknown token', async () => {

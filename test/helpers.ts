@@ -10,8 +10,8 @@ import {
   getWithdrawalHash,
 } from '../lib';
 
-export const ethAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
-export const ethSymbol = 'ETH';
+export const bnbAddress = web3.utils.bytesToHex([...Buffer.alloc(20)]);
+export const ethSymbol = 'BNB';
 
 // TODO Test tokens with decimals other than 18
 export const minimumDecimalQuantity = '0.00000001';

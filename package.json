@@ -1,10 +1,25 @@
 {
   "name": "@idexio/idex-contracts",
+  "license": "LGPL-3.0-only",
+  "version": "0.0.2-multiverse-bsc-3",
+  "description": "Collects source code, tests, and documentation for the IDEX Whistler release Ethereum contracts",
+  "homepage": "https://github.com/idexio/idex-contracts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/idexio/idex-contracts.git"
   },
-  "private": true,
+  "main": "build/lib/index.js",
+  "types": "build/lib/index.d.ts",
+  "directories": {
+    "lib": "build/lib"
+  },
+  "files": [
+    "build/contracts/Custodian.json",
+    "build/contracts/Exchange.json",
+    "build/contracts/Governance.json",
+    "build/lib",
+    "tsconfig.json"
+  ],
   "scripts": {
     "analyze": "slither .",
     "build": "yarn build:sol && yarn build:ts",

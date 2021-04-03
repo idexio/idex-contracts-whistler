@@ -5,7 +5,7 @@ import {
   deployAndRegisterToken,
   ethSymbol,
 } from './helpers';
-import { ethAddress } from '../lib';
+import { bnbAddress } from '../lib';
 import { AssetsMockInstance } from '../types/truffle-contracts/AssetsMock';
 
 contract('Exchange (tokens)', () => {
@@ -38,12 +38,12 @@ contract('Exchange (tokens)', () => {
       );
     });
 
-    it('should revert for ETH address', async () => {
+    it('should revert for BNB address', async () => {
       const { exchange } = await deployAndAssociateContracts();
 
       let error;
       try {
-        await exchange.registerToken(ethAddress, tokenSymbol, 18);
+        await exchange.registerToken(bnbAddress, tokenSymbol, 18);
       } catch (e) {
         error = e;
       }
@@ -214,7 +214,7 @@ contract('Exchange (tokens)', () => {
       expect(error.message).to.match(/not finalized/i);
     });
 
-    it('should revert for reserved ETH symbol', async () => {
+    it('should revert for reserved BNB symbol', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await Token.new();
 
@@ -223,15 +223,15 @@ contract('Exchange (tokens)', () => {
 
       let error;
       try {
-        await exchange.addTokenSymbol(token.address, 'ETH');
+        await exchange.addTokenSymbol(token.address, 'BNB');
       } catch (e) {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/ETH symbol reserved/i);
+      expect(error.message).to.match(/BNB symbol reserved/i);
     });
 
-    it('should revert for ETH address', async () => {
+    it('should revert for BNB address', async () => {
       const { exchange } = await deployAndAssociateContracts();
       const token = await Token.new();
 
@@ -240,7 +240,7 @@ contract('Exchange (tokens)', () => {
 
       let error;
       try {
-        await exchange.addTokenSymbol(ethAddress, 'TKN');
+        await exchange.addTokenSymbol(bnbAddress, 'TKN');
       } catch (e) {
         error = e;
       }
@@ -250,14 +250,14 @@ contract('Exchange (tokens)', () => {
   });
 
   describe('loadAssetBySymbol', () => {
-    it('should work for ETH', async () => {
+    it('should work for BNB', async () => {
       const { exchange } = await deployAndAssociateContracts();
 
       const registeredAddress = (
         await exchange.loadAssetBySymbol(ethSymbol, new Date().getTime())
       ).assetAddress;
 
-      expect(registeredAddress).to.equal(ethAddress);
+      expect(registeredAddress).to.equal(bnbAddress);
     });
 
     it('should work for registered token', async () => {

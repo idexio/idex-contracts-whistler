@@ -9,7 +9,7 @@ import type {
 import {
   deployAndAssociateContracts,
   deployAndRegisterToken,
-  ethAddress,
+  bnbAddress,
   ethSymbol,
   getSignature,
 } from './helpers';
@@ -78,7 +78,7 @@ contract('Exchange (trades)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             sellWallet,
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
@@ -248,7 +248,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -281,7 +281,7 @@ contract('Exchange (trades)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             sellWallet,
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
@@ -306,7 +306,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -369,7 +369,7 @@ contract('Exchange (trades)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             sellWallet,
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
@@ -394,7 +394,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -429,7 +429,7 @@ contract('Exchange (trades)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             sellWallet,
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
@@ -454,7 +454,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -489,7 +489,7 @@ contract('Exchange (trades)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             sellWallet,
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
@@ -514,7 +514,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -550,7 +550,7 @@ contract('Exchange (trades)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             sellWallet,
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
@@ -575,7 +575,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -616,7 +616,7 @@ contract('Exchange (trades)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             sellWallet,
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
@@ -641,7 +641,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -685,7 +685,7 @@ contract('Exchange (trades)', (accounts) => {
         (
           await exchange.loadBalanceInAssetUnitsByAddress(
             sellWallet,
-            ethAddress,
+            bnbAddress,
           )
         ).toString(),
       ).to.equal(decimalToAssetUnits(fill.netQuoteQuantity, 18));
@@ -710,7 +710,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -742,7 +742,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -776,7 +776,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -812,7 +812,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -848,7 +848,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -896,7 +896,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1047,7 +1047,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1077,11 +1077,11 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
-      buyOrder.signatureHashVersion = 2;
+      buyOrder.signatureHashVersion = 1;
 
       let error;
       try {
@@ -1097,7 +1097,7 @@ contract('Exchange (trades)', (accounts) => {
         error = e;
       }
       expect(error).to.not.be.undefined;
-      expect(error.message).to.match(/signature hash version must be 1/i);
+      expect(error.message).to.match(/signature hash version must be 2/i);
     });
 
     it('should revert for invalid signature (wrong wallet)', async () => {
@@ -1108,7 +1108,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1145,7 +1145,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1184,7 +1184,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1215,7 +1215,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1246,7 +1246,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1279,7 +1279,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1312,7 +1312,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1345,7 +1345,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1378,13 +1378,13 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
       buyOrder.market = `${ethSymbol}-${ethSymbol}`;
       sellOrder.market = `${ethSymbol}-${ethSymbol}`;
-      fill.baseAssetAddress = ethAddress;
+      fill.baseAssetAddress = bnbAddress;
 
       let error;
       try {
@@ -1415,7 +1415,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1448,7 +1448,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1479,7 +1479,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1513,7 +1513,7 @@ contract('Exchange (trades)', (accounts) => {
 
       const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
         token.address,
-        ethAddress,
+        bnbAddress,
         buyWallet,
         sellWallet,
       );
@@ -1553,7 +1553,7 @@ export const deposit = async (
   sellWallet: string,
   decimals = 18,
   quantity = '10.00000000',
-  price = '0.10000000', // 1 ETH buys 10 TKN
+  price = '0.10000000', // 1 BNB buys 10 TKN
 ): Promise<void> => {
   const quoteQuantity = new BigNumber(quantity)
     .multipliedBy(new BigNumber(price).shiftedBy(18 - decimals))
@@ -1587,7 +1587,7 @@ export const depositTokenPair = async (
   sellWallet: string,
   decimals = 18,
   quantity = '10.00000000',
-  price = '0.10000000', // 1 ETH buys 10 TKN
+  price = '0.10000000', // 1 BNB buys 10 TKN
 ): Promise<void> => {
   await baseToken.approve(
     exchange.address,
@@ -1654,7 +1654,7 @@ export const generateOrdersAndFill = async (
   buyWallet: string,
   sellWallet: string,
   quantity = '10.00000000',
-  price = '0.10000000', // 1 ETH buys 10 TKN
+  price = '0.10000000', // 1 BNB buys 10 TKN
   market = marketSymbol,
 ): Promise<{ buyOrder: Order; sellOrder: Order; fill: Trade }> => {
   const quoteQuantity = new BigNumber(quantity)
@@ -1662,7 +1662,7 @@ export const generateOrdersAndFill = async (
     .toFixed(8, BigNumber.ROUND_DOWN);
 
   const sellOrder: Order = {
-    signatureHashVersion: 1,
+    signatureHashVersion: 2,
     nonce: uuidv1(),
     wallet: sellWallet,
     market,
@@ -1674,7 +1674,7 @@ export const generateOrdersAndFill = async (
   };
 
   const buyOrder: Order = {
-    signatureHashVersion: 1,
+    signatureHashVersion: 2,
     nonce: uuidv1(),
     wallet: buyWallet,
     market,
@@ -1721,7 +1721,7 @@ const generateAndExecuteTrade = async (
 ): Promise<Trade> => {
   const { buyOrder, sellOrder, fill } = await generateOrdersAndFill(
     token.address,
-    ethAddress,
+    bnbAddress,
     buyWallet,
     sellWallet,
   );

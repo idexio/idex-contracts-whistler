@@ -80,9 +80,9 @@ smart contracts before trading. The interaction lifecycle spans three steps.
 
 ### Deposit
 
-Users must deposit funds into the Whistler contracts before they are available for trading on IDEX. Depositing ETH
-requires calling `depositEther` on the Exchange contract; depositing tokens requires an `approve` call on the token itself
-before calling `depositTokenByAddress` on the Exchange contract.
+Users must deposit funds into the Whistler contracts before they are available for trading on IDEX. Depositing BNB
+requires calling `depositEther` on the Exchange contract; depositing tokens requires an `approve` call on the
+token contract itself before calling `depositTokenByAddress` on the Exchange contract.
 
 - The `depositEther` and `depositTokenByAddress` are functions on the Exchange contract, but the funds are ultimately
 held in the Custody contract. As part of the deposit process, tokens are transferred first to the Exchange contract,
@@ -111,7 +111,7 @@ without waiting for dispatch or mining.
 infrastructure is compromised, the validations ensure that funds can only move in accordance with orders signed by the
 depositing wallet.
   
-- Due to business requirements, orders are specified by symbol, eg “UBT-ETH” rather than by token contract addresses.
+- Due to business requirements, orders are specified by symbol, eg "UBT-BNB" rather than by token contract addresses.
 A number of validations result from the [token symbol registration system](#token-symbol-registry). Note the `trade`
 parameter to the `executeTrade` function includes the symbol strings separately. This is a gas optimization to order
 signature verification as string concat is cheaper than split.
@@ -173,7 +173,7 @@ The Whistler controls and governance design is captured in its own [spec](./GOVE
 ### Token Symbol Registry
 
 Business rules require orders to be specified in asset symbol terms rather than token contract address terms. For
-example, an order specifies the market as `"UBT-ETH"` rather than `{ "base": "0xb705268213d593b8fd88d3fdeff93aff5cbdcfae",
+example, an order specifies the market as `"UBT-BNB"` rather than `{ "base": "0xb705268213d593b8fd88d3fdeff93aff5cbdcfae",
 "quote": "0x0" }`. Deposits, withdrawals and asset balance tracking, however, must be implemented in token contract
 address terms. In order to support both usage modes, Whistler includes a token registry that maps symbols to token contract
 addresses along with additional token metadata, such as precision. Only registered tokens are accepted for deposit.
